@@ -7,6 +7,15 @@ import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
 import "./interfaces/ITreasury.sol";
 
+/*
+TO-DO:
+- set functions to edit personal max fighters/miners 
+- add experience attribute
+- add 10 new ship placeholders
+- restructure the ships, remove from capital, make own struct
+- add attributes for each ship type
+*/
+
 contract DryDock is Ownable {
     using SafeBEP20 for ShibaBEP20;
 
@@ -41,16 +50,13 @@ contract DryDock is Ownable {
         Treasury = _Treasury;
     }
 
-
     // Info of the player's capital ship
     struct CapitalShip {
         string name;
-        uint16 fighters;
-        uint16 maxFighters;
+        uint power;
         uint8 powerMod;
-        uint16 miners;
-        uint16 maxMiners;
         uint256 carryCapacity;
+        uint experience;
         uint16 wins;
         uint16 losses;
     }
@@ -61,6 +67,7 @@ contract DryDock is Ownable {
     mapping (address => uint) public ownerShipId;
     mapping (address => uint) ownerCapitalShipCount;
     mapping (address => bool) public purchaser;
+    mapping (address => bool) isLaunched; // flag to check if a player has already prepared/launched their fleet
 
     // set treasury address
     function setTreasury(address _treasury) external onlyOwner {
@@ -70,7 +77,7 @@ contract DryDock is Ownable {
     }
 
     //update the nova token address
-    function setNovaAddrss(address _newAddress) external onlyOwner {
+    function setNovaAddress(address _newAddress) external onlyOwner {
         Nova = ShibaBEP20(_newAddress);
         emit NewNovaAddress(_newAddress);
     }
@@ -97,11 +104,29 @@ contract DryDock is Ownable {
         purchaser[_purchaser] = false;
     }
 
+    function setLaunched(address _player, bool _status) external {
+        require(isLaunched[_player] != _status, "DRYDOCK: Player already in this state");
+        isLaunched[_player] = _status;
+    }
+
+    function getLaunchStatus(address _player) public view returns(bool) {
+        return isLaunched[_player];
+    }
+
+    function isContract(address _address) internal view returns (bool){
+    uint32 size;
+    assembly {
+        size := extcodesize(_address)
+    }
+    return (size > 0);
+    }
+
+    // capital ship info helpers
     function getOwnerCapitalShipCount(address _owner) external view returns(uint) {
         return ownerCapitalShipCount[_owner];
     }
 
-    function getCapShpiOwner(uint _id) external view returns (address) {
+    function getCapShipOwner(uint _id) external view returns (address) {
         return capitalShipOwner[_id];
     }
 
@@ -117,30 +142,26 @@ contract DryDock is Ownable {
     function getCapitalShipRecord(uint256 _id) external view returns(
             string memory name,
             uint16 wins,
-            uint16 losses
+            uint16 losses,
+            uint experience
             ) {
             return (
                 capitalShips[_id].name,
                 capitalShips[_id].wins,
-                capitalShips[_id].losses
+                capitalShips[_id].losses,
+                capitalShips[_id].experience
             );
     }
 
     // get capital ship combat stats and mining power
     function getCapitalShip(uint256 _id) external view returns(
-            uint16 fighters,
-            uint16 maxFighters,
+            uint power,
             uint8 powerMod,
-            uint16 miners,
-            uint16 maxMiners,
             uint256 carryCapacity
         ) {
             return (
-                capitalShips[_id].fighters,
-                capitalShips[_id].maxFighters,
+                capitalShips[_id].power,
                 capitalShips[_id].powerMod,
-                capitalShips[_id].miners,
-                capitalShips[_id].maxMiners,
                 capitalShips[_id].carryCapacity
             );
         }
@@ -148,127 +169,35 @@ contract DryDock is Ownable {
     // external function to build capital ship, _sender should be the address of the player, not the contracts interacting with this
     function buildCapShip (
         address _sender,
-        string memory _name, 
-        uint _amount, 
-        uint16 _startFighters, 
-        uint16 _currentMaxFighters, 
-        uint16 _startMiners, 
-        uint16 _currentMaxMiners
+        string memory _name 
         ) external onlyPurchaser {
             require(ownerCapitalShipCount[_sender] == 0, "DRYDOCK: Each player can only have one Capital Ship");
             ownerCapitalShipCount[msg.sender]++;
-            Nova.transferFrom(_sender, Treasury, _amount);
+            Nova.transferFrom(_sender, Treasury, baseCapCost);
             ITreasury(Treasury).sendFee();
             uint id = capShipLength();
             capitalShips.push(CapitalShip({
                 name: _name, 
-                fighters: _startFighters, 
-                maxFighters: _currentMaxFighters,
+                power: 0,
                 powerMod: 0, 
-                miners: _startMiners, 
-                maxMiners: _currentMaxMiners, 
-                carryCapacity: _startMiners * weightMax, 
+                carryCapacity: 0, 
                 wins: 0, 
-                losses: 0
+                losses: 0,
+                experience: 0
                 }));
 
         capitalShipOwner[id] = _sender;
         ownerShipId[_sender] = id;
-        ownerCapitalShipCount[_sender]++;
         emit NewCapitalShip(id, _name);
     }
 
-    // internal function to build capital ship, 
-    function _buildCapShip (
-        string memory _name, 
-        uint _amount, 
-        uint16 _startFighters, 
-        uint16 _currentMaxFighters, 
-        uint16 _startMiners, 
-        uint16 _currentMaxMiners
-        ) private {
-            require(ownerCapitalShipCount[msg.sender] == 0, "DRYDOCK: Each player can only have one Capital Ship");
-            ownerCapitalShipCount[msg.sender]++;
-            Nova.transferFrom(msg.sender, Treasury, _amount);
-            ITreasury(Treasury).sendFee();
-            uint id = capShipLength();
-            capitalShips.push(CapitalShip({
-                name: _name, 
-                fighters: _startFighters, 
-                maxFighters: _currentMaxFighters,
-                powerMod: 0, 
-                miners: _startMiners, 
-                maxMiners: _currentMaxMiners, 
-                carryCapacity: _startMiners * weightMax, 
-                wins: 0, 
-                losses: 0
-                }));
-
-        capitalShipOwner[id] = msg.sender;
-        ownerShipId[msg.sender] = id;
-        emit NewCapitalShip(id, _name);
-    }
-
-    // set the cost of the base capital ship, this also sets the cost for the value packs
-    // ex: _amount = 10 * 10**18, then base cost is 10 nova
-    function setBasicCost (uint _amount) external onlyOwner {
-        baseCapCost = _amount;
-        emit NewBaseCapCost (_amount);
-    }
-
-    // funciton to build the basic capital ship with 10 fighters and 1 miner
-    function buildCapBasic(string memory _name) external {
-        uint _amount = baseCapCost; 
-        uint16 _startFighters = 10;
-        uint16 _currentMaxFighters = currentMaxFighters; 
-        uint16 _startMiners = 1; 
-        uint16 _currentMaxMiners = currentMaxMiners;
-        _buildCapShip(_name, _amount, _startFighters, _currentMaxFighters, _startMiners, _currentMaxMiners);
-    }
-
-    function buildCapValue(string memory _name) external {
-        uint _amount = valueCapCost; 
-        uint16 _startFighters = 100;
-        uint16 _currentMaxFighters = currentMaxFighters; 
-        uint16 _startMiners = 3; 
-        uint16 _currentMaxMiners = currentMaxMiners;
-        _buildCapShip(_name, _amount, _startFighters, _currentMaxFighters, _startMiners, _currentMaxMiners);
-    }
-    
-    function buildCapSuper(string memory _name) external {
-        uint _amount = superCapCost; 
-        uint16 _startFighters = 500;
-        uint16 _currentMaxFighters = currentMaxFighters + 100; 
-        uint16 _startMiners = 10; 
-        uint16 _currentMaxMiners = currentMaxMiners;
-        _buildCapShip(_name, _amount, _startFighters, _currentMaxFighters, _startMiners, _currentMaxMiners);
-    }
-
-    // functions to add/sub/buy fighters, add/sub are for other contract interactions
-    function addFighter (address _sender, uint16 _value) external onlyPurchaser {
-        uint _id = ownerShipId[_sender];
-        require(capitalShips[_id].fighters + _value <= capitalShips[_id].maxFighters, 
-            "DRYDOCK: cannot have more than your max amount of fighters");
-        capitalShips[_id].fighters = capitalShips[_id].fighters + _value;
-    }
-
-    // 10 is the min amount of fighters you're allowed to have
-    function subFighter (address _sender, uint16 _value) external onlyPurchaser {
-        uint _id = ownerShipId[_sender];
-        if (capitalShips[_id].fighters - _value <= 10) {
-            capitalShips[_id].fighters = 10;
-        } else {
-        capitalShips[_id].fighters = capitalShips[_id].fighters - _value;
-        }
-    }
-    
-    function buyFighters (uint16 _value) external {
-        uint _id = ownerShipId[msg.sender];
-        Nova.transferFrom(msg.sender, Treasury, fighterCost);
-        ITreasury(Treasury).sendFee();
-        require(capitalShips[_id].fighters + _value <= capitalShips[_id].maxFighters, 
-            "DRYDOCK: cannot have more than your max amount of fighters");
-        capitalShips[_id].fighters = capitalShips[_id].fighters + _value;
+    //Extneral function to set the total power
+    function setPower(uint _id, uint _amount) external onlyPurchaser {
+        capitalShips[_id].power = _amount;
+    }  
+    //External function to set the carry capacity
+    function setCarryCapacity(uint _id, uint _amount) external onlyPurchaser {
+        capitalShips[_id].carryCapacity = _amount;
     }
 
     // allows owner to set a new fighter cost
@@ -303,6 +232,7 @@ contract DryDock is Ownable {
     }
     
     function buyMiners (uint16 _value) external {
+        require(isContract(msg.sender) ==  false, "DRYDOCK: purchaser cannot be a smart contract");
         uint _id = ownerShipId[msg.sender];
         Nova.transferFrom(msg.sender, Treasury, minerCost);
         ITreasury(Treasury).sendFee();
@@ -330,7 +260,7 @@ contract DryDock is Ownable {
         emit NewWeightMax(_value);
     }
 
-    // set the fleet's powerMod
+    // set the capital ship's powerMod
     function addPowerMod(uint8 _value, address _sender) external onlyPurchaser {
         uint _id = ownerShipId[_sender];
         require(capitalShips[_id].powerMod + _value <= 255, "DRYDOCK: player's powerMod is capped");

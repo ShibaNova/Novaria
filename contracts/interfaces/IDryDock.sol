@@ -23,20 +23,13 @@ interface IDryDock {
         );
     function buildCapShip (
         address _sender,
-        string memory _name, 
-        uint _amount, 
-        uint16 _startFighters, 
-        uint16 _currentMaxFighters, 
-        uint16 _startMiners, 
-        uint16 _currentMaxMiners
+        string memory _name
         ) external; // onlyPurchaser
-    function addFighter (address _sender, uint16 _value) external; // onlyPurchaser
-    function subFighter (address _sender, uint16 _value) external; // onlyPurchaser
-    function buyFighters (uint16 _value) external;
-    function addMiner(address _sender, uint16 _value) external; // onlyPurchaser
-    function subMiner (address _sender, uint16 _value) external; // onlyPurchaser
-    function buyMiners (uint16 _value) external;
     function addPowerMod(uint8 _value, address _sender) external; // onlyPurchaser
     function subPowerMod(uint8 _value, address _sender) external; // onlyPurchaser
-
+    function setLaunched(address _player, bool _status) external;
+    function getLaunchStatus(address _player) external view returns(bool);
+    function setPower(uint _id, uint _amount) external;
+    function setCarryCapacity(uint _id, uint _amount) external;
+    
 }

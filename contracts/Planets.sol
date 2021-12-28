@@ -12,6 +12,8 @@ contract Planets is Ownable {
     struct Planet {
         string name;
         uint distance;
+        uint x;
+        uint y;
     }
 
     Planet[] public planets;
@@ -28,3 +30,17 @@ contract Planets is Ownable {
         return (planets[_id].name, planets[_id].distance);
     }
 }
+
+
+
+
+function prepareLaunch ()
+    uint launchTime = block.timestamp round up to next hour;
+
+
+function cancelLaunch ()
+
+
+function launchTravel()
+    require(current timestamp < launchTime + 15 minutes?)
+    uint arrival = launchTime + 8hrs;

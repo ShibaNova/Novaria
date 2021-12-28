@@ -60,7 +60,7 @@ contract Treasury is Ownable {
         emit NewFeeManager(_newAddress);
     }
 
-    function setNovaAddrss(address _newAddress) external onlyOwner {
+    function setNovaAddress(address _newAddress) external onlyOwner {
         Nova = ShibaBEP20(_newAddress);
         emit NewNovaAddress(_newAddress);
     }
