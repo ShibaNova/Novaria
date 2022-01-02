@@ -20,26 +20,11 @@ contract DryDock is Ownable {
     using SafeBEP20 for ShibaBEP20;
 
     event NewCapitalShip(uint shipID, string name);
-    event NewBaseCapCost(uint newCost);
-    event NewFighterCost(uint newCost); 
-    event NewMaxFighters(uint16 newMax);
-    event NewMinerCost(uint newCost);
-    event NewMaxMiners(uint16 newMax);
-    event NewWeightMax(uint newWeight);
     event NewTreasury(address newAddress);
     event NewNovaAddress(address newNova);
 
     ShibaBEP20 public Nova;
     address public Treasury;
-    uint public baseCapCost = 100 * 10**18; // = 100 nova. amount of nova the base capital ship costs.
-    uint public valueCapCost = baseCapCost * 3; 
-    uint public superCapCost = baseCapCost * 10;
-    uint public fighterCost = 10**18; // = 1 nova, cost of fighters can be changed
-    uint16 public currentMaxFighters = 1000;
-    uint public minerCost = 10*10**18; // == 10 nova, cost can by changed
-    uint16 public currentMaxMiners = 1000;
-    uint public weightMax = 10**18; // defines the NOVA carry capacity of the capital ship, dependant upon the number of miners
-
     // Be sure to set this contract as a purchaser after deployment
     constructor(
         ShibaBEP20 _Nova,
@@ -200,66 +185,7 @@ contract DryDock is Ownable {
         capitalShips[_id].carryCapacity = _amount;
     }
 
-    // allows owner to set a new fighter cost
-    function setFighterCost(uint _value) external onlyOwner {
-        fighterCost = _value;
-        emit NewFighterCost(_value);
-    }
-
-    // owner can modify maxFighters
-    function setMaxFighters(uint16 _value) external onlyOwner {
-        currentMaxFighters = _value; 
-        emit NewMaxFighters(_value);
-    }
-
-    // functions to add/sub/buy miners, similar structure to fighters
-    function addMiner(address _sender, uint16 _value) external onlyPurchaser {
-        uint _id = ownerShipId[_sender];
-        require(capitalShips[_id].miners + _value <= capitalShips[_id].maxMiners, 
-            "DRYDOCK: cannot have more than your max amount of miners");
-        capitalShips[_id].miners = capitalShips[_id].miners + _value;
-        capitalShips[_id].carryCapacity = capitalShips[_id].miners * weightMax;
-    }
     
-    function subMiner (address _sender, uint16 _value) external onlyPurchaser {
-        uint _id = ownerShipId[_sender];
-        if (capitalShips[_id].miners - _value <= 0) {
-            capitalShips[_id].miners = 0;
-        } else {
-        capitalShips[_id].miners = capitalShips[_id].miners - _value;
-        }
-        capitalShips[_id].carryCapacity = capitalShips[_id].miners * weightMax;
-    }
-    
-    function buyMiners (uint16 _value) external {
-        require(isContract(msg.sender) ==  false, "DRYDOCK: purchaser cannot be a smart contract");
-        uint _id = ownerShipId[msg.sender];
-        Nova.transferFrom(msg.sender, Treasury, minerCost);
-        ITreasury(Treasury).sendFee();
-        require(capitalShips[_id].miners + _value <= capitalShips[_id].maxMiners, 
-            "DRYDOCK: cannot have more than your max amount of miners");
-        capitalShips[_id].miners = capitalShips[_id].miners + _value;
-        capitalShips[_id].carryCapacity = capitalShips[_id].miners * weightMax;
-    }
-
-    // allows owner to set a new miner cost
-    function setMinerCost(uint _value) external onlyOwner {
-        minerCost = _value;
-        emit NewMinerCost(_value);
-    }
-
-    // owner can modify maxMiners
-    function setMaxMiners(uint16 _value) external onlyOwner {
-        currentMaxMiners = _value; 
-        emit NewMaxMiners(_value);
-    }
-
-    // set how much nova a miner can carry
-    function setWeightMax(uint _value) external onlyOwner {
-        weightMax = _value;
-        emit NewWeightMax(_value);
-    }
-
     // set the capital ship's powerMod
     function addPowerMod(uint8 _value, address _sender) external onlyPurchaser {
         uint _id = ownerShipId[_sender];

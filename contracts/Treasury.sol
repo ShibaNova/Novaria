@@ -65,11 +65,16 @@ contract Treasury is Ownable {
         emit NewNovaAddress(_newAddress);
     }
 
-    // function for distributors to send funds to the fee manager
-    function sendFee() external onlyDistributor {
+    // function for treasury to send funds to the fee manager
+    function _sendFee() internal {
         uint _amount = Nova.balanceOf(address(this)) * moneyPotRate / 100;
         Nova.transfer(feeManager, _amount);
         totalPot = totalPot + _amount;
+    }
+
+    function deposit(address _from, uint _amount) external {
+        Nova.transferFrom(_from, address(this), _amount);
+        _sendFee();
     }
 
     // function to withdraw fees from Treasury

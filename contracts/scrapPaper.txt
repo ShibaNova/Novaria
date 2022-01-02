@@ -1,37 +1,5 @@
-
-    function addChallengerMax(uint _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].max = challengers[_id].max + _amount;
-    }
-    function addChallengerAttack(uint16 _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].attack = challengers[_id].attack + _amount;
-        _updatePower(_player);
-    }
-    function addChallengerArmor(uint16 _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].armor = challengers[_id].armor + _amount;
-    }
-    function addChallengerCapacity(uint _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].capacity = challengers[_id].capacity + _amount;
-        _updateCarry(_player);
-    }
-    function subChallengerMax(uint _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].max = challengers[_id].max - _amount;
-    }
-    function subChallengerAttack(uint16 _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].attack = challengers[_id].attack - _amount;
-        _updatePower(_player);
-    }
-    function subChallengerArmor(uint16 _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].armor = challengers[_id].armor - _amount;
-    }
-    function subChallengerCapacity(uint _amount, address _player) public onlyPurchaser {
-        uint _id = challengerId[_player];
-        challengers[_id].capacity = challengers[_id].capacity - _amount;
-        _updateCarry(_player);
+	function modifyShipClassResearchCost(
+        string memory _shipClass, 
+        uint _researchCost) external onlyOwner {
+	    shipDefaults[_shipClass].researchCost = _researchCost;
     }
