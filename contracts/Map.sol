@@ -2,139 +2,137 @@
 
 pragma solidity ^0.8.7;
 
-import "./interfaces/ITreasury.sol";
 import "./libs/Editor.sol";
+import "./libs/Helper.sol";
+import "./interfaces/ITreasury.sol";
 
-/* The Map contract creates a list of x,y coords that can be assigned locations.
-Players can then go to these locations and interact as defined by the location.
-The location coords and a player's location are stored here, as well as a few 
-helper functions.
-*/
-
-/* TODO: 
-- Add in size modifier to travel cost
-*/
- 
-contract Map is Editor {
-
-    constructor (
-        ITreasury _treasury
-    ) {
-        Treasury = _treasury;
-        createPlace('Haven', 0 ,0);
-    }
-
-    struct Place {
-        string name;
-        uint xcoord;
-        uint ycoord;
-        address[] players;
-        bool assigned;
-        bool enabled;
-    }
-
-    Place[] public places;
-
-    mapping (address => uint) playerLocation;
-
-    event NewPlayerLocation(string NewLocation);
-    event NewPlace(string NewPlace);
-    event PlaceAccessible(bool Accessible);
-    event PlaceAssigned(bool Assigned);
+contract Map2 is Editor {
 
     ITreasury public Treasury;
     uint public travelCost = 10**18; // NOVA cost to travel 1 distance
 
-    // Function to create a Place, always starts as unassigned and empty player list
-    // As we build more places, this function will stop working because the
-    // for loop can only run through ~255 places before it runs out of gas
-    function createPlace(
-        string memory _name, uint _xcoord, uint _ycoord
-        ) public onlyOwner {
-        uint _id = places.length;
-        places.push(Place(_name, _xcoord, _ycoord, new address[](0), false, true));
-        for (uint i = 0; i < places.length-1; i++) {
-            if (keccak256(abi.encodePacked(places[_id].xcoord, places[_id].ycoord)) 
-            == keccak256(abi.encodePacked(places[i].xcoord, places[i].ycoord))) {
-                revert('MAPS: Place already exists');
+    // constructor (
+    //     ITreasury _treasury
+    // ) {
+    //     Treasury = _treasury;
+    // }
+
+    struct PlaceType {
+        string handle;
+        address contractAddress;
+        bool isActive;
+    }
+
+    PlaceType[] placeTypes;
+
+    function getPlaceType(string memory _handle) public view returns(PlaceType memory) {
+        for (uint i = 0; i < placeTypes.length; i++) {
+            if (Helper.isEqual(placeTypes[i].handle, _handle)) {
+                return placeTypes[i];
             }
         }
-        emit NewPlace(places[places.length-1].name);
     }
 
-    // Function to set a player to a place. Needs restrictions so that
-    // a player cannot move another player
-    // add a return for the place the player is now at.
-    // Players start at Place[0] (set it to home planet? or spawn point?)
-    function _setPlayerLocation (address _player, uint _place) internal {
-        require(_place < places.length, "MAP: Place does not exist");
-        require(playerLocation[_player] != _place, "MAP: Player already there");
-        playerLocation[_player] = _place;
-        places[_place].players.push(_player);
-        emit NewPlayerLocation(places[_place].name);
+    function addPlaceType(string memory _handle, address _contractAddress, bool _isActive) public {
+        placeTypes.push(PlaceType(_handle, _contractAddress, _isActive));
+        
     }
 
-    function getPlayerLocation (address _player) public view returns (uint, string memory) {
-        uint _id = playerLocation[_player];
-        return (_id, places[_id].name);
+    struct Place {
+        string name;
+        PlaceType placeType;
+        bool isDmz;
+        bool isRefinery;
+        bool isActive;
     }
+    // Coordinates return the place
+    mapping (uint => mapping(uint => Place)) public coordinatePlaces;
+    // Use inputs of address and 0 or 1 to return coords (0=x, 1=y)
+    mapping (address => uint[]) playerLocation; 
 
-    function getPlayersAtLocation(uint _id) public view returns (address[] memory) {
-        return places[_id].players;
+    // Coordinates return list of players at location
+    mapping (uint => mapping(uint => address[])) playersAtLocation;
+    
+
+    // Creates a place at specified coordinates with a place type
+    function setPlace(uint _x, uint _y, string  memory _name, string memory _placeType, bool _isDmz, bool _isRefinery, bool _isActive) public { 
+        coordinatePlaces[_x][_y] = Place(_name, getPlaceType(_placeType), _isDmz, _isRefinery, _isActive);
     }
+    
+    /* get coordinatePlaces cannot handle a map box larger than 255 */
+    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(Place[] memory) {
+        uint xDistance = (_rx - _lx) + 1;
+        uint yDistance = (_ry - _ly) + 1;
+        uint numCoordinates = xDistance * yDistance;
+        require( xDistance * yDistance < 256, "MAP: Too much data in loop");
 
-    function editPlaceName (uint _id, string memory _newName) public onlyOwner{
-        places[_id].name = _newName;
-    }
+        Place[] memory foundCoordinatePlaces= new Place[]((numCoordinates));
 
-    // Allows places to be activated or deactivated
-    function setPlaceAccess(uint _id, bool _status) external onlyOwner {
-        places[_id].enabled = _status;
-        emit PlaceAccessible(_status);
-    }
-
-    //Allows an event contract to claim a place
-    function setPlaceAssigned(uint _id, bool _status) external onlyEditor {
-        places[_id].assigned = _status;
-        emit PlaceAssigned(_status);
-    }
-
-    // Functions to get distance between places
-    function _sqrt(uint y) internal pure returns (uint z) {
-        if (y > 3) {
-            z = y;
-            uint x = y / 2 + 1;
-            while (x < z) {
-                z = x;
-                x = (y / x + x) / 2;
+        uint counter = 0;
+        for(uint i=_lx; i<=_rx;i++) {
+            for(uint j=_ly; j<=_ry;j++) {
+                foundCoordinatePlaces[counter] = coordinatePlaces[i][j];
+                counter++;
             }
-        } else if (y != 0) {
-            z = 1;
         }
+        return foundCoordinatePlaces;
+    }
+
+    function getPlace(uint _x, uint _y) external view returns (Place memory) {
+        return coordinatePlaces[_x][_y];
+    }
+
+    /* 
+        Problem? - need to set initial location
+    */
+    function setInitialLocation() external {
+        playerLocation[msg.sender] = [0, 0];
+    }
+    function _setPlayerLocation (address _player, uint _x, uint _y) public {
+        uint x = playerLocation[_player][0];
+        uint y = playerLocation[_player][1];
+        _deletePlayerFromLocation(_player, x, y);
+        playerLocation[_player] = [_x, _y];
+        playersAtLocation[_x][_y].push(_player);
+    }
+
+    function _deletePlayerFromLocation (address _player, uint _x, uint _y) internal {
+        for (uint i = 0; i < playersAtLocation[_x][_y].length; i++) {
+            if (playersAtLocation[_x][_y][i] == _player) {
+                playersAtLocation[_x][_y][i] == playersAtLocation[_x][_y][playersAtLocation[_x][_y].length-1];
+                playersAtLocation[_x][_y].pop();
+            }
+            return;
+        }
+    }
+
+    // Returns both x and y coordinates
+    function getPlayerLocation (address _player) public view returns(uint x, uint y) {
+        return (playerLocation[_player][0], playerLocation[_player][1]);
+    }
+
+    // Will this function cause errors when a place has hundreds of players?
+    function getPlayersAtLocation (uint _x, uint _y) public view returns(address[] memory) {
+       return playersAtLocation[_x][_y];
+    }
+
+    // Travel function, needs size modifier & restriciton on travel distance
+    function travel( uint _x, uint _y) external {
+        uint _amount = getDistance(msg.sender, _x, _y) * travelCost;
+        Treasury.deposit(msg.sender, _amount);
+        _setPlayerLocation(msg.sender, _x, _y);
+    }
+
+    function getDistance (address _player, uint _x, uint _y) public view returns(uint) {
+        uint oldX = playerLocation[_player][0];
+        uint oldY = playerLocation[_player][1];
+        uint x = (_x > oldX ? _x-oldX : oldX-_x);
+        uint y = (_y > oldY ? _y-oldY : oldY-_y);
+        return _distance(x, y);
     }
 
     function _distance(uint x, uint y) internal pure returns(uint) {
         uint value = x**2 + y**2;
-        return _sqrt(value);
-    }
-
-    function getDistance (address _player, uint _newPlace) public view returns(uint) {
-        uint newX = places[_newPlace].xcoord;
-        uint newY = places[_newPlace].ycoord;
-        uint oldPlace = playerLocation[_player];
-        uint oldX = places[oldPlace].xcoord;
-        uint oldY = places[oldPlace].ycoord;
-        uint x = (newX > oldX ? newX-oldX : oldX-newX);
-        uint y = (newY > oldY ? newY-oldY : oldY-newY);
-        return _distance(x, y);
-    }
-
-    function travel(uint _newPlace) external {
-        require(_newPlace < places.length, "MAP: Place does not exist");
-        require(playerLocation[msg.sender] != _newPlace, "MAP: Player already there");
-        require(places[_newPlace].enabled == true, "MAP: Place not accessible");
-        uint _amount = getDistance(msg.sender, _newPlace) * travelCost;
-        Treasury.deposit(msg.sender, _amount);
-        _setPlayerLocation(msg.sender, _newPlace);
+        return Helper._sqrt(value);
     }
 }
