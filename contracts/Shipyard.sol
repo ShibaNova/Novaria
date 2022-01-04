@@ -8,18 +8,21 @@ import "./interfaces/IMap.sol";
 contract ShipyardManager is ShipEngineering {
  
     IMap public Map;
+    ITreasury public Treasury;
 
-    constructor (
-        IMap _map
-    ) {
+    constructor (IMap _map, ITreasury _treasury) {
         Map = _map;
+        Treasury = _treasury;
+    }
+    
+    function setTreasury (address _treasury) external onlyOwner {
+        Map = IMap(_treasury);
     }
 
     struct Shipyard {
         address owner;
         uint coordX;
         uint coordY;
-        uint buildCost;
         uint feePercent; 
     }
     Shipyard [] public shipyards;
@@ -31,14 +34,12 @@ contract ShipyardManager is ShipEngineering {
     }
     mapping (address => mapping (uint => mapping (uint => DryDock))) playerDocks;
  
-    function addShipyard (uint _x, uint _y) public onlyOwner {
-        //require(Map.getPlayerLocation(_player) = [x,y]);
-        require(isShipyardLocation(_x, _y == true);
-        ShipYard
-        
+    function addShipyard (address _owner, uint _x, uint _y, uint _feePercent)  public onlyOwner {
+        require(isShipyardLocation(_x, _y) != true, 'Shipyard: shipyard already exists at location');
+        shipyards[] = ShipYard(_owner, _x, _y, _feePercent);
     }
 
-    function isShipyardLocation(uint _x, uint _y) {
+    function isShipyardLocation(uint _x, uint _y) public {
         for(i=0;i<shipyards.length;i++) {
             if(shipyards[i].coordX == _x && shipyards[i].coordY == _y) {
                 return true;
@@ -47,15 +48,16 @@ contract ShipyardManager is ShipEngineering {
         return false;
     }
 
-
+    function getDockCost(strint memory _shipClass, uint _amount) public returns(uint) {
+        return _amount * shipClasses[_shipClass].cost * Treasury.getCostMod();
+    }
     
     // Ship building Function
     function buildShips(uint _x, uint _y, string memory _shipClass, uint _amount, uint _buildTime) external {
         ShipClass shipClass = shipClasses[_shipClass];
         
         uint totalCost = _amount * shipClass.cost;
-        Nova.transferFrom(msg.sender, address(Treasury), totalCost);
-        Treasury.sendFee();
+        Treasury.deposit(msg.sender, totalCost);
  
         playerDocks[msg.sender][_x][_y] = DryDock(shipClasses[_shipClass], _amount, _buildTime);
  
