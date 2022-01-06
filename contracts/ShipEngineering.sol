@@ -17,7 +17,7 @@ contract ShipEngineering is Ownable {
         uint oreCapacity;
         uint hangarSize;
         uint buildTime;
-        uint cost;
+        uint cost; 
     }
 
     mapping (string => ShipClass) public shipClasses;

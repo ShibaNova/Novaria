@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.7;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./libs/Editor.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
 import "./interfaces/ITreasury.sol";
@@ -16,7 +16,7 @@ TO-DO:
 - add attributes for each ship type
 */
 
-contract DryDock is Ownable {
+contract Fleet is Editor {
     using SafeBEP20 for ShibaBEP20;
 
     event NewCapitalShip(uint shipID, string name);
@@ -25,7 +25,7 @@ contract DryDock is Ownable {
 
     ShibaBEP20 public Nova;
     address public Treasury;
-    // Be sure to set this contract as a purchaser after deployment
+    // Be sure to set this contract as a editor after deployment
     constructor(
         ShibaBEP20 _Nova,
         address _Treasury
@@ -48,15 +48,16 @@ contract DryDock is Ownable {
 
     CapitalShip[] public capitalShips;
 
+    
     mapping (uint => address) public capitalShipOwner;
     mapping (address => uint) public ownerShipId;
     mapping (address => uint) ownerCapitalShipCount;
-    mapping (address => bool) public purchaser;
+    mapping (address => bool) public editor;
     mapping (address => bool) isLaunched; // flag to check if a player has already prepared/launched their fleet
 
     // set treasury address
     function setTreasury(address _treasury) external onlyOwner {
-        require(_treasury != address(0), "DRYDOCK: Cannot set treasury to 0 address");
+        require(_treasury != address(0), "FLEET: Cannot set treasury to 0 address");
         Treasury = _treasury;
         emit NewTreasury(_treasury);
     }
@@ -67,30 +68,9 @@ contract DryDock is Ownable {
         emit NewNovaAddress(_newAddress);
     }
 
-    // Addresses that can purchase ships
-     modifier onlyPurchaser {
-        require(isPurchaser(msg.sender));
-        _;
-    }
-    // Is address a purchaser?
-    function isPurchaser(address _purchaser) public view returns (bool){
-        return purchaser[_purchaser] == true ? true : false;
-    }
-     // Add new purchasers
-    function setPurchaser(address[] memory _purchaser) external onlyOwner {
-        for (uint i = 0; i < _purchaser.length; i++) {
-        require(purchaser[_purchaser[i]] == false, "DRYDOCK: Address is already a purchaser");
-        purchaser[_purchaser[i]] = true;
-        }
-    }
-    // Deactivate a purchaser
-    function deactivatePurchaser ( address _purchaser) public onlyOwner {
-        require(purchaser[_purchaser] == true, "DRYDOCK: Address is not a purchaser");
-        purchaser[_purchaser] = false;
-    }
 
     function setLaunched(address _player, bool _status) external {
-        require(isLaunched[_player] != _status, "DRYDOCK: Player already in this state");
+        require(isLaunched[_player] != _status, "FLEET: Player already in this state");
         isLaunched[_player] = _status;
     }
 
@@ -155,8 +135,8 @@ contract DryDock is Ownable {
     function buildCapShip (
         address _sender,
         string memory _name 
-        ) external onlyPurchaser {
-            require(ownerCapitalShipCount[_sender] == 0, "DRYDOCK: Each player can only have one Capital Ship");
+        ) external onlyEditor {
+            require(ownerCapitalShipCount[_sender] == 0, "FLEET: Each player can only have one Capital Ship");
             ownerCapitalShipCount[msg.sender]++;
             Nova.transferFrom(_sender, Treasury, baseCapCost);
             ITreasury(Treasury).sendFee();
@@ -177,23 +157,23 @@ contract DryDock is Ownable {
     }
 
     //Extneral function to set the total power
-    function setPower(uint _id, uint _amount) external onlyPurchaser {
+    function setPower(uint _id, uint _amount) external onlyEditor {
         capitalShips[_id].power = _amount;
     }  
     //External function to set the carry capacity
-    function setCarryCapacity(uint _id, uint _amount) external onlyPurchaser {
+    function setCarryCapacity(uint _id, uint _amount) external onlyEditor {
         capitalShips[_id].carryCapacity = _amount;
     }
 
     
     // set the capital ship's powerMod
-    function addPowerMod(uint8 _value, address _sender) external onlyPurchaser {
+    function addPowerMod(uint8 _value, address _sender) external onlyEditor {
         uint _id = ownerShipId[_sender];
-        require(capitalShips[_id].powerMod + _value <= 255, "DRYDOCK: player's powerMod is capped");
+        require(capitalShips[_id].powerMod + _value <= 255, "FLEET: player's powerMod is capped");
         capitalShips[_id].powerMod = capitalShips[_id].powerMod + _value;
     }
 
-    function subPowerMod(uint8 _value, address _sender) external onlyPurchaser {
+    function subPowerMod(uint8 _value, address _sender) external onlyEditor {
         uint _id = ownerShipId[_sender];
         if (capitalShips[_id].powerMod - _value <= 0) {
             capitalShips[_id].powerMod = 0;

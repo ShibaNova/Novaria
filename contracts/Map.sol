@@ -6,10 +6,18 @@ import "./libs/Editor.sol";
 import "./libs/Helper.sol";
 import "./interfaces/ITreasury.sol";
 
-contract Map2 is Editor {
+contract Map is Editor {
 
     ITreasury public Treasury;
-    uint public travelCost = 10**18; // NOVA cost to travel 1 distance
+    uint public travelCost = 10**16; // NOVA cost to travel 1 distance
+    address[] public playerList;
+    uint public playerCount;
+    // Coordinates return the place
+    mapping (uint => mapping(uint => Place)) public coordinatePlaces;
+    // Use inputs of address and 0 or 1 to return coords (0=x, 1=y)
+    mapping (address => uint[]) playerLocation; 
+    // mapping so players can only set initial location once
+    mapping(address => bool) isPlayer;
 
     // constructor (
     //     ITreasury _treasury
@@ -45,13 +53,7 @@ contract Map2 is Editor {
         bool isRefinery;
         bool isActive;
     }
-    // Coordinates return the place
-    mapping (uint => mapping(uint => Place)) public coordinatePlaces;
-    // Use inputs of address and 0 or 1 to return coords (0=x, 1=y)
-    mapping (address => uint[]) playerLocation; 
 
-    // Coordinates return list of players at location
-    mapping (uint => mapping(uint => address[])) playersAtLocation;
     
 
     // Creates a place at specified coordinates with a place type
@@ -82,29 +84,19 @@ contract Map2 is Editor {
         return coordinatePlaces[_x][_y];
     }
 
-    /* 
-        Problem? - need to set initial location
-    */
+    // Sets initial player location, adds to player list, adds to player count
     function setInitialLocation() external {
+        require(isPlayer[msg.sender] != true, "MAP: Player is already registered");
+        isPlayer[msg.sender] = true;
         playerLocation[msg.sender] = [0, 0];
+        playerCount++;
+        playerList.push(msg.sender);
     }
     function _setPlayerLocation (address _player, uint _x, uint _y) public {
-        uint x = playerLocation[_player][0];
-        uint y = playerLocation[_player][1];
-        _deletePlayerFromLocation(_player, x, y);
         playerLocation[_player] = [_x, _y];
-        playersAtLocation[_x][_y].push(_player);
     }
 
-    function _deletePlayerFromLocation (address _player, uint _x, uint _y) internal {
-        for (uint i = 0; i < playersAtLocation[_x][_y].length; i++) {
-            if (playersAtLocation[_x][_y][i] == _player) {
-                playersAtLocation[_x][_y][i] == playersAtLocation[_x][_y][playersAtLocation[_x][_y].length-1];
-                playersAtLocation[_x][_y].pop();
-            }
-            return;
-        }
-    }
+
 
     // Returns both x and y coordinates
     function getPlayerLocation (address _player) public view returns(uint x, uint y) {
@@ -113,13 +105,24 @@ contract Map2 is Editor {
 
     // Will this function cause errors when a place has hundreds of players?
     function getPlayersAtLocation (uint _x, uint _y) public view returns(address[] memory) {
-       return playersAtLocation[_x][_y];
+       address[] memory players = new address[](playerList.length);
+       uint counter;
+       for (uint i = 0; i < playerList.length - 1; i++) {
+           address _player = playerList[i];
+           // uint[2] memory _location = [playerLocation[_player][0], playerLocation[_player][1]];
+           // PROBLEM: Why is this not working?
+           if ([playerLocation[_player][0] == _x && playerLocation[_player][1] == _y]){
+               players[counter] = playerList[i];
+               counter++;
+           }
+       }
+       return players;
     }
 
     // Travel function, needs size modifier & restriciton on travel distance
     function travel( uint _x, uint _y) external {
-        uint _amount = getDistance(msg.sender, _x, _y) * travelCost;
-        Treasury.deposit(msg.sender, _amount);
+        uint _amount = getDistance(msg.sender, _x, _y) * travelCost *Treasury.getCostMod();
+        Treasury.pay(msg.sender, _amount);
         _setPlayerLocation(msg.sender, _x, _y);
     }
 

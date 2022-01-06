@@ -2,11 +2,12 @@
 
 pragma solidity ^0.8.7;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+
 import "./interfaces/ITreasury.sol";
-import "./interfaces/IDryDock.sol";
+import "./interfaces/IFleet.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./libs/ShibaBEP20.sol";
+import "./libs/Editor.sol";
 
 // interface for the MasterShiba farming contract
 interface IRewardsPool {
@@ -32,43 +33,45 @@ interface IRewardsPool {
 - unrefinedNova function
 */
 
-contract JackPot is Ownable {
+contract JackPotManager is Editor {
 
     IRewardsPool public Rewards; // MasterShiba farming contract
     ShibaBEP20 public Nova; // NOVA Token
-    IDryDock public DryDock; // DryDock Contract
+    IFleet public Fleet; // Fleet Contract
+
+    JackPot[] public jackpot; // ordered list of jackpot planets
+    mapping (uint => mapping (uint => uint)) jackpotCoords; // assigns coords to jackpot ID
 
     uint public pid; // pool id for the specified shadow pool token
     address public token; // token used for the shadow pool
     uint public rewardsBalance; // balance of NOVA minus unrefined NOVA in the contract
     uint public unrefinedNova; // current balance of NOVA that is unrefined (mined but not refined) for the contract
 
-    mapping (address => uint) playerUnrefinedNova;
+    // mapping (address => mapping(uint => uint)) playerUnrefinedNova; // unrefined nova from jackpot location
 
     constructor (
         IRewardsPool _rewards,
         ShibaBEP20 _nova,
-        IDryDock _dryDock,
+        IFleet _fleet,
         uint _pid,
         address _token
     ) {
         Rewards = _rewards;
         Nova = _nova;
-        DryDock = _dryDock;
+        Fleet = _fleet;
         pid = _pid;
         token = _token;
     }
 
-    // groups player's fleets together for mass battles
-    struct LaunchGroup {
-        uint earliestLaunchTime;
-        uint fleetPower;
-        uint arrivalTime;
-        uint fleetID;
-        bool hasLaunched;
+    struct JackPot {
+        uint coordX;
+        uint coordY;
+        uint8 starDist;
+        uint novaBalance;
+        uint unrefinedBalance;
     }
 
-    LaunchGroup[] public launchGroups;
+
 
     // after deploying and sending the shadow token to this contract, 
     // use this function to setup the pool deposit
@@ -97,51 +100,5 @@ contract JackPot is Ownable {
         IERC20(token).transfer(msg.sender, _amount);
     }
 
-    // get next UTC hour as an epoch timestamp, used for sorting launch groups
-    // ex) 1756 UTC returns 1800 UTC
-    // _time must be a block.timestamp
-    function getLaunchHour(uint _time) public pure returns(uint) {
-        return ((_time + 3600 - 1) / 3600 ) * 3600;
-    }
 
-    // function to check to see if there is a launch group already initiated for 
-    // the current hour
-    function isLaunchGroupAvailable() public view returns(bool) {
-        for (uint i = 0; i < launchGroups.length; i++) {
-            if (launchGroups[i].earliestLaunchTime == getLaunchHour(block.timestamp)) {
-                return true;
-            } else {
-                return false;
-            }
-        }
-    }
-
-    // Join or create a launch group
-    function prepareLaunch() external {
-        require(DryDock.getLaunchStatus(msg.sender) == false, "JACKPOT: Fleet is already busy elsewhere");
-        DryDock.setLaunched(msg.sender, true);
-        if (isLaunchGroupAvailable() == true) {
-            _joinLaunch(msg.sender);
-        } else {
-            _createLaunch(msg.sender);
-        }
-    }
-
-    // Join launch group function
-    function _joinLaunch(address _player) internal {
-            //complete this
-    }
-
-    // create launch group function 
-    function _createLaunch(address _player) internal {
-        uint _id = DryDock.getOwnerShipId(msg.sender);
-        launchGroups.push(LaunchGroup({
-            earliestLaunchTime: getLaunchHour(block.timestamp),
-            fleetPower: 
-            arrivalTime:
-            fleetID:
-            hasLaunched: false
-        }))
-
-    }
 }

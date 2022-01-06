@@ -43,16 +43,16 @@ contract Treasury is Editor {
     function setNovaAddress(address _newAddress) external onlyOwner {
         Nova = ShibaBEP20(_newAddress);
         emit NewNovaAddress(_newAddress);
-    }
+    } 
 
     function pay(address _from, uint _amount) external {
-        uint finalPay = _amount * costModifier;
-        deposit(_from, finalPay *(100-moneyPotRate));
-        Nova.transferFrom(_from, feeManager, finalPay * moneyPotRate);
-        totalPaid = totalPaid + finalPay;
+        deposit(_from, _amount *(100-moneyPotRate));
+        Nova.transferFrom(_from, feeManager, _amount * moneyPotRate);
+        totalPaid = totalPaid + (_amount *(100-moneyPotRate));
+        totalPot = totalPot + ( _amount * moneyPotRate);
     }
 
-    function deposit(address _from, uint _amount) public {
+    function deposit(address _from, uint _amount) external {
         Nova.transferFrom(_from, address(this), _amount);
         totalDeposit = totalDeposit + _amount;
     }

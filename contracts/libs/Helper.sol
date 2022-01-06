@@ -33,6 +33,13 @@ library Helper {
         return (0, false);
     }
 
+    // get next UTC hour as an epoch timestamp, used for sorting launch groups
+    // ex) 1756 UTC returns 1800 UTC
+    // _time must be a block.timestamp
+    function getLaunchHour(uint _time) public pure returns(uint) {
+        return ((_time + 3600 - 1) / 3600 ) * 3600;
+    }
+
 
 }
 

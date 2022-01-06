@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.7;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./libs/ShibaBEP20.sol";
+import "./libs/Editor.sol";
 
 // The shadow pool is a contract that manages a single-token
 // staking pool. The goal of this is to divert funds from the 
@@ -15,7 +15,7 @@ interface IRewardsPool {
     function deposit(uint256 _pid, uint256 _amount) external;
 }
 
-contract ShadowPool is Ownable {
+contract ShadowPool is Editor {
 
     IRewardsPool public Rewards;
     ShibaBEP20 public Nova;

@@ -39,7 +39,7 @@ contract ShipyardManager is ShipEngineering {
         shipyards[] = ShipYard(_owner, _x, _y, _feePercent);
     }
 
-    function isShipyardLocation(uint _x, uint _y) public {
+    function isShipyardLocation(uint _x, uint _y) public view returns(bool){
         for(i=0;i<shipyards.length;i++) {
             if(shipyards[i].coordX == _x && shipyards[i].coordY == _y) {
                 return true;
@@ -48,20 +48,24 @@ contract ShipyardManager is ShipEngineering {
         return false;
     }
 
-    function getDockCost(strint memory _shipClass, uint _amount) public returns(uint) {
-        return _amount * shipClasses[_shipClass].cost * Treasury.getCostMod();
+    function getDockCost(string memory _shipClass, uint _amount) public returns(uint) {
+        return _amount * shipClasses[_shipClass]._cost * Treasury.getCostMod();
+    }
+
+    function getBuildTime(string memory _shipClass, uint _amount) public returns(uint) {
+        return _amount * shipClasses[_shipClass]._buildTime;
     }
     
     // Ship building Function
-    function buildShips(uint _x, uint _y, string memory _shipClass, uint _amount, uint _buildTime) external {
-        ShipClass shipClass = shipClasses[_shipClass];
-        
-        uint totalCost = _amount * shipClass.cost;
+    function buildShips(uint _x, uint _y, string memory _shipClass, uint _amount) external {
+        ShipClass shipClass = shipClasses[_shipClass];        
+        uint totalCost = getDockCost(_shipClass, _amount);
         Treasury.deposit(msg.sender, totalCost);
+        uint _buildTime = getBuildTime(_shipClass, _amount);
  
         playerDocks[msg.sender][_x][_y] = DryDock(shipClasses[_shipClass], _amount, _buildTime);
  
-        //TODO: need to add build time feature
+        
         //TODO: need to add max restriction
     }
 
