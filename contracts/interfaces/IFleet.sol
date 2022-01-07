@@ -3,7 +3,7 @@ pragma solidity ^0.8.7;
 
 // Interface for external contracts to interact with the DryDock
 
-interface IDryDock {
+interface IFleet {
     function capShipLength() external view returns (uint256);
     function getCapShpiOwner(uint _id) external view returns (address);
     function getOwnerShipId(address _owner) external view returns (uint);

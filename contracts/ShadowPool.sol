@@ -37,39 +37,32 @@ contract ShadowPool is Editor {
         token = _token;
     }
 
-    // Jackpot planets can pull the rewards from the shadowPool
-    modifier onlyJackpot {
-        require(isJackpot(msg.sender));
-        _;
-    }
-
-    function isJackpot(address _jackpot) public view returns(bool) {
-        return jackpot[_jackpot] == true ? true : false;
-    }
-
-    function addJackpot(address[] memory _jackpot) external onlyOwner {
-        for (uint i = 0; i < _jackpot.length; i++) {
-        require(jackpot[_jackpot[i]] == false, "DRYDOCK: Address is already a jackpot");
-        jackpot[_jackpot[i]] = true;
-        }
-    }
-
-    // Deactivate a jackpot
-    function deactivateJackpot ( address _jackpot) public onlyOwner {
-        require(jackpot[_jackpot] == true, "DRYDOCK: Address is not a jackpot");
-        jackpot[_jackpot] = false;
-    }
-
+    // after deploying and sending the shadow token to this contract, 
+    // use this function to setup the pool deposit
     function initialDeposit() external onlyOwner {
         uint _amount = IERC20(token).balanceOf(address(this));
         Rewards.deposit(pid, _amount);
     }
 
-    function replenish(address _jackpot, uint _value) external onlyJackpot returns(uint){
+    // gets the current pending nova from the farm contract awaiting harvest
+    function getPendingRewards() public view returns(uint){
+        return Rewards.pendingNova(pid, address(this));
+    }
+    function replenishPlace(address _jackpot, uint _value) external onlyEditor returns(uint){
         Rewards.deposit(pid, 0);
-        require(_value < 100, "SHADOWPOOL: value must be less than 100% of the pool balance");
+        require(_value <= 100, "SHADOWPOOL: value must be less than 100% of the pool balance");
         uint _amount = IERC20(token).balanceOf(address(this)) * _value / 100;
         Nova.transferFrom(address(this), _jackpot, _amount);
         return _amount;
+    }
+
+    // transfers the shadow token to the owner, used for maintenance
+    function withdrawToken(uint _amount) external onlyOwner {
+        IERC20(token).transfer(msg.sender, _amount);
+    }
+
+    // transfers NOVA from this contract to the owner, used for contract maintenance 
+    function withdrawNOVA(uint _amount) external onlyOwner {
+        Nova.safeTransfer(msg.sender, _amount);
     }
 }

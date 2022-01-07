@@ -48,7 +48,7 @@ contract Map is Editor {
 
     struct Place {
         string name;
-        PlaceType placeType;
+        string placeType;
         bool isDmz;
         bool isRefinery;
         bool isActive;
@@ -58,7 +58,7 @@ contract Map is Editor {
 
     // Creates a place at specified coordinates with a place type
     function setPlace(uint _x, uint _y, string  memory _name, string memory _placeType, bool _isDmz, bool _isRefinery, bool _isActive) public { 
-        coordinatePlaces[_x][_y] = Place(_name, getPlaceType(_placeType), _isDmz, _isRefinery, _isActive);
+        coordinatePlaces[_x][_y] = Place(_name, _placeType, _isDmz, _isRefinery, _isActive);
     }
     
     /* get coordinatePlaces cannot handle a map box larger than 255 */
@@ -80,17 +80,31 @@ contract Map is Editor {
         return foundCoordinatePlaces;
     }
 
-    function getPlace(uint _x, uint _y) external view returns (Place memory) {
-        return coordinatePlaces[_x][_y];
+    function getPlace(uint _x, uint _y) external view returns (
+        string memory name,
+        string memory placeType,
+        bool isDmz,
+        bool isRefinery,
+        bool isActive
+    ) {
+        return (coordinatePlaces[_x][_y].name,
+        coordinatePlaces[_x][_y].placeType,
+        coordinatePlaces[_x][_y].isDmz,
+        coordinatePlaces[_x][_y].isRefinery,
+        coordinatePlaces[_x][_y].isActive);
+    }
+
+    function isRefinery(uint _x, uint _y) external view returns(bool) {
+        return coordinatePlaces[_x][_y].isRefinery;
     }
 
     // Sets initial player location, adds to player list, adds to player count
-    function setInitialLocation() external {
-        require(isPlayer[msg.sender] != true, "MAP: Player is already registered");
-        isPlayer[msg.sender] = true;
-        playerLocation[msg.sender] = [0, 0];
+    function setInitialLocation(address _sender) external {
+        require(isPlayer[_sender] != true, "MAP: Player is already registered");
+        isPlayer[_sender] = true;
+        playerLocation[_sender] = [0, 0];
         playerCount++;
-        playerList.push(msg.sender);
+        playerList.push(_sender);
     }
     function _setPlayerLocation (address _player, uint _x, uint _y) public {
         playerLocation[_player] = [_x, _y];
@@ -108,10 +122,7 @@ contract Map is Editor {
        address[] memory players = new address[](playerList.length);
        uint counter;
        for (uint i = 0; i < playerList.length - 1; i++) {
-           address _player = playerList[i];
-           // uint[2] memory _location = [playerLocation[_player][0], playerLocation[_player][1]];
-           // PROBLEM: Why is this not working?
-           if ([playerLocation[_player][0] == _x && playerLocation[_player][1] == _y]){
+           if (playerLocation[playerList[i]][0] == _x && playerLocation[playerList[i]][1] == _y) {
                players[counter] = playerList[i];
                counter++;
            }
@@ -121,21 +132,15 @@ contract Map is Editor {
 
     // Travel function, needs size modifier & restriciton on travel distance
     function travel( uint _x, uint _y) external {
-        uint _amount = getDistance(msg.sender, _x, _y) * travelCost *Treasury.getCostMod();
+        uint _amount = getDistanceFromPlayer(msg.sender, _x, _y) * travelCost *Treasury.getCostMod();
         Treasury.pay(msg.sender, _amount);
         _setPlayerLocation(msg.sender, _x, _y);
     }
 
-    function getDistance (address _player, uint _x, uint _y) public view returns(uint) {
+    function getDistanceFromPlayer (address _player, uint _x, uint _y) public view returns(uint) {
         uint oldX = playerLocation[_player][0];
         uint oldY = playerLocation[_player][1];
-        uint x = (_x > oldX ? _x-oldX : oldX-_x);
-        uint y = (_y > oldY ? _y-oldY : oldY-_y);
-        return _distance(x, y);
+        Helper.getDistance(oldX, oldY, _x, _y);
     }
 
-    function _distance(uint x, uint y) internal pure returns(uint) {
-        uint value = x**2 + y**2;
-        return Helper._sqrt(value);
-    }
 }
