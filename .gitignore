@@ -2,3 +2,5 @@ node_modules
 .env.json
 env.json
 images/
+bin/
+bin/contracts\

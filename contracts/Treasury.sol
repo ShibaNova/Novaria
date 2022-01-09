@@ -3,9 +3,11 @@
 pragma solidity ^0.8.7;
 
 import "./libs/ShibaBEP20.sol";
+import "./libs/SafeBEP20.sol";
 import "./libs/Editor.sol";
 
 contract Treasury is Editor {
+    using SafeBEP20 for ShibaBEP20;
 
     constructor(
         ShibaBEP20 _Nova,
@@ -20,8 +22,9 @@ contract Treasury is Editor {
     address public feeManager; // address that handles the money pot
     ShibaBEP20 public Nova; // nova token address
     uint public totalWithdrawn; // total amount of fees withdrawn
-    uint public totalDeposit; // total amount of fees withdrawn
-    uint public totalPaid; // total amount of fees sent to the feeManager (money pot)
+    uint public totalDeposit; // total amount of fees collected in Treasury
+    uint public totalPot; // total amount of fees sent to the feeManager (money pot)
+    uint public totalFee; // total fees paid in the game
 
     event NewMoneyPotRate(uint newRate);
     event NewFeeManager(address newFeeManager);
@@ -47,19 +50,19 @@ contract Treasury is Editor {
 
     function pay(address _from, uint _amount) external {
         deposit(_from, _amount *(100-moneyPotRate));
-        Nova.transferFrom(_from, feeManager, _amount * moneyPotRate);
-        totalPaid = totalPaid + (_amount *(100-moneyPotRate));
+        Nova.safeTransferFrom(_from, feeManager, _amount * moneyPotRate);
         totalPot = totalPot + ( _amount * moneyPotRate);
+        totalFee = totalFee + _amount;
     }
 
-    function deposit(address _from, uint _amount) external {
-        Nova.transferFrom(_from, address(this), _amount);
+    function deposit(address _from, uint _amount) public {
+        Nova.safeTransferFrom(_from, address(this), _amount);
         totalDeposit = totalDeposit + _amount;
     }
 
     // function to withdraw fees from Treasury
     function withdraw (address _recipient, uint _amount) public onlyEditor {
-        Nova.transfer(_recipient, _amount);
+        Nova.safeTransfer(_recipient, _amount);
         totalWithdrawn = totalWithdrawn + _amount;
     }
 }
