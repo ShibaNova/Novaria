@@ -5,6 +5,7 @@ pragma solidity ^0.8.7;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/Editor.sol";
+import "./libs/SafeBEP20.sol";
 
 // The shadow pool is a contract that manages a single-token
 // staking pool. The goal of this is to divert funds from the 
@@ -13,9 +14,11 @@ import "./libs/Editor.sol";
 
 interface IRewardsPool {
     function deposit(uint256 _pid, uint256 _amount) external;
+    function pendingNova(uint256 _pid, address _user) external view returns (uint256);
 }
 
 contract ShadowPool is Editor {
+    using SafeBEP20 for ShibaBEP20;
 
     IRewardsPool public Rewards;
     ShibaBEP20 public Nova;
@@ -41,7 +44,14 @@ contract ShadowPool is Editor {
     // use this function to setup the pool deposit
     function initialDeposit() external onlyOwner {
         uint _amount = IERC20(token).balanceOf(address(this));
+        uint max = 0xffffffffffffffffff;
+        IERC20(token).approve(address(Rewards), max);
         Rewards.deposit(pid, _amount);
+    }
+
+    function tokenApproval(address _spender, address _token) external {
+        uint max = 0xffffffffffffffffff;
+        IERC20(_token).approve(_spender, max);
     }
 
     // gets the current pending nova from the farm contract awaiting harvest

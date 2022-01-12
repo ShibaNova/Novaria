@@ -31,6 +31,7 @@ contract Map is Editor {
     // Defaults: 0 = star, 1 = jackpot, 2 = shipyard
     string[] public placeTypes; // list of placeTypes
 
+    bool public explorationOn; // 
     mapping(uint => mapping (uint => bool)) isExplored; // determines if coordinates were explored
     // Coordinates return the place
     mapping (uint => mapping(uint => Place)) public coordinatePlaces;
@@ -172,52 +173,74 @@ contract Map is Editor {
         cooldownMod = _new;
     }
 
+    // add renaming function, initial is type+coords (create concat helper), cooldown for renaming
     // Exploration functions
     // Players can explore uncharted coordinates and possibly find new places
     // Current options include a star or jackpot
     // Stars and shipyards cannot be within 5 coordinate points, jackpots 2
     function explore(uint _x, uint _y, string memory _name) external {
+        require(explorationOn == true, "MAPS: Exploring not active");
         require(isExplored[_x][_y] != true, "MAPS: locaiton already explored");
+        // Do not let exploration happen in newbie area
+        require(_x > 5, "MAPS: cannot explore in this area");
+        require(_y > 5, "MAPS: cannot explore in this area");
         isExplored[_x][_y] = true;
         // explore NOVA cost
         uint _rand1 = Helper.createRandomNumber(10);
+        // need to fix to not emit "nonewplace" for all loop iterations
+        // loop to look for other stars
          for(uint i=_x-5; i<=_x+5;i++) {
              for(uint j=_y-5; j<=_y+5;j++) {
-                 if (Helper.isEqual(coordinatePlaces[i][j].placeType, placeTypes[0])) {
-                     if (_rand1 > 9) {
+                 // checks if any placetypes returned are a star type
+                 if (Helper.isEqual(coordinatePlaces[i][j].placeType, placeTypes[0])) { // change to while loop?
+                     
+                     // if there is a star
+                     // check to see if a jackpot planet can be made
+                     if (_rand1 > 9) { // 10% chance of creating jackpot planet
                         for(uint k=_x-2; i<=_x+2;k++) {
                             for(uint l=_y-2; l<=_y+2;l++) {
                                 if (Helper.isEqual(coordinatePlaces[k][l].placeType, placeTypes[1])) {
-                                    emit NoNewPlace(_x, _y, "Nothing Discovered");
+                                    // do nothing
                                 } else {
                                     setPlace(_x, _y, _name, placeTypes[1], false, false, true);
                                     uint _starId = PlaceManager.getStarId(_x, _y);
                                     PlaceManager.createJackpot(_starId, _x, _y);
                                     emit NewPlace(_x, _y, placeTypes[1], _name);
+                                    break;
                                 }
                             }
                         }
-                     } else if (_rand1 <3) {
+                     } 
+                     // if a jackpot planet is not made, check if a shipyard can be made
+                     else if (_rand1 <3) { // 20% chance of creating shipyard planet
                          if (Helper.isEqual(coordinatePlaces[i][j].placeType, placeTypes[3])) {
-                            emit NoNewPlace(_x, _y, "Nothing Discovered");
+                            // do nothing
+
                          } else {
                              setPlace(_x, _y, _name, placeTypes[3], true, true, true);
                              // insert shipyard creation function
                              emit NewPlace(_x, _y, placeTypes[3], _name);
+                             break;
                          }
                      }
-                 }  else {
-                     if (_rand1 >5) {
-                        setPlace(_x, _y, _name, placeTypes[0], false, false, true);
-                        PlaceManager.createStar(_x, _y);
-                        emit NewPlace(_x, _y, placeTypes[0], _name);
-                     } else {
-                         emit NoNewPlace(_x, _y, "Nothing Discovered");
-                     }
+
+                // if there is not a star
+                 }  else if (_rand1 >5) {
+                         setPlace(_x, _y, _name, placeTypes[0], false, false, true);
+                         PlaceManager.createStar(_x, _y);
+                         emit NewPlace(_x, _y, placeTypes[0], _name);
+                         break;
+                 } else {
+                         // do nothing
                  }
+                
              }
          }
 
+    }
+
+    function setExplorationOn (bool _isActive) external onlyOwner {
+        explorationOn = _isActive;
     }
 
     // currently no check for duplicates
@@ -229,4 +252,5 @@ contract Map is Editor {
         require(_new != address(0));
         PlaceManager = IPlaceManager(_new);
     }
+
 }

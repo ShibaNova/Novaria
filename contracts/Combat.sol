@@ -38,31 +38,31 @@ contract Combat is Editor {
     }
 
     // Join or create a launch group
-    function prepareLaunch() external {
-        require(DryDock.getLaunchStatus(msg.sender) == false, "JACKPOT: Fleet is already busy elsewhere");
-        DryDock.setLaunched(msg.sender, true);
-        if (isLaunchGroupAvailable() == true) {
-            _joinLaunch(msg.sender);
-        } else {
-            _createLaunch(msg.sender);
-        }
-    }
+    // function prepareLaunch() external {
+    //     require(DryDock.getLaunchStatus(msg.sender) == false, "JACKPOT: Fleet is already busy elsewhere");
+    //     DryDock.setLaunched(msg.sender, true);
+    //     if (isLaunchGroupAvailable() == true) {
+    //         _joinLaunch(msg.sender);
+    //     } else {
+    //         _createLaunch(msg.sender);
+    //     }
+    // }
 
     // Join launch group function
     function _joinLaunch(address _player) internal {
             //complete this
     }
 
-    // create launch group function 
-    function _createLaunch(address _player) internal {
-        uint _id = DryDock.getOwnerShipId(msg.sender);
-        launchGroups.push(LaunchGroup({
-            earliestLaunchTime: getLaunchHour(block.timestamp),
-            fleetPower: 
-            arrivalTime:
-            fleetID:
-            hasLaunched: false
-        }))
+    // // create launch group function 
+    // function _createLaunch(address _player) internal {
+    //     uint _id = DryDock.getOwnerShipId(msg.sender);
+    //     launchGroups.push(LaunchGroup({
+    //         earliestLaunchTime: getLaunchHour(block.timestamp),
+    //         fleetPower: 
+    //         arrivalTime:
+    //         fleetID:
+    //         hasLaunched: false
+    //     }))
 
-    }
+    // }
 }
