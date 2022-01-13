@@ -25,6 +25,7 @@ contract Fleet is Editor {
 
     ShibaBEP20 public Nova;
     address public Treasury;
+    uint public baseCapCost = 10**18;
     // Be sure to set this contract as a editor after deployment
     constructor(
         ShibaBEP20 _Nova,
@@ -52,7 +53,6 @@ contract Fleet is Editor {
     mapping (uint => address) public capitalShipOwner;
     mapping (address => uint) public ownerShipId;
     mapping (address => uint) ownerCapitalShipCount;
-    mapping (address => bool) public editor;
     mapping (address => bool) isLaunched; // flag to check if a player has already prepared/launched their fleet
 
     // set treasury address
@@ -138,8 +138,7 @@ contract Fleet is Editor {
         ) external onlyEditor {
             require(ownerCapitalShipCount[_sender] == 0, "FLEET: Each player can only have one Capital Ship");
             ownerCapitalShipCount[msg.sender]++;
-            Nova.transferFrom(_sender, Treasury, baseCapCost);
-            ITreasury(Treasury).sendFee();
+            ITreasury(Treasury).pay(_sender, baseCapCost);
             uint id = capShipLength();
             capitalShips.push(CapitalShip({
                 name: _name, 

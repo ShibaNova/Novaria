@@ -22,25 +22,25 @@ contract Planets is Ownable {
         return planets.length;
     }
 
-    function createPlanet (string memory _name, uint _distance) external onlyOwner {
-        planets.push(Planet({name: _name, distance: _distance}));
-    }
+    // function createPlanet (string memory _name, uint _distance) external onlyOwner {
+    //     planets.push(Planet({name: _name, distance: _distance}));
+    // }
 
-    function getPlanetInfo (uint _id) external view returns (string memory name, uint distance) {
-        return (planets[_id].name, planets[_id].distance);
-    }
+    // function getPlanetInfo (uint _id) external view returns (string memory name, uint distance) {
+    //     return (planets[_id].name, planets[_id].distance);
+    // }
 }
 
 
 
 
-function prepareLaunch ()
-    uint launchTime = block.timestamp round up to next hour;
+// function prepareLaunch ()
+//     uint launchTime = block.timestamp round up to next hour;
 
 
-function cancelLaunch ()
+// function cancelLaunch ()
 
 
-function launchTravel()
-    require(current timestamp < launchTime + 15 minutes?)
-    uint arrival = launchTime + 8hrs;
+// function launchTravel()
+//     require(current timestamp < launchTime + 15 minutes?)
+//     uint arrival = launchTime + 8hrs;
