@@ -25,10 +25,11 @@ contract Map is Editor {
         Fleet = _fleet;
 
         previousBalance = 0;
-        baseTravelCost = 10**16;
+        baseTravelCost = 10;
         baseCooldown = 2700; //45 minutes
         cooldownMod = 900; //15 minutes
         maxTravel = 5000; //AU
+        rewardsTimer = 0;
 
         placeTypes.push('star');
         placeTypes.push('planet');
@@ -55,7 +56,7 @@ contract Map is Editor {
 
     // Fleet Info and helpers
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
-    mapping(address => uint) fleetMineral; //amount of mineral a fleet is carrying
+    mapping(address => uint) public fleetMineral; //amount of mineral a fleet is carrying
     address[] public fleetList; //all addresses that started the game  
     mapping(address => bool) isFleet; // flag so fleet can only be loaded once  
     mapping (address => uint) travelCooldown; // limits how often fleets can travel
@@ -108,6 +109,7 @@ contract Map is Editor {
     event NewShadowPool(address _new);
     event NewFleet(address _new);
     event NewToken(address _new);
+    event NewTreasury(address _new);
     event NewRewardsMod(uint _new);
     event MineralTransferred(address _from, address _to, uint _amount);
     event MineralRefined(address _fleet, uint _amount);
@@ -210,6 +212,7 @@ contract Map is Editor {
     }
 
     // Pulls token from the shadow pool, eventually internal function
+    //PROBLEM: does not function - review 
     function requestToken() external onlyOwner{
         if (block.timestamp >= rewardsTimer) {
             ShadowPool.replenishPlace(address(this), rewardsMod);
@@ -246,19 +249,19 @@ contract Map is Editor {
         previousBalance = Token.balanceOf(address(this));
     }
 
-    function getPlanetAtFleetLocation(address _sender) internal view returns (bool, Planet memory) {
+    function getPlanetAtFleetLocation(address _sender) internal view returns (bool, Planet memory, uint) {
         Planet memory planet;
 
         (uint fleetX, uint fleetY) = getFleetLocation(_sender);
 
         uint placeId = coordinatePlaceIds[fleetX][fleetY];
         Place memory fleetPlace = places[placeId];
-
+        uint planetId = fleetPlace.childId;
         if(Helper.isEqual(fleetPlace.placeType, 'planet')) {
             planet = planets[fleetPlace.childId];
-            return (true, planet);
+            return (true, planet, planetId);
         } else {
-            return (false, planet);
+            return (false, planet, planetId);
         }
 
         
@@ -267,7 +270,7 @@ contract Map is Editor {
     //Fleet can mine Mineral depending their fleet's capacity
     function mine() external {
         address sender = msg.sender;
-        (bool isPlanet,Planet memory planet) = getPlanetAtFleetLocation(sender);
+        (bool isPlanet,Planet memory planet, uint planetId) = getPlanetAtFleetLocation(sender);
 
         require(isPlanet == true, 'Fleet is not at planet.');
         require(planet.availableMineral > 0, 'MAP: no mineral found');
@@ -275,11 +278,12 @@ contract Map is Editor {
         
         // uint maxMine = Fleet.getTokenCapacity[sender] - fleetMineral(sender);
         //link to fleets, will have to edit maxMine with above
-        uint maxMine = 10**18;
+        uint maxMine = 100;
 
         uint minedAmount = (planet.availableMineral < maxMine 
                         ? planet.availableMineral : maxMine);
-        planet.availableMineral = planet.availableMineral - minedAmount;
+                        
+        planets[planetId].availableMineral -= minedAmount;
         
         fleetMineral[sender] += minedAmount;
         // requestToken();
@@ -288,7 +292,7 @@ contract Map is Editor {
     
     function refine() external {
         address sender = msg.sender;
-       (bool isPlanet,Planet memory planet) = getPlanetAtFleetLocation(sender);
+       (bool isPlanet,Planet memory planet,) = getPlanetAtFleetLocation(sender);
 
         require(isPlanet == true, 'Fleet is not at planet.');
         require(planet.hasRefinery == true, "MAP: Fleet not at a refinery");
@@ -360,6 +364,7 @@ contract Map is Editor {
      // Travel function, needs size modifier & restriciton on travel distance
     function travel( uint _x, uint _y) external {
         address sender = msg.sender;
+        require(isFleet[sender] == true, "MAP: Fleet is not loaded");
         uint distance = getDistanceFromFleet(sender, _x, _y);
         require(block.timestamp >= travelCooldown[sender], "MAPS: Jump drive still recharging");
         require(distance <= maxTravel, "MAPS: cannot travel that far");
@@ -372,7 +377,7 @@ contract Map is Editor {
     function getDistanceFromFleet (address _fleet, uint _x, uint _y) public view returns(uint) {
         uint oldX = fleetLocation[_fleet][0];
         uint oldY = fleetLocation[_fleet][1];
-        Helper.getDistance(oldX, oldY, _x, _y);
+        return Helper.getDistance(oldX, oldY, _x, _y);
     }
 
     // Setting to 0 disables travel
@@ -405,6 +410,11 @@ contract Map is Editor {
         Token = ShibaBEP20(_new);
         emit NewToken(_new);
     }
+    function setTreasury(address _new) external onlyOwner{
+        require(address(0) != _new);
+        Treasury = ITreasury(_new);
+        emit NewTreasury(_new);
+    }
     // Maintenance functions
     function setRewardsMod(uint _new) external onlyOwner {
         require(_new <= 100, "MAP: must be <= 100");
@@ -420,6 +430,9 @@ contract Map is Editor {
     // Pause unrefined token mining at a jackpot planet
     function setPaused(uint _id,bool _isPaused) external onlyOwner{
         isPaused[_id] = _isPaused;
+    }
+    function setBaseTravelCost(uint _new) external onlyOwner {
+        baseTravelCost = _new;
     }
 }
 
