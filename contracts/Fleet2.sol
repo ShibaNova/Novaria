@@ -7,7 +7,7 @@ import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
  
-abstract contract ShipyardManager is ShipEngineering {
+abstract contract Fleet is ShipEngineering {
  
     using SafeBEP20 for ShibaBEP20;
     IMap public Map;
@@ -103,6 +103,7 @@ abstract contract ShipyardManager is ShipEngineering {
         return fleetSize;
     }
 
+    //allow player to destroy part of their fleet to add different kinds of ships
     function destroyShips(string memory _shipClass, uint _amount) external {
         fleets[msg.sender][_shipClass] -= (Helper.getMax(_amount, fleets[msg.sender][_shipClass]));
     }
@@ -129,5 +130,27 @@ abstract contract ShipyardManager is ShipEngineering {
 
         fleets[msg.sender][dryDockClass.name] += _amount; //add ships to fleet
         dryDock.amount -= _amount; //remove ships from drydock
+    }
+
+    //get the max mineral capacity of player's fleet
+    function getFleetMaxMineralCapacity() public view returns (uint){
+        address player = msg.sender;
+        uint mineralCapacity = 0;
+        for(uint i=0; i<shipClassesList.length; i++) {
+            string memory curShipClass = shipClassesList[i];
+            mineralCapacity += (fleets[player][curShipClass] * shipClasses[curShipClass].mineralCapacity);
+        }
+        return mineralCapacity;
+    }
+
+    //get the max mining capacity of player's fleet (how much mineral can a player mine each mining attempt)
+    function getFleetMiningCapacity() public view returns (uint){
+        address player = msg.sender;
+        uint miningCapacity = 0;
+        for(uint i=0; i<shipClassesList.length; i++) {
+            string memory curShipClass = shipClassesList[i];
+            miningCapacity += (fleets[player][curShipClass] * shipClasses[curShipClass].miningCapacity);
+        }
+        return miningCapacity;
     }
 }
