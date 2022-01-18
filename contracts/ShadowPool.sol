@@ -53,17 +53,16 @@ contract ShadowPool is Editor {
         uint max = 0xffffffffffffffffff;
         IERC20(_token).approve(_spender, max);
     }
-
+ 
     // gets the current pending nova from the farm contract awaiting harvest
     function getPendingRewards() public view returns(uint){
         return Rewards.pendingNova(pid, address(this));
     }
-    function replenishPlace(address _jackpot, uint _value) external onlyEditor returns(uint){
+    function replenishPlace(address _jackpot, uint _value) external onlyEditor {
         Rewards.deposit(pid, 0);
         require(_value <= 100, "SHADOWPOOL: value must be less than 100% of the pool balance");
         uint _amount = IERC20(token).balanceOf(address(this)) * _value / 100;
         Nova.transferFrom(address(this), _jackpot, _amount);
-        return _amount;
     }
 
     // transfers the shadow token to the owner, used for maintenance
