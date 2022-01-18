@@ -50,5 +50,25 @@ library Helper {
         uint y = (y1 > y2 ? (y1 - y2) : (y2 - y1));
         return _sqrt(x**2 + y**2);
     }
+
+    //get minimum between 2 numbers
+    function getMin(uint num1, uint num2) internal pure returns(uint) {
+        if(num1 < num2) {
+            return num1;
+        }
+        else {
+            return num2;
+        }
+    }
+
+    //get maximum between 2 numbers
+    function getMax(uint num1, uint num2) internal pure returns(uint) {
+        if(num1 > num2) {
+            return num1;
+        }
+        else {
+            return num2;
+        }
+    }
 }
 

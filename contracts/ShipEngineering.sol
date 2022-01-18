@@ -4,6 +4,7 @@ pragma solidity ^0.8.7;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ITreasury.sol";
+import './libs/Helper.sol';
 
 contract ShipEngineering is Ownable {
  
@@ -28,6 +29,7 @@ contract ShipEngineering is Ownable {
     //building ships
 
     mapping (string => ShipClass) public shipClasses;
+    string[] public shipClassesList; //iterable list for ship classes, better name?
 
     constructor(
         ITreasury _treasury
@@ -50,6 +52,7 @@ contract ShipEngineering is Ownable {
         uint _cost) public onlyOwner {
 
             shipClasses[_handle] = ShipClass(_name, _size, _attack, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost);
+            shipClassesList.push(_handle);
         }
 
     function getShipClass(string memory _handle) external view returns(ShipClass memory){

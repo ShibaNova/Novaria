@@ -146,7 +146,7 @@ contract Map is Editor {
     function _addPlanet(uint _starId, uint _x, uint _y, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) internal {
         uint starX = places[stars[_starId].placeId].coordX;
         uint starY = places[stars[_starId].placeId].coordY;
-        uint starDistance = Helper.getDistance(starX*10, starY*10, _x*10, _y*10);
+        uint starDistance = Helper.getDistance(starX, starY, _x, _y);
 
         //add planet info to star
         if(_isMiningPlanet) {
@@ -281,9 +281,8 @@ contract Map is Editor {
         //link to fleets, will have to edit maxMine with above
         uint maxMine = 100;
 
-        uint minedAmount = (planet.availableMineral < maxMine 
-                        ? planet.availableMineral : maxMine);
-
+        uint minedAmount = Helper.getMin(planet.availableMineral, maxMine);
+        
         planets[planet.id].availableMineral -= minedAmount;
         
         fleetMineral[sender] += minedAmount;
