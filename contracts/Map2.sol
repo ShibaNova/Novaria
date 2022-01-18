@@ -72,6 +72,7 @@ contract Map is Editor {
     mapping (uint => mapping(uint => uint)) public coordinatePlaceIds;
 
     struct Place {
+        uint id; //native key 
         string placeType;
         uint childId;
         uint coordX;
@@ -80,8 +81,9 @@ contract Map is Editor {
     Place[] public places;
 
     struct Planet {
-        uint placeId;
-        uint starId;
+        uint id; //native key
+        uint placeId; //foreign key to places
+        uint starId; //foreign key to stars
         uint starDistance;
         bool isMiningPlanet;
         uint availableMineral;
@@ -91,7 +93,8 @@ contract Map is Editor {
     Planet[] public planets;
 
     struct Star {
-        uint placeId;
+        uint id; //native key
+        uint placeId; //foreign key to places
         uint luminosity;
         uint totalMiningPlanets;
         uint totalMiningPlanetDistance;
@@ -99,7 +102,8 @@ contract Map is Editor {
     Star[] public stars;
 
     struct Jumpgate {
-        uint placeId;
+        uint id; //native key
+        uint placeId; //foreign key to places
         uint tetheredGateId;
         address owner;
         uint gateFee;
@@ -119,28 +123,19 @@ contract Map is Editor {
 
     function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y) internal {
         require(coordinatePlaceIds[_x][_y] == 0, 'Place already exists in these coordinates');
-        places.push(Place(_placeType, _childId, _x, _y));
-        uint placeId = places.length - 1;
+        uint placeId = places.length;
+        places.push(Place(placeId, _placeType, _childId, _x, _y));
 
         //set place in coordinate mapping
         coordinatePlaceIds[_x][_y] = placeId;
-
-        //link child place to place
-        if(Helper.isEqual(_placeType, 'planet')) {
-            planets[_childId].placeId = placeId;
-        }
-        else if(Helper.isEqual(_placeType, 'star')) {
-            stars[_childId].placeId = placeId;
-        }
-        else if(Helper.isEqual(_placeType, 'jumpgate')) {
-            jumpgates[_childId].placeId = placeId;
-        }
     }
 
     function _addStar(uint _x, uint _y, uint _luminosity) internal {
         //add star to stars list
-        stars.push(Star(0, _luminosity, 0, 0));
-        _addPlace('star', stars.length - 1, _x, _y);
+        uint starId = stars.length;
+        stars.push(Star(starId, places.length, _luminosity, 0, 0));
+
+        _addPlace('star', starId, _x, _y);
         emit NewStar(_x, _y);
     }
 
@@ -159,8 +154,10 @@ contract Map is Editor {
             stars[_starId].totalMiningPlanets += 1;
         }
 
-        planets.push(Planet(0, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
-        _addPlace('planet', planets.length - 1, _x, _y);
+        uint planetId = planets.length;
+        planets.push(Planet(planetId, 0, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
+
+        _addPlace('planet', planetId, _x, _y);
         emit NewPlanet(_starId, _x, _y);
     }
 
@@ -177,7 +174,7 @@ contract Map is Editor {
         uint xDistance = (_rx - _lx) + 1;
         uint yDistance = (_ry - _ly) + 1;
         uint numCoordinates = xDistance * yDistance;
-        require( xDistance * yDistance < 256, 'MAP: Too much data in loop');
+        require(xDistance * yDistance < 256, 'MAP: Too much data in loop');
 
         uint[] memory foundCoordinatePlaceIds = new uint[]((numCoordinates));
 
@@ -249,30 +246,34 @@ contract Map is Editor {
         previousBalance = Token.balanceOf(address(this));
     }
 
-    function getPlanetAtFleetLocation(address _sender) internal view returns (bool, Planet memory, uint) {
-        Planet memory planet;
+    function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
 
-        (uint fleetX, uint fleetY) = getFleetLocation(_sender);
+        Place memory place = places[coordinatePlaceIds[_x][_y]];
 
-        uint placeId = coordinatePlaceIds[fleetX][fleetY];
-        Place memory fleetPlace = places[placeId];
-        uint planetId = fleetPlace.childId;
-        if(Helper.isEqual(fleetPlace.placeType, 'planet')) {
-            planet = planets[fleetPlace.childId];
-            return (true, planet, planetId);
-        } else {
-            return (false, planet, planetId);
-        }
+        require(Helper.isEqual(place.placeType, 'No planet found at this location.'));
 
-        
+        return planets[place.childId];
+    }
+
+    function getPlanetAtFleetLocation(address _sender) internal view returns (Planet memory) {
+        (uint fleetX, uint fleetY) =  getFleetLocation(_sender);
+        return getPlanetAtLocation(fleetX, fleetY);
+        //return getPlanetAtLocation(getFleetLocation(_sender));
+    }
+
+    function isRefineryLocation(uint _x, uint _y) external view returns (bool) {
+        return getPlanetAtLocation(_x, _y).hasRefinery;
+    }
+
+    function isShipyardLocation(uint _x, uint _y) external view returns (bool) {
+        return getPlanetAtLocation(_x, _y).hasShipyard;
     }
 
     //Fleet can mine Mineral depending their fleet's capacity
     function mine() external {
         address sender = msg.sender;
-        (bool isPlanet,Planet memory planet, uint planetId) = getPlanetAtFleetLocation(sender);
+        Planet memory planet = getPlanetAtFleetLocation(sender);
 
-        require(isPlanet == true, 'Fleet is not at planet.');
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
         
@@ -282,8 +283,8 @@ contract Map is Editor {
 
         uint minedAmount = (planet.availableMineral < maxMine 
                         ? planet.availableMineral : maxMine);
-                        
-        planets[planetId].availableMineral -= minedAmount;
+
+        planets[planet.id].availableMineral -= minedAmount;
         
         fleetMineral[sender] += minedAmount;
         // requestToken();
@@ -292,17 +293,16 @@ contract Map is Editor {
     
     function refine() external {
         address sender = msg.sender;
-       (bool isPlanet,Planet memory planet,) = getPlanetAtFleetLocation(sender);
+       Planet memory planet = getPlanetAtFleetLocation(sender);
 
-        require(isPlanet == true, 'Fleet is not at planet.');
         require(planet.hasRefinery == true, "MAP: Fleet not at a refinery");
         require(fleetMineral[sender] > 0, "MAP: Fleet has no unrefined Token");
 
-        uint totalUnAmount = fleetMineral[sender];
+        uint totalMineral = fleetMineral[sender];
         fleetMineral[sender] = 0;
-        Token.safeTransfer(sender, totalUnAmount);
-        previousBalance = previousBalance - totalUnAmount;
-        emit MineralRefined(sender, totalUnAmount);
+        Token.safeTransfer(sender, totalMineral);
+        previousBalance = previousBalance - totalMineral;
+        emit MineralRefined(sender, totalMineral);
     }
 
     // remember to set to onlyEditor

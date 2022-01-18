@@ -12,4 +12,5 @@ interface IMap {
     );
     function isRefinery(uint _x, uint _y) external view returns(bool);
     function getPlayerLocation (address _player) external view returns(uint x, uint y);
+   function isShipyardLocation(uint _x, uint _y) external view returns (bool);
 }
