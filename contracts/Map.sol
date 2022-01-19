@@ -117,7 +117,7 @@ contract Map is Editor {
     event NewToken(address _new);
     event NewTreasury(address _new);
     event NewRewardsMod(uint _new);
-    event MineralTransferred(address _from, address _to, uint _amount);
+    event MineralTransferred(address _from, address _to, uint _amountSent, uint _amountReceived, uint _amountBurned);
     event MineralRefined(address _fleet, uint _amount);
     event MineralMined(address _fleet, uint _amount);
     event NewPlanet(uint _star, uint _x, uint _y);
@@ -275,10 +275,10 @@ contract Map is Editor {
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
-        uint maxAvailableCapacity = Fleet.getFleetMaxMineralCapacity() - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
-        uint miningCapacity = Fleet.getFleetMiningCapacity();
+        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
+        uint miningCapacity = Fleet.getMiningCapacity();
         
-        uint maxMine = Helper.getMin(maxAvailableCapacity, miningCapacity);
+        uint maxMine = Helper.getMin(availableCapacity, miningCapacity);
         uint minedAmount = Helper.getMin(planet.availableMineral, maxMine); //the less of fleet maxMine and how much mineral planet has available
         
         planets[planet.id].availableMineral -= minedAmount;
@@ -290,40 +290,37 @@ contract Map is Editor {
     
     function refine() external {
         address player = msg.sender;
-       Planet memory planet = getPlanetAtFleetLocation(player);
-
+        Planet memory planet = getPlanetAtFleetLocation(player);
         require(planet.hasRefinery == true, "MAP: Fleet not at a refinery");
-        require(fleetMineral[player] > 0, "MAP: Fleet has no mineral");
 
-        uint totalMineral = fleetMineral[player];
+        uint playerMineral = fleetMineral[player];
+        require(playerMineral > 0, "MAP: Player/Fleet has no mineral");
+
+        Token.safeTransfer(player, playerMineral);
         fleetMineral[player] = 0;
-        Token.safeTransfer(player, totalMineral);
-        previousBalance = previousBalance - totalMineral;
-        emit MineralRefined(player, totalMineral);
+
+        emit MineralRefined(player, playerMineral);
     }
 
     // remember to set to onlyEditor
-    // Allows players to take unrefined token from other players
-    function transferMineral(address _sender, address _receiver, uint _percent) external {
-        //uint amount = ((fleetMineral(_sender) * _percent / 100) <= (Fleet.getTokenCapacity[_player] - getFleetMineral(_sender)) ? (getFleetMineral(_sender) * _percent / 100) : (Fleet.getTokenCapacity[_player] - getFleetMineral(_sender)));
-        // replace amount with previous line when we have fleet data
-        uint amount = (fleetMineral[_sender] * _percent / 100);
-        uint transferredMineral; 
+    // Allows players to take mineral token from other players
+    function transferMineral(address _sender, address _receiver, uint _amount) external {
+        uint curSenderMineral = fleetMineral[_sender];
 
-            if (amount > fleetMineral[_sender]) {
-                amount = 0;
-                uint transfer = fleetMineral[_sender];
-                fleetMineral[_sender] -= transfer;
-                fleetMineral[_receiver] += transfer;
-                transferredMineral = transferredMineral + transfer;
-            } else if (fleetMineral[_sender] >= amount) {
-                uint transfer = amount;
-                amount = 0;
-                fleetMineral[_sender] -= transfer;
-                fleetMineral[_receiver] += transfer;
-                transferredMineral += transfer;
-            } 
-        emit MineralTransferred(_sender, _receiver, transferredMineral);
+        //player can't lose more mineral than they have
+        uint amountSent = Helper.getMin(_amount, curSenderMineral); //player cannot lose more mineral than it has
+        fleetMineral[_sender] -= amountSent;
+
+        //player can't receive more mineral than their max capacity
+        uint receiverAvailableCapacity = Fleet.getMaxMineralCapacity(_receiver) - fleetMineral[_receiver]; //max amount of mineral that fleet can carry minus what fleet already is carrying
+        uint amountReceived = Helper.getMin(amountSent, receiverAvailableCapacity);
+        fleetMineral[_receiver] += amountReceived;
+
+        uint amountBurned = amountSent - amountReceived;
+
+        //add burn call for amountSent from sender but what can't fit in receiver's mineral capacity
+
+        emit MineralTransferred(_sender, _receiver, amountSent, amountReceived, amountBurned);
     }
 
     //Fleet Location Functions

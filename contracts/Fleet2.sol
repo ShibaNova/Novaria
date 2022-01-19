@@ -16,17 +16,17 @@ contract Fleet is Ownable {
     IMap public Map;
     ITreasury public Treasury;
 
-    constructor (IMap _map, ITreasury _treasury, ShibaBEP20 _Nova) {
+    constructor (IMap _map, ITreasury _treasury, ShibaBEP20 _Token) {
         Map = _map;
         Treasury = _treasury;
-        Nova = _Nova;
+        Token = _Token;
         maxFleetSize = 1000;
         timeModifier = 1;
         createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
     }
     
-    ShibaBEP20 public Nova; // nova token address
+    ShibaBEP20 public Token; // nova token address
     uint maxFleetSize;
     uint timeModifier;
 
@@ -131,7 +131,7 @@ contract Fleet is Ownable {
 
         //send fee to shipyard owner
         uint ownerFee = (totalCost * shipyard.feePercent) / 100;
-        Nova.safeTransferFrom(player, shipyard.owner, ownerFee);
+        Token.safeTransferFrom(player, shipyard.owner, ownerFee);
 
         Treasury.deposit(player, totalCost);
 
@@ -182,18 +182,17 @@ contract Fleet is Ownable {
     }
 
     //get the max mineral capacity of player's fleet
-    function getFleetMaxMineralCapacity() public view returns (uint){
-        address player = msg.sender;
+    function getMaxMineralCapacity(address _player) public view returns (uint){
         uint mineralCapacity = 0;
         for(uint i=0; i<shipClassesList.length; i++) {
             string memory curShipClass = shipClassesList[i];
-            mineralCapacity += (fleets[player][curShipClass] * shipClasses[curShipClass].mineralCapacity);
+            mineralCapacity += (fleets[_player][curShipClass] * shipClasses[curShipClass].mineralCapacity);
         }
         return mineralCapacity;
     }
 
     //get the max mining capacity of player's fleet (how much mineral can a player mine each mining attempt)
-    function getFleetMiningCapacity() public view returns (uint){
+    function getMiningCapacity() public view returns (uint){
         address player = msg.sender;
         uint miningCapacity = 0;
         for(uint i=0; i<shipClassesList.length; i++) {
