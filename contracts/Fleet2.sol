@@ -2,15 +2,19 @@
  
 pragma solidity 0.8.7;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/ITreasury.sol";
+import './libs/Helper.sol';
 import "./ShipEngineering.sol";
 import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
  
-abstract contract Fleet is ShipEngineering {
+contract Fleet is Ownable {
  
     using SafeBEP20 for ShibaBEP20;
     IMap public Map;
+    ITreasury public Treasury;
 
     constructor (IMap _map, ITreasury _treasury, ShibaBEP20 _Nova) {
         Map = _map;
@@ -18,15 +22,33 @@ abstract contract Fleet is ShipEngineering {
         Nova = _Nova;
         maxFleetSize = 1000;
         timeModifier = 1;
+        createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
+        createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
     }
     
     ShibaBEP20 public Nova; // nova token address
     uint maxFleetSize;
     uint timeModifier;
 
-    function setTreasury (address _treasury) external onlyOwner {
-        Map = IMap(_treasury);
+    //miningCooldown - 30 min.
+    //jumpDriveCooldown - 30 min + distance
+    //attackDelay - 30 min.
+    //defendDelay - 30 min.
+    //building ships
+
+    struct ShipClass {
+        string name;
+        uint size;
+        uint attack;
+        uint shield;
+        uint mineralCapacity;
+        uint miningCapacity;
+        uint hangarSize;
+        uint buildTime;
+        uint cost;
     }
+    mapping (string => ShipClass) public shipClasses;
+    string[] public shipClassesList; //iterable list for ship classes, better name?
 
     struct Shipyard {
         uint id;
@@ -54,6 +76,26 @@ abstract contract Fleet is ShipEngineering {
     //player names
     mapping (string => address) names;
     mapping (address => string) addressToName;
+
+    function createShipClass(
+        string memory _name,
+        string memory _handle,
+        uint _size,
+        uint _attack,
+        uint _shield,
+        uint _mineralCapacity,
+        uint _miningCapacity,
+        uint _hangarSize,
+        uint _buildTime,
+        uint _cost) public onlyOwner {
+
+            shipClasses[_handle] = ShipClass(_name, _size, _attack, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost);
+            shipClassesList.push(_handle);
+        }
+
+    function getShipClass(string memory _handle) external view returns(ShipClass memory){
+        return shipClasses[_handle];
+    }
 
     function addShipyard(address _owner, uint _x, uint _y, uint _feePercent)  public onlyOwner {
         require(coordinateShipyards[_x][_y].exists, 'Shipyard: shipyard already exists at location');
@@ -163,5 +205,13 @@ abstract contract Fleet is ShipEngineering {
 
     function setTimeModifier(uint _timeModifier) external onlyOwner{
         timeModifier = _timeModifier;
+    }
+
+    function setTreasury (address _treasury) external onlyOwner {
+        Map = IMap(_treasury);
+    }
+
+    function editCost(string memory _handle, uint _newCost) public onlyOwner {
+        shipClasses[_handle].cost = _newCost;
     }
 }
