@@ -5,7 +5,6 @@ pragma solidity 0.8.7;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./interfaces/ITreasury.sol";
 import './libs/Helper.sol';
-import "./ShipEngineering.sol";
 import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
@@ -20,14 +19,14 @@ contract Fleet is Ownable {
         Map = _map;
         Treasury = _treasury;
         Token = _Token;
-        baseFleetSize = 1000;
+        baseMaxFleetSize = 1000;
         timeModifier = 5;
         createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
     }
     
     ShibaBEP20 public Token; // nova token address
-    uint baseFleetSize;
+    uint baseMaxFleetSize;
     uint timeModifier;
 
     //miningCooldown - 30 min.
@@ -161,7 +160,7 @@ contract Fleet is Ownable {
         return _getFleetSize(_player);
     }
     
-    function _getFleetSize(_player) internal view returns(uint) {
+    function _getFleetSize(address _player) internal view returns(uint) {
         uint fleetSize = 0;
         for(uint i=0; i<shipClassesList.length; i++) {
             uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
@@ -192,7 +191,7 @@ contract Fleet is Ownable {
         ShipClass memory dryDockClass = dryDock.shipClass;
 
         uint claimSize = _amount * dryDockClass.size;
-        uint fleetSize = _getFleetSize(); //player's current fleet size
+        uint fleetSize = _getFleetSize(player); //player's current fleet size
 
         require(fleetSize + claimSize < _getMaxFleetSize(player), 'Claim size requested cannot be larger than max fleet size');
 

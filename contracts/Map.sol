@@ -353,7 +353,7 @@ contract Map is Editor {
 
         travelCooldown[player] = (block.timestamp + baseCooldown + (distance*cooldownMod)) / timeModifier;
 
-        uint travelCost = getFleetTravelCost(_player, _x, _y);
+        uint travelCost = getFleetTravelCost(player, _x, _y);
         Treasury.pay(player, travelCost);
 
         (uint fleetX, uint fleetY) =  getFleetLocation(player);
