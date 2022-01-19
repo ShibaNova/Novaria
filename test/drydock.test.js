@@ -1,12 +1,9 @@
 const { assert } = require('chai');
 const { default: Web3 } = require('web3');
 
-const DryDock = artifacts.require('DryDock')
+const Fleet = artifacts.require('Fleet')
 const NovaToken = artifacts.require('NovaToken')
-// const SNovaToken = artifacts.require('SNovaToken')
 
-// const swapPenaltyMaxPeriod = 84600;
-// const swapPenaltyMaxPerSNova = 30;
 
 require('chai')
     .use(require('chai-as-promised'))

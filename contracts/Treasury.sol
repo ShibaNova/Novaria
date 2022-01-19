@@ -18,12 +18,16 @@ contract Treasury is Editor {
         dev1 = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
         dev2 = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
         team = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
+        costModifier = 10;
+        moneyPotRate = 80;
+        coderRoyaltiesRate = 4;
+
     }
 
-    uint costModifier = 10;
-    uint public moneyPotRate = 80; // initially 80% of funds go directly to money pot
-    uint public teamRate = 6; // payment for full time people
-    uint public coderRoyaltiesRate = 4; // dev royalties
+    uint costModifier;
+    uint public moneyPotRate; // initially 80% of funds go directly to money pot
+    uint public teamRate; // payment for full time people
+    uint public coderRoyaltiesRate; // dev royalties
     address public feeManager; // address that handles the money pot
     ShibaBEP20 public Token; // nova token address
     uint public totalWithdrawn; // total amount of fees withdrawn

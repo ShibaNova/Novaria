@@ -10,10 +10,19 @@ import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
  
 contract Fleet is Ownable {
- 
     using SafeBEP20 for ShibaBEP20;
+
+    //miningCooldown - 30 min.
+    //jumpDriveCooldown - 30 min + distance
+    //attackDelay - 30 min.
+    //defendDelay - 30 min.
+    //building ships
+
     IMap public Map;
     ITreasury public Treasury;
+    ShibaBEP20 public Token; // nova token address
+    uint baseMaxFleetSize;
+    uint timeModifier;
 
     constructor (IMap _map, ITreasury _treasury, ShibaBEP20 _Token) {
         Map = _map;
@@ -24,16 +33,6 @@ contract Fleet is Ownable {
         createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
     }
-    
-    ShibaBEP20 public Token; // nova token address
-    uint baseMaxFleetSize;
-    uint timeModifier;
-
-    //miningCooldown - 30 min.
-    //jumpDriveCooldown - 30 min + distance
-    //attackDelay - 30 min.
-    //defendDelay - 30 min.
-    //building ships
 
     struct ShipClass {
         string name;
@@ -147,10 +146,9 @@ contract Fleet is Ownable {
     }
 
     function _getMaxFleetSize(address _player) internal view returns (uint) {
-        address player = msg.sender;
-        uint maxFleetSize = baseMaxFleetSize;
+        uint maxFleetSize = baseMaxFleetSize; 
         for(uint i=0; i<shipClassesList.length; i++) {
-            uint shipClassAmount = fleets[player][shipClassesList[i]]; //get number of player's ships in this ship class
+            uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
             maxFleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].hangarSize);
         }
         return maxFleetSize / Treasury.getCostMod();

@@ -360,6 +360,7 @@ contract Map is Editor {
         address[] memory fleetsAtFromLocation = fleetsAtLocation[fleetX][fleetY]; //list of fleets at from location
         uint numFleetsAtLocation = fleetsAtFromLocation.length; //number of fleets at from location
 
+        // PROBLEM: we need to remove this loop. Is there a reason we're storing fleets at location instead of just creating a function that returns this info?
         /* this loop goes through fleets at the player's "from" location and when it finds the fleet,
             it removes puts the last element in the array in that fleets place and then removes the last element */
         for(uint i=0;i<numFleetsAtLocation;i++) {
