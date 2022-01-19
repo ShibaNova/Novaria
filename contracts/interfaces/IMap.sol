@@ -3,7 +3,7 @@
 pragma solidity ^0.8.7;
 
 interface IMap {
-        function getPlace(uint _x, uint _y) external view returns(
+    function getPlace(uint _x, uint _y) external view returns(
         string memory name,
         string memory placeType,
         bool isDmz,
@@ -12,5 +12,6 @@ interface IMap {
     );
     function isRefinery(uint _x, uint _y) external view returns(bool);
     function getPlayerLocation (address _player) external view returns(uint x, uint y);
-   function isShipyardLocation(uint _x, uint _y) external view returns (bool);
+    function isShipyardLocation(uint _x, uint _y) external view returns (bool);
+    function setFleetLocation(address _player, uint _x, uint _y) external;
 }

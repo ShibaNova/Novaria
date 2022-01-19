@@ -21,7 +21,6 @@ contract Treasury is Editor {
         costModifier = 10;
         moneyPotRate = 80;
         coderRoyaltiesRate = 4;
-
     }
 
     uint costModifier;
@@ -86,4 +85,5 @@ contract Treasury is Editor {
     function setCostMod(uint _new) external onlyOwner {
         costModifier = _new;
     }
+
 }

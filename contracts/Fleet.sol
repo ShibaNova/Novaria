@@ -9,8 +9,6 @@ import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
  
-contract Fleet is Ownable {
-    using SafeBEP20 for ShibaBEP20;
 
     //miningCooldown - 30 min.
     //jumpDriveCooldown - 30 min + distance
@@ -18,22 +16,25 @@ contract Fleet is Ownable {
     //defendDelay - 30 min.
     //building ships
 
-    IMap public Map;
-    ITreasury public Treasury;
-    ShibaBEP20 public Token; // nova token address
-    uint baseMaxFleetSize;
-    uint timeModifier;
+contract Fleet is Ownable {
+    using SafeBEP20 for ShibaBEP20;
 
-    constructor (IMap _map, ITreasury _treasury, ShibaBEP20 _Token) {
+    constructor (
+        IMap _map, 
+        ITreasury _treasury, 
+        ShibaBEP20 _Token
+        ) {
         Map = _map;
         Treasury = _treasury;
         Token = _Token;
         baseMaxFleetSize = 1000;
+        baseFleetSize = 100;
         timeModifier = 5;
         createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
     }
 
+    //ship class data
     struct ShipClass {
         string name;
         uint size;
@@ -48,6 +49,7 @@ contract Fleet is Ownable {
     mapping (string => ShipClass) public shipClasses;
     string[] public shipClassesList; //iterable list for ship classes, better name?
 
+    //shipyard data
     struct Shipyard {
         uint id;
         address owner;
@@ -64,16 +66,34 @@ contract Fleet is Ownable {
         uint amount; 
         uint completionTime;
     }
-
     // player address -> shipyard ID -> Drydock
     mapping (address => mapping (uint => DryDock)) playerDryDocks; //each player can have only 1 drydock at each location
-
+   
     // player address -> ship class -> number of ships
     mapping (address => mapping(string => uint)) fleets; //player fleet composition
 
     //player names
     mapping (string => address) names;
     mapping (address => string) addressToName;
+
+    IMap public Map;
+    ITreasury public Treasury;
+    ShibaBEP20 public Token; // nova token address
+    uint baseMaxFleetSize;
+    uint baseFleetSize; //size of capital ship
+    uint timeModifier;
+    uint startFee = 10**18;
+
+    event NewShipyard(uint _x, uint _y);
+
+    function insertCoinHere(string memory _name) external {
+        require(names[_name] == address(0), 'FLEET: Name already exists');
+        require(bytes(addressToName[msg.sender]).length == 0, 'FLEET: player already has name');
+        address player = msg.sender;
+        Treasury.pay(player, startFee * Treasury.getCostMod());
+        names[_name] = msg.sender;
+        addressToName[msg.sender] = _name;
+    }
 
     function createShipClass(
         string memory _name,
@@ -102,6 +122,7 @@ contract Fleet is Ownable {
         uint shipyardId = shipyards.length;
         shipyards.push(Shipyard(shipyardId, _owner, _x, _y, _feePercent, true));
         coordinateShipyards[_x][_y] = shipyards[shipyardId];
+        emit NewShipyard(_x, _y);
     }
 
     function getShipyards() external view returns(Shipyard[] memory) {
@@ -141,7 +162,7 @@ contract Fleet is Ownable {
         return playerDryDocks[_player][coordinateShipyards[_x][_y].id];
     }
 
-    function getMaxFleetSize(address _player) internal view returns (uint) {
+    function getMaxFleetSize(address _player) external view returns (uint) {
         return _getMaxFleetSize(_player);
     }
 
@@ -159,12 +180,18 @@ contract Fleet is Ownable {
     }
     
     function _getFleetSize(address _player) internal view returns(uint) {
-        uint fleetSize = 0;
+        uint fleetSize = baseFleetSize;
         for(uint i=0; i<shipClassesList.length; i++) {
             uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
             fleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].size);
         }
         return fleetSize;
+    }
+
+    function recall() external {
+        address player = msg.sender;
+        require(_getFleetSize(player) == baseFleetSize, "FLEET: fleet cannot have any ships for recall");
+        Map.setFleetLocation(player, 0, 0);
     }
 
     //allow player to destroy part of their fleet to add different kinds of ships

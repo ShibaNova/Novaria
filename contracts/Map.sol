@@ -15,14 +15,14 @@ contract Map is Editor {
 
     constructor (
         ShibaBEP20 _token,
-        ITreasury _treasury,
-        IShadowPool _shadowPool,
-        IFleet _fleet
+        ITreasury _treasury
+        //IShadowPool _shadowPool,
+       // IFleet _fleet
     ) {
         Token = _token;
         Treasury = _treasury;
-        ShadowPool = _shadowPool;
-        Fleet = _fleet;
+       // ShadowPool = _shadowPool;
+       // Fleet = _fleet;
 
         previousBalance = 0;
         baseTravelCost = 10**15;
@@ -294,9 +294,9 @@ contract Map is Editor {
 
         uint playerMineral = fleetMineral[player];
         require(playerMineral > 0, "MAP: Player/Fleet has no mineral");
+        fleetMineral[player] = 0;
 
         Token.safeTransfer(player, playerMineral);
-        fleetMineral[player] = 0;
 
         emit MineralRefined(player, playerMineral);
     }
@@ -315,9 +315,11 @@ contract Map is Editor {
         uint amountReceived = Helper.getMin(amountSent, receiverAvailableCapacity);
         fleetMineral[_receiver] += amountReceived;
 
-        uint amountBurned = amountSent - amountReceived;
-
         //add burn call for amountSent from sender but what can't fit in receiver's mineral capacity
+        uint amountBurned = amountSent - amountReceived;
+        if(amountBurned > 0) {
+            Token.transfer(0x000000000000000000000000000000000000dEaD, amountBurned);
+        }
 
         emit MineralTransferred(_sender, _receiver, amountSent, amountReceived, amountBurned);
     }
@@ -343,7 +345,7 @@ contract Map is Editor {
         return Helper.getDistance(oldX, oldY, _x, _y);
     }
 
-     // ship travel to _x and _y
+    // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         address player = msg.sender;
         require(block.timestamp >= travelCooldown[player], "MAPS: Jump drive still recharging");
@@ -365,17 +367,24 @@ contract Map is Editor {
             it removes puts the last element in the array in that fleets place and then removes the last element */
         for(uint i=0;i<numFleetsAtLocation;i++) {
             if(fleetsAtFromLocation[i] == player) {
-                fleetsAtLocation[fleetX][fleetY][i] = fleetsAtLocation[fleetX][fleetY][numFleetsAtLocation];
-                fleetsAtLocation[fleetX][fleetY].pop();
+                fleetsAtLocation[fleetX][fleetY][i] = fleetsAtLocation[fleetX][fleetY][numFleetsAtLocation]; //assign last element in array to where fleet was
+                fleetsAtLocation[fleetX][fleetY].pop(); //remove last element in array
             }
         }
 
         //add fleet to new location fleet list
         fleetsAtLocation[_x][_y].push(player);
+        _setFleetLocation(player, _x, _y);
+    }
 
+    function setFleetLocation(address _player, uint _x, uint _y) external onlyEditor {
+        _setFleetLocation(_player, _x, _y);
+    }
+
+    function _setFleetLocation(address _player, uint _x, uint _y) internal {
         //change fleet location in fleet mapping
-        fleetLocation[player][0] = _x;
-        fleetLocation[player][1] = _y;
+        fleetLocation[_player][0] = _x;
+        fleetLocation[_player][1] = _y;
     }
 
     // Setting to 0 disables travel

@@ -20,7 +20,7 @@ interface IRewardsPool {
 contract ShadowPool is Editor {
     using SafeBEP20 for ShibaBEP20;
 
-    IRewardsPool public Rewards;
+    IRewardsPool public Rewards; 
     ShibaBEP20 public Nova;
 
     uint public pid;

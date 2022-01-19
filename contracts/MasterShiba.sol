@@ -1056,7 +1056,7 @@ contract MasterShiba is Ownable, IMasterBonus, ReentrancyGuard {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmissionRateUpdated(address indexed caller, uint256 previousAmount, uint256 newAmount);
 
-    constructor(
+    constructor( 
         ShibaBEP20 _Nova,
         address _devaddr,
         address _feeAddress,
