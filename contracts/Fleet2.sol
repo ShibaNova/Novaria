@@ -20,14 +20,14 @@ contract Fleet is Ownable {
         Map = _map;
         Treasury = _treasury;
         Token = _Token;
-        maxFleetSize = 1000;
-        timeModifier = 1;
+        baseFleetSize = 1000;
+        timeModifier = 5;
         createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
     }
     
     ShibaBEP20 public Token; // nova token address
-    uint maxFleetSize;
+    uint baseFleetSize;
     uint timeModifier;
 
     //miningCooldown - 30 min.
@@ -111,20 +111,20 @@ contract Fleet is Ownable {
     }
 
     function getDockCost(string memory _shipClass, uint _amount) public view returns(uint) {
-        return _amount * shipClasses[_shipClass].cost * Treasury.getCostMod();
+        return (_amount * shipClasses[_shipClass].cost) / Treasury.getCostMod();
     }
 
     function getBuildTime(string memory _shipClass, uint _amount) public view returns(uint) {
-        return _amount * shipClasses[_shipClass].buildTime;
+        return (_amount * shipClasses[_shipClass].buildTime) / timeModifier;
     }
-    
+
     // Ship building Function
     function buildShips(uint _x, uint _y, string memory _shipClass, uint _amount) external {
         address player = msg.sender;
         Shipyard memory shipyard = coordinateShipyards[_x][_y];
         require(shipyard.exists, 'Shipyard: no shipyard at this location');
         require(playerDryDocks[player][shipyard.id].amount > 0, 'DryDock: already in progress or ships waiting to be claimed');
-        require((shipClasses[_shipClass].size * _amount) < maxFleetSize, 'DryDock: order is too large');
+        require((shipClasses[_shipClass].size * _amount) < _getMaxFleetSize(player), 'DryDock: order is too large');
 
         //total build cost
         uint totalCost = getDockCost(_shipClass, _amount);
@@ -135,7 +135,7 @@ contract Fleet is Ownable {
 
         Treasury.deposit(player, totalCost);
 
-        uint completionTime = (block.timestamp + getBuildTime(_shipClass, _amount)) / timeModifier;
+        uint completionTime = block.timestamp + getBuildTime(_shipClass, _amount);
         playerDryDocks[player][shipyard.id] = DryDock(shipClasses[_shipClass], _amount, completionTime);
     }
 
@@ -143,11 +143,29 @@ contract Fleet is Ownable {
         return playerDryDocks[_player][coordinateShipyards[_x][_y].id];
     }
 
-    function getFleetSize() public view returns(uint) {
+    function getMaxFleetSize(address _player) internal view returns (uint) {
+        return _getMaxFleetSize(_player);
+    }
+
+    function _getMaxFleetSize(address _player) internal view returns (uint) {
         address player = msg.sender;
+        uint maxFleetSize = baseMaxFleetSize;
+        for(uint i=0; i<shipClassesList.length; i++) {
+            uint shipClassAmount = fleets[player][shipClassesList[i]]; //get number of player's ships in this ship class
+            maxFleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].hangarSize);
+        }
+        return maxFleetSize / Treasury.getCostMod();
+    }
+
+    function getFleetSize(address _player) external view returns(uint) {
+        return _getFleetSize(_player);
+    }
+    
+    function _getFleetSize(_player) internal view returns(uint) {
         uint fleetSize = 0;
         for(uint i=0; i<shipClassesList.length; i++) {
-            fleetSize += fleets[player][shipClassesList[i]];
+            uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
+            fleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].size);
         }
         return fleetSize;
     }
@@ -163,6 +181,7 @@ contract Fleet is Ownable {
         3) dry dock build must be completed (completion time must be past block timestamp)
         4) claim size must not put fleet over max fleet size */
     function claimShips(uint _x, uint _y, uint _amount) external {
+        address player = msg.sender;
         Shipyard memory shipyard = coordinateShipyards[_x][_y];
         require(shipyard.exists, 'Shipyard: no shipyard at this location');
 
@@ -173,11 +192,11 @@ contract Fleet is Ownable {
         ShipClass memory dryDockClass = dryDock.shipClass;
 
         uint claimSize = _amount * dryDockClass.size;
-        uint fleetSize = getFleetSize(); //player's current fleet size
+        uint fleetSize = _getFleetSize(); //player's current fleet size
 
-        require(fleetSize + claimSize < maxFleetSize, 'Claim size requested cannot be larger than max fleet size');
+        require(fleetSize + claimSize < _getMaxFleetSize(player), 'Claim size requested cannot be larger than max fleet size');
 
-        fleets[msg.sender][dryDockClass.name] += _amount; //add ships to fleet
+        fleets[player][dryDockClass.name] += _amount; //add ships to fleet
         dryDock.amount -= _amount; //remove ships from drydock
     }
 
@@ -188,7 +207,7 @@ contract Fleet is Ownable {
             string memory curShipClass = shipClassesList[i];
             mineralCapacity += (fleets[_player][curShipClass] * shipClasses[curShipClass].mineralCapacity);
         }
-        return mineralCapacity;
+        return mineralCapacity / Treasury.getCostMod();
     }
 
     //get the max mining capacity of player's fleet (how much mineral can a player mine each mining attempt)
@@ -199,7 +218,7 @@ contract Fleet is Ownable {
             string memory curShipClass = shipClassesList[i];
             miningCapacity += (fleets[player][curShipClass] * shipClasses[curShipClass].miningCapacity);
         }
-        return miningCapacity;
+        return miningCapacity / Treasury.getCostMod();
     }
 
     function setTimeModifier(uint _timeModifier) external onlyOwner{

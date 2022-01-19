@@ -25,12 +25,12 @@ contract Map is Editor {
         Fleet = _fleet;
 
         previousBalance = 0;
-        baseTravelCost = 10;
+        baseTravelCost = 10**15;
         baseCooldown = 2700; //45 minutes
         cooldownMod = 900; //15 minutes
-        maxTravel = 5000; //AU
+        maxTravel = 10; //AU
         rewardsTimer = 0;
-        timeModifier = 1;
+        timeModifier = 5;
 
         placeTypes.push('star');
         placeTypes.push('planet');
@@ -55,12 +55,11 @@ contract Map is Editor {
     mapping (uint => bool) isPaused; // can pause token mineing for jackpots
     uint timeModifier; //allow all times to be changed
 
-
     // Fleet Info and helpers
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
+    mapping(uint => mapping (uint => address[])) fleetsAtLocation; //reverse index to see what fleets are at what location
+
     mapping(address => uint) public fleetMineral; //amount of mineral a fleet is carrying
-    address[] public fleetList; //all addresses that started the game  
-    mapping(address => bool) isFleet; // flag so fleet can only be loaded once  
     mapping (address => uint) travelCooldown; // limits how often fleets can travel
     // travelCooldown = block.timestamp + baseCooldown + (distance * cooldownMod(in seconds))
     uint public baseCooldown; 
@@ -323,55 +322,59 @@ contract Map is Editor {
         emit MineralTransferred(_sender, _receiver, amountSent, amountReceived, amountBurned);
     }
 
-    //Fleet Location Functions
-    // Sets initial fleet location, adds to fleet list
-    // needs to be linked to some setup function (when you buy first fleet?)
-    function loadFleet(address _sender) external {
-        require(isFleet[_sender] != true, "MAP: Fleet is already registered");
-        isFleet[_sender] = true;
-        fleetLocation[_sender] = [0, 0];
-        fleetList.push(_sender);
-    }
-    // Needs to be set to internal and controlled by travel function
-    function _setFleetLocation (address _fleet, uint _x, uint _y) public {
-        fleetLocation[_fleet] = [_x, _y];
-    }
-
     // Returns both x and y coordinates
     function getFleetLocation (address _fleet) public view returns(uint x, uint y) {
         return (fleetLocation[_fleet][0], fleetLocation[_fleet][1]);
     }
 
-    // Will this function cause errors when a place has hundreds of fleets?
-    function getFleetsAtLocation (uint _x, uint _y) external view returns(address[] memory) {
-       address[] memory fleets = new address[](fleetList.length);
-       uint counter;
-       for (uint i = 0; i < fleetList.length - 1; i++) {
-           if (fleetLocation[fleetList[i]][0] == _x && fleetLocation[fleetList[i]][1] == _y) {
-               fleets[counter] = fleetList[i];
-               counter++;
-           }
-       }
-       return fleets;
+    function getFleetsAtLocation(uint _x, uint _y) external view returns(address[] memory) {
+        return fleetsAtLocation[_x][_y];
     }
 
-     // Travel function, needs size modifier & restriciton on travel distance
-    function travel( uint _x, uint _y) external {
-        address sender = msg.sender;
-        require(isFleet[sender] == true, "MAP: Fleet is not loaded");
-        uint distance = getDistanceFromFleet(sender, _x, _y);
-        require(block.timestamp >= travelCooldown[sender], "MAPS: Jump drive still recharging");
-        require(distance <= maxTravel, "MAPS: cannot travel that far");
-        travelCooldown[sender] = block.timestamp + baseCooldown + (distance*cooldownMod);
-        uint amount = distance**2 * baseTravelCost *Treasury.getCostMod(); // add size mod
-        Treasury.pay(sender, amount);
-        _setFleetLocation(sender, _x, _y);
+    function getFleetTravelCost(address _fleet, uint _x, uint _y) public view returns (uint) {
+       uint fleetSize = Fleet.getFleetSize(_fleet);
+       uint distance = getDistanceFromFleet(_fleet, _x, _y);
+       return (distance**2 * baseTravelCost * fleetSize) / Treasury.getCostMod();
     }
 
     function getDistanceFromFleet (address _fleet, uint _x, uint _y) public view returns(uint) {
         uint oldX = fleetLocation[_fleet][0];
         uint oldY = fleetLocation[_fleet][1];
         return Helper.getDistance(oldX, oldY, _x, _y);
+    }
+
+     // ship travel to _x and _y
+    function travel(uint _x, uint _y) external {
+        address player = msg.sender;
+        require(block.timestamp >= travelCooldown[player], "MAPS: Jump drive still recharging");
+
+        uint distance = getDistanceFromFleet(player, _x, _y);
+        require(distance <= maxTravel, "MAPS: cannot travel that far");
+
+        travelCooldown[player] = (block.timestamp + baseCooldown + (distance*cooldownMod)) / timeModifier;
+
+        uint travelCost = getFleetTravelCost(_player, _x, _y);
+        Treasury.pay(player, travelCost);
+
+        (uint fleetX, uint fleetY) =  getFleetLocation(player);
+        address[] memory fleetsAtFromLocation = fleetsAtLocation[fleetX][fleetY]; //list of fleets at from location
+        uint numFleetsAtLocation = fleetsAtFromLocation.length; //number of fleets at from location
+
+        /* this loop goes through fleets at the player's "from" location and when it finds the fleet,
+            it removes puts the last element in the array in that fleets place and then removes the last element */
+        for(uint i=0;i<numFleetsAtLocation;i++) {
+            if(fleetsAtFromLocation[i] == player) {
+                fleetsAtLocation[fleetX][fleetY][i] = fleetsAtLocation[fleetX][fleetY][numFleetsAtLocation];
+                fleetsAtLocation[fleetX][fleetY].pop();
+            }
+        }
+
+        //add fleet to new location fleet list
+        fleetsAtLocation[_x][_y].push(player);
+
+        //change fleet location in fleet mapping
+        fleetLocation[player][0] = _x;
+        fleetLocation[player][1] = _y;
     }
 
     // Setting to 0 disables travel
