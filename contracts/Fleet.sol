@@ -1,186 +1,235 @@
 // SPDX-License-Identifier: MIT
+ 
+pragma solidity 0.8.7;
 
-pragma solidity ^0.8.7;
-
-import "./libs/Editor.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./interfaces/ITreasury.sol";
+import './libs/Helper.sol';
+import "./ShipEngineering.sol";
+import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
-import "./interfaces/ITreasury.sol";
-
-/*
-TO-DO:
-- set functions to edit personal max fighters/miners 
-- add experience attribute
-- add 10 new ship placeholders
-- restructure the ships, remove from capital, make own struct
-- add attributes for each ship type
-*/
-
-contract Fleet is Editor {
+ 
+contract Fleet is Ownable {
+ 
     using SafeBEP20 for ShibaBEP20;
+    IMap public Map;
+    ITreasury public Treasury;
 
-    event NewCapitalShip(uint shipID, string name);
-    event NewTreasury(address newAddress);
-    event NewNovaAddress(address newNova);
-
-    ShibaBEP20 public Nova;
-    address public Treasury;
-    uint public baseCapCost = 10**18;
-    // Be sure to set this contract as a editor after deployment
-    constructor(
-        ShibaBEP20 _Nova,
-        address _Treasury
-        
-    ) {
-        Nova = _Nova;
-        Treasury = _Treasury;
-    }
-
-    // Info of the player's capital ship
-    struct CapitalShip {
-        string name;
-        uint power;
-        uint8 powerMod;
-        uint256 carryCapacity;
-        uint experience;
-        uint16 wins;
-        uint16 losses;
-    }
-
-    CapitalShip[] public capitalShips;
-
-    
-    mapping (uint => address) public capitalShipOwner;
-    mapping (address => uint) public ownerShipId;
-    mapping (address => uint) ownerCapitalShipCount;
-    mapping (address => bool) isLaunched; // flag to check if a player has already prepared/launched their fleet
-
-    // set treasury address
-    function setTreasury(address _treasury) external onlyOwner {
-        require(_treasury != address(0), "FLEET: Cannot set treasury to 0 address");
+    constructor (IMap _map, ITreasury _treasury, ShibaBEP20 _Token) {
+        Map = _map;
         Treasury = _treasury;
-        emit NewTreasury(_treasury);
+        Token = _Token;
+        baseFleetSize = 1000;
+        timeModifier = 5;
+        createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
+        createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
+    }
+    
+    ShibaBEP20 public Token; // nova token address
+    uint baseFleetSize;
+    uint timeModifier;
+
+    //miningCooldown - 30 min.
+    //jumpDriveCooldown - 30 min + distance
+    //attackDelay - 30 min.
+    //defendDelay - 30 min.
+    //building ships
+
+    struct ShipClass {
+        string name;
+        uint size;
+        uint attack;
+        uint shield;
+        uint mineralCapacity;
+        uint miningCapacity;
+        uint hangarSize;
+        uint buildTime;
+        uint cost;
+    }
+    mapping (string => ShipClass) public shipClasses;
+    string[] public shipClassesList; //iterable list for ship classes, better name?
+
+    struct Shipyard {
+        uint id;
+        address owner;
+        uint coordX;
+        uint coordY;
+        uint feePercent; 
+        bool exists;
+    }
+    Shipyard[] public shipyards; //list of shipyards
+    mapping (uint => mapping (uint => Shipyard)) coordinateShipyards; //index to quickly track where shipyards are
+
+    struct DryDock {
+        ShipClass shipClass;
+        uint amount; 
+        uint completionTime;
     }
 
-    //update the nova token address
-    function setNovaAddress(address _newAddress) external onlyOwner {
-        Nova = ShibaBEP20(_newAddress);
-        emit NewNovaAddress(_newAddress);
-    }
+    // player address -> shipyard ID -> Drydock
+    mapping (address => mapping (uint => DryDock)) playerDryDocks; //each player can have only 1 drydock at each location
 
+    // player address -> ship class -> number of ships
+    mapping (address => mapping(string => uint)) fleets; //player fleet composition
 
-    function setLaunched(address _player, bool _status) external {
-        require(isLaunched[_player] != _status, "FLEET: Player already in this state");
-        isLaunched[_player] = _status;
-    }
+    //player names
+    mapping (string => address) names;
+    mapping (address => string) addressToName;
 
-    function getLaunchStatus(address _player) public view returns(bool) {
-        return isLaunched[_player];
-    }
+    function createShipClass(
+        string memory _name,
+        string memory _handle,
+        uint _size,
+        uint _attack,
+        uint _shield,
+        uint _mineralCapacity,
+        uint _miningCapacity,
+        uint _hangarSize,
+        uint _buildTime,
+        uint _cost) public onlyOwner {
 
-    function isContract(address _address) internal view returns (bool){
-    uint32 size;
-    assembly {
-        size := extcodesize(_address)
-    }
-    return (size > 0);
-    }
-
-    // capital ship info helpers
-    function getOwnerCapitalShipCount(address _owner) external view returns(uint) {
-        return ownerCapitalShipCount[_owner];
-    }
-
-    function getCapShipOwner(uint _id) external view returns (address) {
-        return capitalShipOwner[_id];
-    }
-
-    function getOwnerShipId(address _owner) external view returns (uint) {
-        return ownerShipId[_owner];
-    }
-
-    function capShipLength() public view returns (uint256) {
-        return capitalShips.length;
-    }
-
-    // get capital ship personal record
-    function getCapitalShipRecord(uint256 _id) external view returns(
-            string memory name,
-            uint16 wins,
-            uint16 losses,
-            uint experience
-            ) {
-            return (
-                capitalShips[_id].name,
-                capitalShips[_id].wins,
-                capitalShips[_id].losses,
-                capitalShips[_id].experience
-            );
-    }
-
-    // get capital ship combat stats and mining power
-    function getCapitalShip(uint256 _id) external view returns(
-            uint power,
-            uint8 powerMod,
-            uint256 carryCapacity
-        ) {
-            return (
-                capitalShips[_id].power,
-                capitalShips[_id].powerMod,
-                capitalShips[_id].carryCapacity
-            );
+            shipClasses[_handle] = ShipClass(_name, _size, _attack, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost);
+            shipClassesList.push(_handle);
         }
-    
-    // external function to build capital ship, _sender should be the address of the player, not the contracts interacting with this
-    function buildCapShip (
-        address _sender,
-        string memory _name 
-        ) external onlyEditor {
-            require(ownerCapitalShipCount[_sender] == 0, "FLEET: Each player can only have one Capital Ship");
-            ownerCapitalShipCount[msg.sender]++;
-            ITreasury(Treasury).pay(_sender, baseCapCost);
-            uint id = capShipLength();
-            capitalShips.push(CapitalShip({
-                name: _name, 
-                power: 0,
-                powerMod: 0, 
-                carryCapacity: 0, 
-                wins: 0, 
-                losses: 0,
-                experience: 0
-                }));
 
-        capitalShipOwner[id] = _sender;
-        ownerShipId[_sender] = id;
-        emit NewCapitalShip(id, _name);
+    function getShipClass(string memory _handle) external view returns(ShipClass memory){
+        return shipClasses[_handle];
     }
 
-    //Extneral function to set the total power
-    function setPower(uint _id, uint _amount) external onlyEditor {
-        capitalShips[_id].power = _amount;
-    }  
-    //External function to set the carry capacity
-    function setCarryCapacity(uint _id, uint _amount) external onlyEditor {
-        capitalShips[_id].carryCapacity = _amount;
+    function addShipyard(address _owner, uint _x, uint _y, uint _feePercent)  public onlyOwner {
+        require(coordinateShipyards[_x][_y].exists, 'Shipyard: shipyard already exists at location');
+        require(Map.isShipyardLocation(_x, _y) == true, 'Shipyard: shipyard not possible at this location');
+
+        uint shipyardId = shipyards.length;
+        shipyards.push(Shipyard(shipyardId, _owner, _x, _y, _feePercent, true));
+        coordinateShipyards[_x][_y] = shipyards[shipyardId];
     }
 
-    
-    // set the capital ship's powerMod
-    function addPowerMod(uint8 _value, address _sender) external onlyEditor {
-        uint _id = ownerShipId[_sender];
-        require(capitalShips[_id].powerMod + _value <= 255, "FLEET: player's powerMod is capped");
-        capitalShips[_id].powerMod = capitalShips[_id].powerMod + _value;
+    function getShipyards() external view returns(Shipyard[] memory) {
+        return shipyards;
     }
 
-    function subPowerMod(uint8 _value, address _sender) external onlyEditor {
-        uint _id = ownerShipId[_sender];
-        if (capitalShips[_id].powerMod - _value <= 0) {
-            capitalShips[_id].powerMod = 0;
-        } else {
-        capitalShips[_id].powerMod = capitalShips[_id].powerMod + _value;
+    function getDockCost(string memory _shipClass, uint _amount) public view returns(uint) {
+        return (_amount * shipClasses[_shipClass].cost) / Treasury.getCostMod();
+    }
+
+    function getBuildTime(string memory _shipClass, uint _amount) public view returns(uint) {
+        return (_amount * shipClasses[_shipClass].buildTime) / timeModifier;
+    }
+
+    // Ship building Function
+    function buildShips(uint _x, uint _y, string memory _shipClass, uint _amount) external {
+        address player = msg.sender;
+        Shipyard memory shipyard = coordinateShipyards[_x][_y];
+        require(shipyard.exists, 'Shipyard: no shipyard at this location');
+        require(playerDryDocks[player][shipyard.id].amount > 0, 'DryDock: already in progress or ships waiting to be claimed');
+        require((shipClasses[_shipClass].size * _amount) < _getMaxFleetSize(player), 'DryDock: order is too large');
+
+        //total build cost
+        uint totalCost = getDockCost(_shipClass, _amount);
+
+        //send fee to shipyard owner
+        uint ownerFee = (totalCost * shipyard.feePercent) / 100;
+        Token.safeTransferFrom(player, shipyard.owner, ownerFee);
+
+        Treasury.deposit(player, totalCost);
+
+        uint completionTime = block.timestamp + getBuildTime(_shipClass, _amount);
+        playerDryDocks[player][shipyard.id] = DryDock(shipClasses[_shipClass], _amount, completionTime);
+    }
+
+    function getDryDock(uint _x, uint _y, address _player) view external returns(DryDock memory){
+        return playerDryDocks[_player][coordinateShipyards[_x][_y].id];
+    }
+
+    function getMaxFleetSize(address _player) internal view returns (uint) {
+        return _getMaxFleetSize(_player);
+    }
+
+    function _getMaxFleetSize(address _player) internal view returns (uint) {
+        address player = msg.sender;
+        uint maxFleetSize = baseMaxFleetSize;
+        for(uint i=0; i<shipClassesList.length; i++) {
+            uint shipClassAmount = fleets[player][shipClassesList[i]]; //get number of player's ships in this ship class
+            maxFleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].hangarSize);
         }
+        return maxFleetSize / Treasury.getCostMod();
     }
 
+    function getFleetSize(address _player) external view returns(uint) {
+        return _getFleetSize(_player);
+    }
     
+    function _getFleetSize(_player) internal view returns(uint) {
+        uint fleetSize = 0;
+        for(uint i=0; i<shipClassesList.length; i++) {
+            uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
+            fleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].size);
+        }
+        return fleetSize;
+    }
 
+    //allow player to destroy part of their fleet to add different kinds of ships
+    function destroyShips(string memory _shipClass, uint _amount) external {
+        fleets[msg.sender][_shipClass] -= (Helper.getMin(_amount, fleets[msg.sender][_shipClass]));
+    }
+
+    /* move ships to fleet, call must fit the following criteria:
+        1) fleet must be at same location as shipyard being requested
+        2) amount requested must be less than or equal to amount in dry dock
+        3) dry dock build must be completed (completion time must be past block timestamp)
+        4) claim size must not put fleet over max fleet size */
+    function claimShips(uint _x, uint _y, uint _amount) external {
+        address player = msg.sender;
+        Shipyard memory shipyard = coordinateShipyards[_x][_y];
+        require(shipyard.exists, 'Shipyard: no shipyard at this location');
+
+        DryDock storage dryDock = playerDryDocks[msg.sender][shipyard.id];
+        require(_amount <= dryDock.amount, 'Dry Dock: ship amount requested not available in dry dock');
+        require(block.timestamp > dryDock.completionTime, 'Dry Dock: ships not built, yet');
+
+        ShipClass memory dryDockClass = dryDock.shipClass;
+
+        uint claimSize = _amount * dryDockClass.size;
+        uint fleetSize = _getFleetSize(); //player's current fleet size
+
+        require(fleetSize + claimSize < _getMaxFleetSize(player), 'Claim size requested cannot be larger than max fleet size');
+
+        fleets[player][dryDockClass.name] += _amount; //add ships to fleet
+        dryDock.amount -= _amount; //remove ships from drydock
+    }
+
+    //get the max mineral capacity of player's fleet
+    function getMaxMineralCapacity(address _player) public view returns (uint){
+        uint mineralCapacity = 0;
+        for(uint i=0; i<shipClassesList.length; i++) {
+            string memory curShipClass = shipClassesList[i];
+            mineralCapacity += (fleets[_player][curShipClass] * shipClasses[curShipClass].mineralCapacity);
+        }
+        return mineralCapacity / Treasury.getCostMod();
+    }
+
+    //get the max mining capacity of player's fleet (how much mineral can a player mine each mining attempt)
+    function getMiningCapacity() public view returns (uint){
+        address player = msg.sender;
+        uint miningCapacity = 0;
+        for(uint i=0; i<shipClassesList.length; i++) {
+            string memory curShipClass = shipClassesList[i];
+            miningCapacity += (fleets[player][curShipClass] * shipClasses[curShipClass].miningCapacity);
+        }
+        return miningCapacity / Treasury.getCostMod();
+    }
+
+    function setTimeModifier(uint _timeModifier) external onlyOwner{
+        timeModifier = _timeModifier;
+    }
+
+    function setTreasury (address _treasury) external onlyOwner {
+        Map = IMap(_treasury);
+    }
+
+    function editCost(string memory _handle, uint _newCost) public onlyOwner {
+        shipClasses[_handle].cost = _newCost;
+    }
 }
