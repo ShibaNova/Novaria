@@ -14,13 +14,13 @@ contract Map is Editor {
     using SafeBEP20 for ShibaBEP20;
 
     constructor (
-        ShibaBEP20 _token,
-        ITreasury _treasury
+        // ShibaBEP20 _token,
+        // ITreasury _treasury
         //IShadowPool _shadowPool,
        // IFleet _fleet
     ) {
-        Token = _token;
-        Treasury = _treasury;
+        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
        // ShadowPool = _shadowPool;
        // Fleet = _fleet;
 
@@ -156,7 +156,7 @@ contract Map is Editor {
         }
 
         uint planetId = planets.length;
-        planets.push(Planet(planetId, 0, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
+        planets.push(Planet(planetId, places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
 
         _addPlace('planet', planetId, _x, _y);
         emit NewPlanet(_starId, _x, _y);
@@ -249,7 +249,7 @@ contract Map is Editor {
 
     function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
         Place memory place = places[coordinatePlaceIds[_x][_y]];
-        require(Helper.isEqual(place.placeType, 'No planet found at this location.'));
+        require(Helper.isEqual(place.placeType, 'planet'), 'No planet found at this location.');
         return planets[place.childId];
     }
 
