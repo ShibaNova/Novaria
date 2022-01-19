@@ -30,6 +30,7 @@ contract Map is Editor {
         cooldownMod = 900; //15 minutes
         maxTravel = 5000; //AU
         rewardsTimer = 0;
+        timeModifier = 1;
 
         placeTypes.push('star');
         placeTypes.push('planet');
@@ -52,6 +53,7 @@ contract Map is Editor {
     uint rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
     mapping (uint => bool) isPaused; // can pause token mineing for jackpots
+    uint timeModifier; //allow all times to be changed
 
 
     // Fleet Info and helpers
@@ -77,7 +79,6 @@ contract Map is Editor {
         uint childId;
         uint coordX;
         uint coordY;
-<<<<<<< Updated upstream
     }
     Place[] public places;
 
@@ -127,57 +128,6 @@ contract Map is Editor {
         uint placeId = places.length;
         places.push(Place(placeId, _placeType, _childId, _x, _y));
 
-=======
-    }
-    Place[] public places;
-
-    struct Planet {
-        uint id; //native key
-        uint placeId; //foreign key to places
-        uint starId; //foreign key to stars
-        uint starDistance;
-        bool isMiningPlanet;
-        uint availableMineral;
-        bool hasRefinery;
-        bool hasShipyard;
-    }
-    Planet[] public planets;
-
-    struct Star {
-        uint id; //native key
-        uint placeId; //foreign key to places
-        uint luminosity;
-        uint totalMiningPlanets;
-        uint totalMiningPlanetDistance;
-    }
-    Star[] public stars;
-
-    struct Jumpgate {
-        uint id; //native key
-        uint placeId; //foreign key to places
-        uint tetheredGateId;
-        address owner;
-        uint gateFee;
-    }
-    Jumpgate[] jumpgates;
-
-    event NewShadowPool(address _new);
-    event NewFleet(address _new);
-    event NewToken(address _new);
-    event NewTreasury(address _new);
-    event NewRewardsMod(uint _new);
-    event MineralTransferred(address _from, address _to, uint _amount);
-    event MineralRefined(address _fleet, uint _amount);
-    event MineralMined(address _fleet, uint _amount);
-    event NewPlanet(uint _star, uint _x, uint _y);
-    event NewStar(uint _x, uint _y);
-
-    function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y) internal {
-        require(coordinatePlaceIds[_x][_y] == 0, 'Place already exists in these coordinates');
-        uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y));
-
->>>>>>> Stashed changes
         //set place in coordinate mapping
         coordinatePlaceIds[_x][_y] = placeId;
     }
@@ -242,7 +192,6 @@ contract Map is Editor {
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
         return (coordinatePlaceIds[_x][_y]);
-<<<<<<< Updated upstream
     }
 
     // currently no check for duplicates
@@ -326,8 +275,7 @@ contract Map is Editor {
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
-        uint maxMineralCapacity = Fleet.getFleetMaxMineralCapacity(); //maximum amount of mineral fleet can carry
-        uint maxAvailableCapacity = maxMineralCapacity - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
+        uint maxAvailableCapacity = Fleet.getFleetMaxMineralCapacity() - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
         uint miningCapacity = Fleet.getFleetMiningCapacity();
         
         uint maxMine = Helper.getMin(maxAvailableCapacity, miningCapacity);
@@ -338,8 +286,6 @@ contract Map is Editor {
         fleetMineral[player] += minedAmount;
         allocateToken();
         emit MineralMined(player, minedAmount);
-=======
->>>>>>> Stashed changes
     }
     
     function refine() external {
@@ -349,7 +295,6 @@ contract Map is Editor {
         require(planet.hasRefinery == true, "MAP: Fleet not at a refinery");
         require(fleetMineral[player] > 0, "MAP: Fleet has no mineral");
 
-<<<<<<< Updated upstream
         uint totalMineral = fleetMineral[player];
         fleetMineral[player] = 0;
         Token.safeTransfer(player, totalMineral);
@@ -357,120 +302,6 @@ contract Map is Editor {
         emit MineralRefined(player, totalMineral);
     }
 
-=======
-    // currently no check for duplicates
-    function addPlaceType(string memory _name) external onlyOwner {
-        placeTypes.push(_name);
-    }
-
-    // get total star luminosity
-    function getTotalLuminosity() public view returns(uint) {
-        uint totalLuminosity = 0;
-        for(uint i=0; i<stars.length; i++) {
-            if(stars[i].totalMiningPlanets > 0) {
-                totalLuminosity += stars[i].luminosity;
-            }
-        }
-        return totalLuminosity;
-    }
-
-    // Pulls token from the shadow pool, eventually internal function
-    //PROBLEM: does not function - review 
-    function requestToken() external onlyOwner{
-        if (block.timestamp >= rewardsTimer) {
-            ShadowPool.replenishPlace(address(this), rewardsMod);
-            rewardsTimer = block.timestamp + rewardsDelay;
-            allocateToken();
-        }
-    }
-
-    // Function to mine, refine, transfer unrefined Token
-    function allocateToken() public {
-        uint newAmount = Token.balanceOf(address(this)) - previousBalance;
-        require(newAmount > 0, 'MAP: no Token to allocate');
-
-        uint totalStarLuminosity = getTotalLuminosity();
-
-        //loop through planets and add new token
-        for(uint i=0; i<planets.length; i++) {
-            Planet memory planet = planets[i];
-
-            if(planet.isMiningPlanet) {
-                Star memory star = stars[planet.starId];
-
-                uint newStarSystemToken = newAmount * (star.luminosity / totalStarLuminosity);
-
-                uint newMineral = newStarSystemToken;
-                //if more than one planet in star system
-                if(star.totalMiningPlanets > 1) {
-                    newMineral = newStarSystemToken * (star.totalMiningPlanetDistance - planet.starDistance) /
-                        (star.totalMiningPlanetDistance * (star.totalMiningPlanets - 1));
-                }
-                planets[i].availableMineral += newMineral;
-            }
-        }
-        previousBalance = Token.balanceOf(address(this));
-    }
-
-    function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
-
-        Place memory place = places[coordinatePlaceIds[_x][_y]];
-
-        require(Helper.isEqual(place.placeType, 'No planet found at this location.'));
-
-        return planets[place.childId];
-    }
-
-    function getPlanetAtFleetLocation(address _sender) internal view returns (Planet memory) {
-        (uint fleetX, uint fleetY) =  getFleetLocation(_sender);
-        return getPlanetAtLocation(fleetX, fleetY);
-        //return getPlanetAtLocation(getFleetLocation(_sender));
-    }
-
-    function isRefineryLocation(uint _x, uint _y) external view returns (bool) {
-        return getPlanetAtLocation(_x, _y).hasRefinery;
-    }
-
-    function isShipyardLocation(uint _x, uint _y) external view returns (bool) {
-        return getPlanetAtLocation(_x, _y).hasShipyard;
-    }
-
-    //Fleet can mine Mineral depending their fleet's capacity
-    function mine() external {
-        address sender = msg.sender;
-        Planet memory planet = getPlanetAtFleetLocation(sender);
-
-        require(planet.availableMineral > 0, 'MAP: no mineral found');
-        require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
-        
-        // uint maxMine = Fleet.getTokenCapacity[sender] - fleetMineral(sender);
-        //link to fleets, will have to edit maxMine with above
-        uint maxMine = 100;
-
-        uint minedAmount = Helper.getMin(planet.availableMineral, maxMine);
-        
-        planets[planet.id].availableMineral -= minedAmount;
-        
-        fleetMineral[sender] += minedAmount;
-        // requestToken();
-        emit MineralMined(sender, minedAmount);
-    }
-    
-    function refine() external {
-        address sender = msg.sender;
-       Planet memory planet = getPlanetAtFleetLocation(sender);
-
-        require(planet.hasRefinery == true, "MAP: Fleet not at a refinery");
-        require(fleetMineral[sender] > 0, "MAP: Fleet has no unrefined Token");
-
-        uint totalMineral = fleetMineral[sender];
-        fleetMineral[sender] = 0;
-        Token.safeTransfer(sender, totalMineral);
-        previousBalance = previousBalance - totalMineral;
-        emit MineralRefined(sender, totalMineral);
-    }
-
->>>>>>> Stashed changes
     // remember to set to onlyEditor
     // Allows players to take unrefined token from other players
     function transferMineral(address _sender, address _receiver, uint _percent) external {
@@ -560,6 +391,7 @@ contract Map is Editor {
     function setBaseCooldown(uint _new) external onlyOwner {
         baseCooldown = _new;
     }
+
     // Functions to setup contract interfaces
     function setShadowPool(address _new) external onlyOwner {
         require(address(0) != _new);
@@ -599,6 +431,11 @@ contract Map is Editor {
     }
     function setBaseTravelCost(uint _new) external onlyOwner {
         baseTravelCost = _new;
+    }
+
+    // setting to 0 removes base travel cooldown
+    function setTimeModifier(uint _new) external onlyOwner {
+        timeModifier = _new;
     }
 }
 

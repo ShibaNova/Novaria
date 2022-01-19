@@ -35,8 +35,8 @@ contract ShipEngineering is Ownable {
         ITreasury _treasury
     ) {
         Treasury = _treasury;
-        createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 1, 10**18);
-        createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 1, 2 * 10**18);
+        createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
+        createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
     } 
 
     function createShipClass(

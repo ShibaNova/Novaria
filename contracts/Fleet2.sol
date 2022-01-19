@@ -17,10 +17,12 @@ abstract contract Fleet is ShipEngineering {
         Treasury = _treasury;
         Nova = _Nova;
         maxFleetSize = 1000;
+        timeModifier = 1;
     }
     
     ShibaBEP20 public Nova; // nova token address
     uint maxFleetSize;
+    uint timeModifier;
 
     function setTreasury (address _treasury) external onlyOwner {
         Map = IMap(_treasury);
@@ -48,7 +50,11 @@ abstract contract Fleet is ShipEngineering {
 
     // player address -> ship class -> number of ships
     mapping (address => mapping(string => uint)) fleets; //player fleet composition
- 
+
+    //player names
+    mapping (string => address) names;
+    mapping (address => string) addressToName;
+
     function addShipyard(address _owner, uint _x, uint _y, uint _feePercent)  public onlyOwner {
         require(coordinateShipyards[_x][_y].exists, 'Shipyard: shipyard already exists at location');
         require(Map.isShipyardLocation(_x, _y) == true, 'Shipyard: shipyard not possible at this location');
@@ -72,9 +78,10 @@ abstract contract Fleet is ShipEngineering {
     
     // Ship building Function
     function buildShips(uint _x, uint _y, string memory _shipClass, uint _amount) external {
+        address player = msg.sender;
         Shipyard memory shipyard = coordinateShipyards[_x][_y];
         require(shipyard.exists, 'Shipyard: no shipyard at this location');
-        require(playerDryDocks[msg.sender][shipyard.id].amount > 0, 'DryDock: already in progress or ships waiting to be claimed');
+        require(playerDryDocks[player][shipyard.id].amount > 0, 'DryDock: already in progress or ships waiting to be claimed');
         require((shipClasses[_shipClass].size * _amount) < maxFleetSize, 'DryDock: order is too large');
 
         //total build cost
@@ -82,12 +89,12 @@ abstract contract Fleet is ShipEngineering {
 
         //send fee to shipyard owner
         uint ownerFee = (totalCost * shipyard.feePercent) / 100;
-        Nova.safeTransferFrom(shipyard.owner, msg.sender, ownerFee);
+        Nova.safeTransferFrom(player, shipyard.owner, ownerFee);
 
-        Treasury.deposit(msg.sender, totalCost - ownerFee);
+        Treasury.deposit(player, totalCost);
 
-        uint completionTime = block.timestamp + (getBuildTime(_shipClass, _amount) * 60);
-        playerDryDocks[msg.sender][shipyard.id] = DryDock(shipClasses[_shipClass], _amount, completionTime);
+        uint completionTime = (block.timestamp + getBuildTime(_shipClass, _amount)) / timeModifier;
+        playerDryDocks[player][shipyard.id] = DryDock(shipClasses[_shipClass], _amount, completionTime);
     }
 
     function getDryDock(uint _x, uint _y, address _player) view external returns(DryDock memory){
@@ -105,7 +112,7 @@ abstract contract Fleet is ShipEngineering {
 
     //allow player to destroy part of their fleet to add different kinds of ships
     function destroyShips(string memory _shipClass, uint _amount) external {
-        fleets[msg.sender][_shipClass] -= (Helper.getMax(_amount, fleets[msg.sender][_shipClass]));
+        fleets[msg.sender][_shipClass] -= (Helper.getMin(_amount, fleets[msg.sender][_shipClass]));
     }
 
     /* move ships to fleet, call must fit the following criteria:
@@ -152,5 +159,9 @@ abstract contract Fleet is ShipEngineering {
             miningCapacity += (fleets[player][curShipClass] * shipClasses[curShipClass].miningCapacity);
         }
         return miningCapacity;
+    }
+
+    function setTimeModifier(uint _timeModifier) external onlyOwner{
+        timeModifier = _timeModifier;
     }
 }
