@@ -5,7 +5,7 @@ pragma solidity ^0.8.7;
 
 interface IFleet {
     function getMaxMineralCapacity(address player) external view returns (uint);
-    function getMiningCapacity() external view returns (uint);
+    function getMiningCapacity(address _player) external view returns (uint);
     function getMaxFleetSize(address player) external view returns (uint);
     function getFleetSize(address player) external view returns(uint);
 }

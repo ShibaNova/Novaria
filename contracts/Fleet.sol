@@ -24,7 +24,7 @@ contract Fleet is Ownable {
        // ITreasury _treasury, 
        // ShibaBEP20 _Token
         ) {
-        Map = IMap(0x5FD6eB55D12E759a21C09eF703fe0CBa1DC9d88D);
+        Map = IMap(0xE3Ca443c9fd7AF40A2B5a95d43207E763e56005F);
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
         baseMaxFleetSize = 1000;
@@ -139,10 +139,12 @@ contract Fleet is Ownable {
     function getBuildTime(string memory _shipClass, uint _amount) public view returns(uint) {
         return (_amount * shipClasses[_shipClass].buildTime) / timeModifier;
     }
-
+ 
     // Ship building Function
     function buildShips(uint _x, uint _y, string memory _shipClass, uint _amount) external {
         address player = msg.sender;
+        (uint fleetX, uint fleetY) = Map.getFleetLocation(player);
+        require(fleetX == _x && fleetY == _y, 'FLEET: fleet not at designated shipyard');
         Shipyard memory shipyard = coordinateShipyards[_x][_y];
         require(shipyard.exists == true, 'FLEET: no shipyard at this location');
         require(playerDryDocks[player][shipyard.id].amount == 0, 'FLEET: already in progress or ships waiting to be claimed');
@@ -155,7 +157,7 @@ contract Fleet is Ownable {
         uint ownerFee = (totalCost * shipyard.feePercent) / 100;
         Token.safeTransferFrom(player, shipyard.owner, ownerFee);
 
-        Treasury.deposit(player, totalCost);
+        Treasury.pay(player, totalCost);
 
         uint completionTime = block.timestamp + getBuildTime(_shipClass, _amount);
         playerDryDocks[player][shipyard.id] = DryDock(shipClasses[_shipClass], _amount, completionTime);
@@ -210,6 +212,8 @@ contract Fleet is Ownable {
         4) claim size must not put fleet over max fleet size */
     function claimShips(uint _x, uint _y, uint _amount) external {
         address player = msg.sender;
+        (uint fleetX, uint fleetY) = Map.getFleetLocation(player);
+        require(fleetX == _x && fleetY == _y, 'FLEET: fleet not at designated shipyard');
         Shipyard memory shipyard = coordinateShipyards[_x][_y];
         require(shipyard.exists == true, 'Shipyard: no shipyard at this location');
 
@@ -239,12 +243,11 @@ contract Fleet is Ownable {
     }
 
     //get the max mining capacity of player's fleet (how much mineral can a player mine each mining attempt)
-    function getMiningCapacity() public view returns (uint){
-        address player = msg.sender;
+    function getMiningCapacity(address _player) public view returns (uint){
         uint miningCapacity = 0;
         for(uint i=0; i<shipClassesList.length; i++) {
             string memory curShipClass = shipClassesList[i];
-            miningCapacity += (fleets[player][curShipClass] * shipClasses[curShipClass].miningCapacity);
+            miningCapacity += (fleets[_player][curShipClass] * shipClasses[curShipClass].miningCapacity);
         }
         return miningCapacity / Treasury.getCostMod();
     }

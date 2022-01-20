@@ -30,7 +30,8 @@ contract Map is Editor {
         cooldownMod = 900; //15 minutes
         maxTravel = 10; //AU
         rewardsTimer = 0;
-        timeModifier = 5;
+        timeModifier = 100;
+        miningCooldown = 1800; //30 minutes
 
         placeTypes.push('star');
         placeTypes.push('planet');
@@ -54,6 +55,7 @@ contract Map is Editor {
     uint rewardsDelay;
     mapping (uint => bool) isPaused; // can pause token mineing for jackpots
     uint timeModifier; //allow all times to be changed
+    uint miningCooldown; // how long before 
 
     // Fleet Info and helpers
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
@@ -61,7 +63,8 @@ contract Map is Editor {
 
     mapping(address => uint) public fleetMineral; //amount of mineral a fleet is carrying
     mapping (address => uint) travelCooldown; // limits how often fleets can travel
-    // travelCooldown = block.timestamp + baseCooldown + (distance * cooldownMod(in seconds))
+    mapping (address => uint) fleetMiningCooldown; // limits how often a fleet can mine mineral
+    
     uint public baseCooldown; 
     uint public cooldownMod; 
     uint public baseTravelCost; // Token cost to travel 1 AU
@@ -222,29 +225,30 @@ contract Map is Editor {
     // Function to mine, refine, transfer unrefined Token
     function allocateToken() public {
         uint newAmount = Token.balanceOf(address(this)) - previousBalance;
-        require(newAmount > 0, 'MAP: no Token to allocate');
+        if (newAmount > 0) {
 
-        uint totalStarLuminosity = getTotalLuminosity();
+            uint totalStarLuminosity = getTotalLuminosity();
 
-        //loop through planets and add new token
-        for(uint i=0; i<planets.length; i++) {
-            Planet memory planet = planets[i];
+            //loop through planets and add new token
+            for(uint i=0; i<planets.length; i++) {
+                Planet memory planet = planets[i];
 
-            if(planet.isMiningPlanet) {
-                Star memory star = stars[planet.starId];
+                if(planet.isMiningPlanet) {
+                    Star memory star = stars[planet.starId];
 
-                uint newStarSystemToken = newAmount * (star.luminosity / totalStarLuminosity);
+                    uint newStarSystemToken = newAmount * (star.luminosity / totalStarLuminosity);
 
-                uint newMineral = newStarSystemToken;
-                //if more than one planet in star system
-                if(star.totalMiningPlanets > 1) {
-                    newMineral = newStarSystemToken * (star.totalMiningPlanetDistance - planet.starDistance) /
-                        (star.totalMiningPlanetDistance * (star.totalMiningPlanets - 1));
+                    uint newMineral = newStarSystemToken;
+                    //if more than one planet in star system
+                    if(star.totalMiningPlanets > 1) {
+                        newMineral = newStarSystemToken * (star.totalMiningPlanetDistance - planet.starDistance) /
+                            (star.totalMiningPlanetDistance * (star.totalMiningPlanets - 1));
+                    }
+                    planets[i].availableMineral += newMineral;
                 }
-                planets[i].availableMineral += newMineral;
             }
+            previousBalance = Token.balanceOf(address(this));
         }
-        previousBalance = Token.balanceOf(address(this));
     }
 
     function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
@@ -265,23 +269,25 @@ contract Map is Editor {
     function isShipyardLocation(uint _x, uint _y) external view returns (bool) {
         return getPlanetAtLocation(_x, _y).hasShipyard;
     }
-
+ 
     //Fleet can mine mineral depending their fleet's capacity and planet available
     function mine() external {
         address player = msg.sender;
         Planet memory planet = getPlanetAtFleetLocation(player);
-
+        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: Fleet miners on cooldown');
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
         uint availableCapacity = Fleet.getMaxMineralCapacity(player) - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
-        uint miningCapacity = Fleet.getMiningCapacity();
+        require(availableCapacity > 0, 'MAP: cannot carry any more mineral');
+        uint miningCapacity = Fleet.getMiningCapacity(player);
         
         uint maxMine = Helper.getMin(availableCapacity, miningCapacity);
         uint minedAmount = Helper.getMin(planet.availableMineral, maxMine); //the less of fleet maxMine and how much mineral planet has available
         
         planets[planet.id].availableMineral -= minedAmount;
         
+        fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
         fleetMineral[player] += minedAmount;
         allocateToken();
         emit MineralMined(player, minedAmount);
@@ -297,7 +303,7 @@ contract Map is Editor {
         fleetMineral[player] = 0;
 
         Token.safeTransfer(player, playerMineral);
-
+        previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
     }
 
@@ -367,7 +373,7 @@ contract Map is Editor {
             it removes puts the last element in the array in that fleets place and then removes the last element */
         for(uint i=0;i<numFleetsAtLocation;i++) {
             if(fleetsAtFromLocation[i] == player) {
-                fleetsAtLocation[fleetX][fleetY][i] = fleetsAtLocation[fleetX][fleetY][numFleetsAtLocation]; //assign last element in array to where fleet was
+                fleetsAtLocation[fleetX][fleetY][i] = fleetsAtLocation[fleetX][fleetY][numFleetsAtLocation-1]; //assign last element in array to where fleet was
                 fleetsAtLocation[fleetX][fleetY].pop(); //remove last element in array
             }
         }
