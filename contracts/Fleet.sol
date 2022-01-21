@@ -9,11 +9,10 @@ import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
  
-
     //miningCooldown - 30 min.
     //jumpDriveCooldown - 30 min + distance
-    //attackDelay - 30 min.
-    //defendDelay - 30 min.
+    //attackWindow - 30 min.
+    //defendWindow - 30 min.
     //building ships
 
 contract Fleet is Ownable {
@@ -30,6 +29,8 @@ contract Fleet is Ownable {
         baseMaxFleetSize = 1000;
         baseFleetSize = 100;
         timeModifier = 5;
+        attackWindow = 1800; //30 minutes
+        defendWindow = 1800; //30 minutes
         createShipClass("Viper", "viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
@@ -79,12 +80,58 @@ contract Fleet is Ownable {
     mapping (string => address) public names;
     mapping (address => string) public addressToName;
 
+    //battle data
+    struct Battle {
+        uint id;
+        address attackTarget;
+        uint battleDeadline;
+        address[] attackers;
+        address[] defenders;
+        bool exists;
+    }
+    Battle[] public battles;
+
+    //mapping to easily player battles
+    mapping (address => Battle) public targetToBattle;
+    mapping (address => Battle) public playerToBattle;
+
+    //initiate an attack against another player
+    function attack(address _player, address _target) external {
+        //verify players are at same location
+        (uint attackX, uint attackY) = Map.getFleetLocation(_player);
+        (uint targetX, uint targetY) = Map.getFleetLocation(_target);
+        require(attackX == targetX && attackY == targetY, 'FLEET: attacker and target not at same location');
+        require(playerToBattle[_player].exists == false, 'FLEET: attacker already in another battle');
+
+        //create battle if there is currently no attack against target
+        if(targetToBattle[_target].exists == false) {
+            uint battleId = battles.length;
+            battles.push(Battle(battleId, _target, block.timestamp+_getAttackWindow()+_getDefendWindow(), [_player], 0, true));
+            playerToBattle[_player] = battles[battleId];
+            targetToBattle[_target] = battles[battleId];
+        }
+        else {
+            playerToBattle[_player] = battles[targetToBattle[_target]];
+            battles[targetToBattle[_target]].attackers.push(_player);
+        }
+    }
+
+    function _getAttackWindow() internal view returns (uint) {
+        return attackWindow / timeModifier;
+    }
+
+    function _getDefendWindow() internal view returns (uint) {
+        return defendWindow / timeModifier;
+    }
+
     IMap public Map;
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
     uint baseMaxFleetSize;
     uint baseFleetSize; //size of capital ship
     uint timeModifier;
+    uint attackWindow;
+    uint defendWindow;
     uint startFee = 10**18;
 
     event NewShipyard(uint _x, uint _y);
