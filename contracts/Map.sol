@@ -72,6 +72,7 @@ contract Map is Editor {
     string[] public placeTypes; // list of placeTypes
 
     // Coordinates return the place id
+    mapping (uint => mapping(uint => bool)) public placeExists;
     mapping (uint => mapping(uint => uint)) public coordinatePlaces;
 
     struct Place {
@@ -80,7 +81,6 @@ contract Map is Editor {
         uint childId;
         uint coordX;
         uint coordY;
-        bool exists;
     }
     Place[] public places;
 
@@ -126,11 +126,12 @@ contract Map is Editor {
     event NewStar(uint _x, uint _y);
 
     function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y) internal {
-        require(places[coordinatePlaces[_x][_y]].exists == true, 'Place already exists in these coordinates');
+        require(placeExists[_x][_y] == false, 'Place already exists in these coordinates');
         uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y, true));
+        places.push(Place(placeId, _placeType, _childId, _x, _y));
 
         //set place in coordinate mapping
+        placeExists[_x][_y] = true;
         coordinatePlaces[_x][_y] = placeId;
     }
 
@@ -167,6 +168,19 @@ contract Map is Editor {
 
     function addPlanet(uint _starId, uint _x, uint _y, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
         _addPlanet(_starId, _x, _y, _isMiningPlanet, _hasRefinery, _hasShipyard);
+    }
+
+    function getPlanetIds() external view returns(uint[] memory) {
+        uint numPlanets = planets.length;
+        uint[] memory planetIds = new uint[](numPlanets);
+        for(uint i=0; i<numPlanets; i++) {
+            planetIds[i] = planets[i].id;
+        }
+        return planetIds;
+    }
+
+    function getPlanetCoordinates(uint _id) external view returns(uint, uint) {
+        return (places[planets[_id].placeId].coordX, places[planets[_id].placeId].coordY);
     }
 
     function _addJumpgate(address _owner, uint _x, uint _y) internal {

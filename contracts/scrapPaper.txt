@@ -3,16 +3,18 @@
 ~~FLEET~~
 // can build and claim ships without being at the planet (needs a map check)
 // pass player through 'getminingcapacity'
-- in buildships, change to Treasury.pay instead of deposit
-
+// in buildships, change to Treasury.pay instead of deposit
+- add modifier for endBattle
+- add battle code
 
 ~~MAP~~
 // allocate needs to have if statement to run if there is 0 nova
 // mine doesn't collect mineral? pass player through 'getminingcapacity'
-- set player location breaks getPlayersAtLocation (don't care?)
+// set player location breaks getPlayersAtLocation (don't care?)
 // travel may not work? numFleetAtLocation-1 
 // add a mine cooldown?
 // if amount to mine is 0 (fleetmineral at max capacity), should mining fail? Probably
 // refine doesn't change previous balance
+- add explore function
 
 

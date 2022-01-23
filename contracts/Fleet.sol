@@ -54,23 +54,21 @@ contract Fleet is Ownable {
 
     //shipyard data
     struct Shipyard {
-        uint id;
         address owner;
         uint coordX;
         uint coordY;
-        uint feePercent; 
+        uint feePercent;
         bool exists;
     }
-    Shipyard[] public shipyards; //list of shipyards
-    mapping (uint => mapping (uint => Shipyard)) coordinateShipyards; //index to quickly track where shipyards are
+    mapping (uint => mapping (uint => Shipyard)) coordinateShipyards; //shipyard locations
 
     struct DryDock {
         ShipClass shipClass;
         uint amount; 
         uint completionTime;
     }
-    // player address -> shipyard ID -> Drydock
-    mapping (address => mapping (uint => DryDock)) playerDryDocks; //each player can have only 1 drydock at each location
+    // player address -> shipyard x coordinate -> shipyard y coordinate -> Drydock
+    mapping (address => mapping (uint => mapping (uint => DryDock))) playerDryDocks; //each player can have only 1 drydock at each location
    
    // ***Add function to view fleet!!!!
     // player address -> ship class -> number of ships
@@ -87,7 +85,6 @@ contract Fleet is Ownable {
         uint battleDeadline;
         address[] attackers;
         address[] defenders;
-        bool exists;
     }
     Battle[] public battles;
 
@@ -111,32 +108,34 @@ contract Fleet is Ownable {
 
         require(isPlayerAttacking[_player] == false && isPlayerDefending[_player] == false, 'FLEET: player already in another battle');
 
-        require(_getFleetSize(_target) > 0, 'FLEET: cannot attack a player that has no ships');
-        require(_getFleetSize(_player) > 0, 'FLEET: cannot attack/defend without ships');
+        require(_getFleetSize(_target) > _getBaseFleetSize(), 'FLEET: cannot attack a player that has no ships');
+        require(_getFleetSize(_player) > _getBaseFleetSize(), 'FLEET: cannot attack/defend without ships');
         _;
     }
 
     //come to the defense of another player
     function defend(address _player, address _target) external canParticipateInBattle(_player, _target) {
+        require(isPlayerTargetted[_target] == true, 'FLEET: cannot defend a player that is not under attack');
+
         Battle storage foundBattle = battles[targetToBattle[_target]];
-        require(foundBattle.exists == true, 'FLEET: cannot defend a player that is not under attack');
         require(block.timestamp < foundBattle.battleDeadline, 'FLEET: defend window is past');
         participantToBattle[_player] = foundBattle.id;
+        isPlayerDefending[_player] = true;
         foundBattle.defenders.push(_player);
     }
 
     //initiate an attack against another player
     function attack(address _player, address _target) external canParticipateInBattle(_player, _target) {
-        Battle storage foundBattle = battles[targetToBattle[_target]];
-        require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: attack window is past');
-        if(foundBattle.exists == true) {
+        if(isPlayerTargetted[_target] == true) {
+            Battle storage foundBattle = battles[targetToBattle[_target]];
+            require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: attack window is past');
             participantToBattle[_player] = foundBattle.id;
             foundBattle.attackers.push(_player);
         }
         else { //create battle if there is currently no attack against target
             uint battleDeadline = block.timestamp + _getAttackWindow() + _getDefendWindow();
             uint newBattleId = battles.length;
-            battles.push(Battle(newBattleId, _target, battleDeadline, new address[](0), new address[](0), true));
+            battles.push(Battle(newBattleId, _target, battleDeadline, new address[](0), new address[](0)));
             Battle storage newBattle = battles[newBattleId];
             newBattle.attackers.push(_player);
             newBattle.defenders.push(_target);
@@ -244,11 +243,11 @@ contract Fleet is Ownable {
 
     function insertCoinHere(string memory _name) external {
         require(names[_name] == address(0), 'FLEET: Name already exists');
-        require(bytes(addressToName[msg.sender]).length == 0, 'FLEET: player already has name');
         address player = msg.sender;
-        Treasury.pay(player, startFee * Treasury.getCostMod());
-        names[_name] = msg.sender;
-        addressToName[msg.sender] = _name;
+        require(bytes(addressToName[player]).length == 0, 'FLEET: player already has name');
+        Treasury.pay(player, startFee / Treasury.getCostMod());
+        names[_name] = player;
+        addressToName[player] = _name;
     }
 
     function createShipClass(
@@ -275,13 +274,20 @@ contract Fleet is Ownable {
         require(coordinateShipyards[_x][_y].exists == false, 'Shipyard: shipyard already exists at location');
         require(Map.isShipyardLocation(_x, _y) == true, 'Shipyard: shipyard not possible at this location');
 
-        uint shipyardId = shipyards.length;
-        shipyards.push(Shipyard(shipyardId, _owner, _x, _y, _feePercent, true));
-        coordinateShipyards[_x][_y] = shipyards[shipyardId];
+        coordinateShipyards[_x][_y] = Shipyard(_owner, _x, _y, _feePercent, true);
         emit NewShipyard(_x, _y);
     }
 
     function getShipyards() external view returns(Shipyard[] memory) {
+        uint shipyardCount = 0;
+        Shipyard[] memory shipyards;
+        uint[] memory planetIds = Map.getPlanetIds();
+        for(uint i=0; i<planetIds.length; i++) {
+            (uint x, uint y) = Map.getPlanetCoordinates(planetIds[i]);
+            if(coordinateShipyards[x][y].exists) {
+                shipyards[shipyardCount++] = coordinateShipyards[x][y];
+            }
+        }
         return shipyards;
     }
 
@@ -300,7 +306,7 @@ contract Fleet is Ownable {
         require(fleetX == _x && fleetY == _y, 'FLEET: fleet not at designated shipyard');
         Shipyard memory shipyard = coordinateShipyards[_x][_y];
         require(shipyard.exists == true, 'FLEET: no shipyard at this location');
-        require(playerDryDocks[player][shipyard.id].amount == 0, 'FLEET: already in progress or ships waiting to be claimed');
+        require(playerDryDocks[player][shipyard.coordX][shipyard.coordY].amount == 0, 'FLEET: already in progress or ships waiting to be claimed');
         require((shipClasses[_shipClass].size * _amount) < _getMaxFleetSize(player), 'FLEET: order is too large');
 
         //total build cost
@@ -313,11 +319,11 @@ contract Fleet is Ownable {
         Treasury.pay(player, totalCost);
 
         uint completionTime = block.timestamp + getBuildTime(_shipClass, _amount);
-        playerDryDocks[player][shipyard.id] = DryDock(shipClasses[_shipClass], _amount, completionTime);
+        playerDryDocks[player][shipyard.coordX][shipyard.coordY] = DryDock(shipClasses[_shipClass], _amount, completionTime);
     }
 
     function getDryDock(uint _x, uint _y, address _player) view external returns(DryDock memory){
-        return playerDryDocks[_player][coordinateShipyards[_x][_y].id];
+        return playerDryDocks[_player][_x][_y];
     }
 
     function getMaxFleetSize(address _player) external view returns (uint) {
@@ -338,7 +344,10 @@ contract Fleet is Ownable {
     }
     
     function _getFleetSize(address _player) internal view returns(uint) {
-        uint fleetSize = baseFleetSize / Treasury.getCostMod();
+        uint fleetSize = 0;
+        if(bytes(addressToName[_player]).length > 0) {
+            fleetSize += _getBaseFleetSize();
+        }
         for(uint i=0; i<shipClassesList.length; i++) {
             uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
             fleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].size);
@@ -346,10 +355,14 @@ contract Fleet is Ownable {
         return fleetSize;
     }
 
+    function _getBaseFleetSize() internal view returns (uint) {
+        return baseFleetSize / Treasury.getCostMod();
+    }
+
 
     function recall() external {
         address player = msg.sender;
-        require(_getFleetSize(player) == baseFleetSize, "FLEET: fleet cannot have any ships for recall");
+        require(_getFleetSize(player) == _getBaseFleetSize(), "FLEET: fleet cannot have any ships for recall");
         Map.setFleetLocation(player, 0, 0);
     }
 
@@ -367,10 +380,9 @@ contract Fleet is Ownable {
         address player = msg.sender;
         (uint fleetX, uint fleetY) = Map.getFleetLocation(player);
         require(fleetX == _x && fleetY == _y, 'FLEET: fleet not at designated shipyard');
-        Shipyard memory shipyard = coordinateShipyards[_x][_y];
-        require(shipyard.exists == true, 'Shipyard: no shipyard at this location');
+        require(coordinateShipyards[_x][_y].exists == true, 'Shipyard: no shipyard at this location');
 
-        DryDock storage dryDock = playerDryDocks[msg.sender][shipyard.id];
+        DryDock storage dryDock = playerDryDocks[msg.sender][_x][_y];
         require(_amount <= dryDock.amount, 'Dry Dock: ship amount requested not available in dry dock');
         require(block.timestamp > dryDock.completionTime, 'Dry Dock: ships not built, yet');
 
