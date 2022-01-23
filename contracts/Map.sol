@@ -327,8 +327,15 @@ contract Map is Editor {
     function mineralGained(address _player, int _amount) external {
         require(_amount > 0, 'Map: _amount equals zero');
 
-        uint leastMineralAmount = Helper.getMax(int(fleetMineral[_player]) + _amount, 0); //player can't have less than 0
-        uint finalMineralAmount = Helper.getMin(Fleet.getMaxMineralCapacity(_player), leastMineralAmount); //player can't gain more than max capacity
+        uint finalMineralAmount = 0;
+
+        int adjustMineralAmount = int(fleetMineral[_player]) + _amount;
+
+        if(adjustMineralAmount > 0) {
+            finalMineralAmount = Helper.getMin(Fleet.getMaxMineralCapacity(_player), uint(adjustMineralAmount)); //player can't gain more than max capacity
+        }
+
+        fleetMineral[_player] = finalMineralAmount;
 
         emit MineralGained(_player, finalMineralAmount);
     }

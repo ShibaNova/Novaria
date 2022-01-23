@@ -246,10 +246,8 @@ contract Fleet is Ownable {
     }
 
     function _settleMineral(address[] memory _team, uint _totalTeamFleetSize, int _teamMineralGained) internal {
-        uint numMembers = _team.length;
-        for(uint i=0; i<numMembers; i++) {
-            for(uint j=0; j<shipClassesList.length; j++) {
-            }
+        for(uint i=0; i<_team.length; i++) {
+            Map.mineralGained(_team[i], (_teamMineralGained * int(_getFleetSize(_team[i]))) / int(_totalTeamFleetSize));
         }
     }
 
