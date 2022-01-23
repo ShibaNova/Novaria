@@ -37,7 +37,6 @@ contract Map is Editor {
         placeTypes.push('planet');
         placeTypes.push('jumpgate');
 
-        _addPlace('uncharted', 0, 0, 0);
         _addStar(2, 2, 9); // first star
         _addPlanet(0, 0, 0, false, true, true); //Haven
         _addPlanet(0, 3, 4, true, false, false); //unrefined planet
@@ -73,7 +72,7 @@ contract Map is Editor {
     string[] public placeTypes; // list of placeTypes
 
     // Coordinates return the place id
-    mapping (uint => mapping(uint => uint)) public coordinatePlaceIds;
+    mapping (uint => mapping(uint => uint)) public coordinatePlaces;
 
     struct Place {
         uint id; //native key 
@@ -81,6 +80,7 @@ contract Map is Editor {
         uint childId;
         uint coordX;
         uint coordY;
+        bool exists;
     }
     Place[] public places;
 
@@ -126,12 +126,12 @@ contract Map is Editor {
     event NewStar(uint _x, uint _y);
 
     function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y) internal {
-        require(coordinatePlaceIds[_x][_y] == 0, 'Place already exists in these coordinates');
+        require(places[coordinatePlaces[_x][_y]].exists == true, 'Place already exists in these coordinates');
         uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y));
+        places.push(Place(placeId, _placeType, _childId, _x, _y, true));
 
         //set place in coordinate mapping
-        coordinatePlaceIds[_x][_y] = placeId;
+        coordinatePlaces[_x][_y] = placeId;
     }
 
     function _addStar(uint _x, uint _y, uint _luminosity) internal {
@@ -173,7 +173,7 @@ contract Map is Editor {
 
     }
 
-    /* get coordinatePlaceIds cannot handle a map box larger than 255 */
+    /* get coordinatePlaces cannot handle a map box larger than 255 */
     function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(uint[] memory) {
         uint xDistance = (_rx - _lx) + 1;
         uint yDistance = (_ry - _ly) + 1;
@@ -185,7 +185,7 @@ contract Map is Editor {
         uint counter = 0;
         for(uint i=_lx; i<=_rx;i++) {
             for(uint j=_ly; j<=_ry;j++) {
-                foundCoordinatePlaceIds[counter] = coordinatePlaceIds[i][j];
+                foundCoordinatePlaceIds[counter] = coordinatePlaces[i][j];
                 counter++;
             }
         }
@@ -193,7 +193,7 @@ contract Map is Editor {
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
-        return (coordinatePlaceIds[_x][_y]);
+        return (coordinatePlaces[_x][_y]);
     }
 
     // currently no check for duplicates
@@ -252,7 +252,7 @@ contract Map is Editor {
     }
 
     function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
-        Place memory place = places[coordinatePlaceIds[_x][_y]];
+        Place memory place = places[coordinatePlaces[_x][_y]];
         require(Helper.isEqual(place.placeType, 'planet'), 'No planet found at this location.');
         return planets[place.childId];
     }
@@ -381,6 +381,9 @@ contract Map is Editor {
         //add fleet to new location fleet list
         fleetsAtLocation[_x][_y].push(player);
         _setFleetLocation(player, _x, _y);
+
+        //exit any battles targeted at player
+        Fleet.endBattle(player);
     }
 
     function setFleetLocation(address _player, uint _x, uint _y) external onlyEditor {

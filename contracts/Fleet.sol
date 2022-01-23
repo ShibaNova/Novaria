@@ -23,7 +23,7 @@ contract Fleet is Ownable {
        // ITreasury _treasury, 
        // ShibaBEP20 _Token
         ) {
-        Map = IMap(0xE3Ca443c9fd7AF40A2B5a95d43207E763e56005F);
+        Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
         baseMaxFleetSize = 1000;
@@ -91,93 +91,133 @@ contract Fleet is Ownable {
     }
     Battle[] public battles;
 
-    //mapping to easily player battles
-    mapping (address => Battle) public targetToBattle;
-    mapping (address => Battle) public playerToBattle;
+    //mappings to easily access player battles
+    //player can be in up to 2 battles, one where player is target and one where player is attacker or defender
+    mapping (address => bool) public isPlayerTargetted;
+    mapping (address => uint) public targetToBattle;
 
-    //initiate an attack against another player
-    function attack(address _player, address _target) external {
+    mapping (address => bool) public isPlayerAttacking;
+    mapping (address => bool) public isPlayerDefending;
+    mapping (address => uint) public participantToBattle;
+
+    //can player participate in this battle
+    modifier canParticipateInBattle(address _player, address _target) {
+        require(_player != _target, 'FLEET: Player/target cannot be the same player (dummy!)');
+
         //verify players are at same location
         (uint attackX, uint attackY) = Map.getFleetLocation(_player);
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
-        require(attackX == targetX && attackY == targetY, 'FLEET: attacker and target not at same location');
-        require(playerToBattle[_player].exists == false, 'FLEET: attacker already in another battle');
+        require(attackX == targetX && attackY == targetY, 'FLEET: player and target not at same location');
 
-        Battle storage foundBattle = targetToBattle[_target];
+        require(isPlayerAttacking[_player] == false && isPlayerDefending[_player] == false, 'FLEET: player already in another battle');
 
-        //create battle if there is currently no attack against target
-        if(foundBattle.exists == false) {
+        require(_getFleetSize(_target) > 0, 'FLEET: cannot attack a player that has no ships');
+        require(_getFleetSize(_player) > 0, 'FLEET: cannot attack/defend without ships');
+        _;
+    }
+
+    //come to the defense of another player
+    function defend(address _player, address _target) external canParticipateInBattle(_player, _target) {
+        Battle storage foundBattle = battles[targetToBattle[_target]];
+        require(foundBattle.exists == true, 'FLEET: cannot defend a player that is not under attack');
+        require(block.timestamp < foundBattle.battleDeadline, 'FLEET: defend window is past');
+        participantToBattle[_player] = foundBattle.id;
+        foundBattle.defenders.push(_player);
+    }
+
+    //initiate an attack against another player
+    function attack(address _player, address _target) external canParticipateInBattle(_player, _target) {
+        Battle storage foundBattle = battles[targetToBattle[_target]];
+        require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: attack window is past');
+        if(foundBattle.exists == true) {
+            participantToBattle[_player] = foundBattle.id;
+            foundBattle.attackers.push(_player);
+        }
+        else { //create battle if there is currently no attack against target
             uint battleDeadline = block.timestamp + _getAttackWindow() + _getDefendWindow();
             uint newBattleId = battles.length;
-
-            //add new battle
             battles.push(Battle(newBattleId, _target, battleDeadline, new address[](0), new address[](0), true));
             Battle storage newBattle = battles[newBattleId];
             newBattle.attackers.push(_player);
-            newBattle.defenders.push(_player);
+            newBattle.defenders.push(_target);
 
-            //add battle references
-            playerToBattle[_player] = newBattle;
-            targetToBattle[_target] = newBattle;
+            isPlayerTargetted[_target] = true;
+            targetToBattle[_target] = newBattleId;
+            participantToBattle[_player] = newBattleId;
         }
-        else {
-            playerToBattle[_player] = foundBattle;
-            foundBattle.attackers.push(_player);
-        }
+        isPlayerAttacking[_player] = true;
+    }
+
+    function getAttackers(uint battleId) external view returns (address[] memory) {
+        return battles[battleId].attackers;
+    }
+
+    function getDefenders(uint battleId) external view returns (address[] memory) {
+        return battles[battleId].defenders;
     }
 
     function leaveBattle(address _player) external {
-        Battle storage playerBattle = playerToBattle[_player];
-        require(playerBattle.exists == true, 'FLEET: attacker not in a battle');
+        require(isPlayerAttacking[_player] == true || isPlayerDefending[_player] == true, 'FLEET: player not a participant in a battle');
 
-        uint numAttackers = playerBattle.attackers.length;
-        uint numDefenders = playerBattle.defenders.length;
+        Battle storage playerBattle = battles[participantToBattle[_player]];
 
-        //if player is only participant in battle, end battle
-        if(numAttackers + numDefenders == 1) {
-            _endBattle(playerBattle);
-        }
-        else {
+        if(isPlayerAttacking[_player]) {
             //loop through battle attackers and find/remove player
-            for(uint i=0; i<numAttackers; i++) {
+            for(uint i=0; i<playerBattle.attackers.length; i++) {
                 if(playerBattle.attackers[i] == _player) {
-                    delete playerBattle.attackers[i];
-                    playerBattle.attackers[i] = playerBattle.attackers[numAttackers-1];
+                    playerBattle.attackers[i] = playerBattle.attackers[playerBattle.attackers.length-1];
+                    playerBattle.attackers.pop();
                 }
             }
+            isPlayerAttacking[_player] = false;
+        }
 
-            for(uint i=0; i<numDefenders; i++) {
+        if(isPlayerDefending[_player]) {
+            //loop through battle defenders and find/remove player
+            for(uint i=0; i<playerBattle.defenders.length; i++) {
                 if(playerBattle.defenders[i] == _player) {
-                    delete playerBattle.defenders[i];
-                    playerBattle.defenders[i] = playerBattle.defenders[numDefenders-1];
+                    playerBattle.defenders[i] = playerBattle.defenders[playerBattle.defenders.length-1];
+                    playerBattle.defenders.pop();
                 }
             }
-            delete playerToBattle[_player]; //delete player connection to battle
+            isPlayerDefending[_player] = false;
+        }
+
+        //if player is only attacker in battle
+        if(playerBattle.attackers.length == 0) {
+            _endBattle(playerBattle);
         }
 
     }
 
-    //after all attackers leave battle or battle is completed
-    //remove targetToBattle reference
-    //remove all attackers and defenders from playerToBattle reference
-    //delete battle
-    function _endBattle(Battle storage battleToEnd) internal {
-        delete targetToBattle[battleToEnd.attackTarget];
+    //need to add modifier restricting to Map contract
+    function endBattle(address _player) external {
+        if(isPlayerTargetted[_player]) {
+            _endBattle(battles[targetToBattle[_player]]);
+        }
+    }
 
-        //remove all attacker references from playerToBattle
+    //after 1) all attackers leave battle or 2) battle is completed or 3) battle target jumps away
+    function _endBattle(Battle storage battleToEnd) internal {
+        //remove all attacker references
         uint numAttackers = battleToEnd.attackers.length;
         for(uint i=0; i<numAttackers; i++) {
-            delete playerToBattle[battleToEnd.attackers[i]];
+            delete isPlayerAttacking[battleToEnd.attackers[i]];
+            delete participantToBattle[battleToEnd.attackers[i]];
         }
 
-        //remove all defender references from playerToBattle
+        //remove all defender references
         uint numDefenders = battleToEnd.defenders.length;
         for(uint i=0; i<numDefenders; i++) {
-            delete playerToBattle[battleToEnd.defenders[i]];
+            delete isPlayerDefending[battleToEnd.defenders[i]];
+            delete participantToBattle[battleToEnd.defenders[i]];
         }
 
+        //remove player targetted references
+        delete isPlayerTargetted[battleToEnd.attackTarget];
+        delete targetToBattle[battleToEnd.attackTarget];
+
         //remove battle from battles list
-        delete battles[battleToEnd.id];
         battles[battleToEnd.id] = battles[battles.length-1];
         battles.pop();
     }
