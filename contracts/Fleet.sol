@@ -229,6 +229,62 @@ contract Fleet is Ownable {
         return defendWindow / timeModifier;
     }
 
+    function goBattle(address _target) external {
+        require(isPlayerTargetted[_target] == true, 'FLEET: no battle for target');
+        Battle memory battle = battles[targetToBattle[_target]];
+
+        (uint totalAttackersAttack, uint totalAttackerFleetSize) = _getTeamInfo(battle.attackers);
+        (uint totalDefendersAttack, uint totalDefenderFleetSize) = _getTeamInfo(battle.defenders);
+
+        uint attackerMineralCapacityLost = _getMineralLost(battle.attackers, totalDefendersAttack, totalAttackerFleetSize);
+        uint defenderMineralCapacityLost = _getMineralLost(battle.defenders, totalAttackersAttack, totalDefenderFleetSize);
+
+        int netAttackerStolen = int(attackerMineralCapacityLost - defenderMineralCapacityLost);
+        if(netAttackerStolen != 0) {
+            _settleMineral(battle.attackers, totalAttackerFleetSize, netAttackerStolen);
+        }
+    }
+
+    function _settleMineral(address[] memory team, uint totalTeamFleetSize, int mineralGained) internal {
+        uint numMembers = team.length;
+        for(uint i=0; i<numMembers; i++) {
+            for(uint j=0; j<shipClassesList.length; j++) {
+            }
+        }
+    }
+
+    function _getMineralLost(address[] memory team, uint totalOtherTeamAttack, uint totalTeamSize) internal returns(uint) {
+        uint numMembers = team.length;
+        uint totalMineralCapacityLost = 0;
+        for(uint i=0; i<numMembers; i++) {
+            for(uint j=0; j<shipClassesList.length; j++) {
+                address member = team[i];
+                ShipClass memory shipClass = shipClasses[shipClassesList[j]];
+
+                uint shipClassFleetSize = fleets[member][shipClassesList[j]] * shipClass.size;
+                uint damageTaken = (totalOtherTeamAttack * shipClassFleetSize) / totalTeamSize;
+                uint shipsLost = damageTaken / shipClass.shield;
+                totalMineralCapacityLost += shipsLost * shipClass.mineralCapacity;
+                _destroyShips(member, shipClass.handle, shipsLost);
+            }
+        }
+        return totalMineralCapacityLost;
+    }
+
+    //get team info for battle
+    function _getTeamInfo(address[] memory team) internal view returns(uint, uint) {
+        uint numMembers = team.length;
+        uint totalAttack = 0;
+        uint totalFleetSize = 0;
+        for(uint i=0; i<numMembers; i++) {
+            for(uint j=0; j<shipClassesList.length; j++) {
+                totalAttack += fleets[team[i]][shipClassesList[j]];
+                totalFleetSize += _getFleetSize(team[i]);
+            }
+        }
+        return (totalAttack, totalFleetSize);
+    }
+
     IMap public Map;
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
@@ -366,9 +422,9 @@ contract Fleet is Ownable {
         Map.setFleetLocation(player, 0, 0);
     }
 
-    //allow player to destroy part of their fleet to add different kinds of ships
-    function destroyShips(string memory _shipClass, uint _amount) external {
-        fleets[msg.sender][_shipClass] -= (Helper.getMin(_amount, fleets[msg.sender][_shipClass]));
+    //destroy ships
+    function _destroyShips(address _player, string memory _shipClass, uint _amount) internal {
+        fleets[_player][_shipClass] -= (Helper.getMin(_amount, fleets[msg.sender][_shipClass]));
     }
 
     /* move ships to fleet, call must fit the following criteria:
