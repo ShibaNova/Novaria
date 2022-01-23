@@ -118,7 +118,7 @@ contract Fleet is Ownable {
         require(isPlayerTargetted[_target] == true, 'FLEET: cannot defend a player that is not under attack');
 
         Battle storage foundBattle = battles[targetToBattle[_target]];
-        require(block.timestamp < foundBattle.battleDeadline, 'FLEET: defend window is past');
+        require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: withdraw window is past');
         participantToBattle[_player] = foundBattle.id;
         isPlayerDefending[_player] = true;
         foundBattle.defenders.push(_player);
@@ -128,7 +128,7 @@ contract Fleet is Ownable {
     function attack(address _player, address _target) external canParticipateInBattle(_player, _target) {
         if(isPlayerTargetted[_target] == true) {
             Battle storage foundBattle = battles[targetToBattle[_target]];
-            require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: attack window is past');
+            require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: withdraw window is past');
             participantToBattle[_player] = foundBattle.id;
             foundBattle.attackers.push(_player);
         }
@@ -239,30 +239,30 @@ contract Fleet is Ownable {
         uint attackerMineralCapacityLost = _getMineralLost(battle.attackers, totalDefendersAttack, totalAttackerFleetSize);
         uint defenderMineralCapacityLost = _getMineralLost(battle.defenders, totalAttackersAttack, totalDefenderFleetSize);
 
-        int netAttackerStolen = int(attackerMineralCapacityLost - defenderMineralCapacityLost);
-        if(netAttackerStolen != 0) {
-            _settleMineral(battle.attackers, totalAttackerFleetSize, netAttackerStolen);
+        int netAttackerTaken = int(attackerMineralCapacityLost - defenderMineralCapacityLost);
+        if(netAttackerTaken != 0) {
+            _settleMineral(battle.attackers, totalAttackerFleetSize, netAttackerTaken);
         }
     }
 
-    function _settleMineral(address[] memory team, uint totalTeamFleetSize, int mineralGained) internal {
-        uint numMembers = team.length;
+    function _settleMineral(address[] memory _team, uint _totalTeamFleetSize, int _teamMineralGained) internal {
+        uint numMembers = _team.length;
         for(uint i=0; i<numMembers; i++) {
             for(uint j=0; j<shipClassesList.length; j++) {
             }
         }
     }
 
-    function _getMineralLost(address[] memory team, uint totalOtherTeamAttack, uint totalTeamSize) internal returns(uint) {
-        uint numMembers = team.length;
+    function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint) {
+        uint numMembers = _team.length;
         uint totalMineralCapacityLost = 0;
         for(uint i=0; i<numMembers; i++) {
             for(uint j=0; j<shipClassesList.length; j++) {
-                address member = team[i];
+                address member = _team[i];
                 ShipClass memory shipClass = shipClasses[shipClassesList[j]];
 
                 uint shipClassFleetSize = fleets[member][shipClassesList[j]] * shipClass.size;
-                uint damageTaken = (totalOtherTeamAttack * shipClassFleetSize) / totalTeamSize;
+                uint damageTaken = (_totalOtherTeamAttack * shipClassFleetSize) / _totalTeamSize;
                 uint shipsLost = damageTaken / shipClass.shield;
                 totalMineralCapacityLost += shipsLost * shipClass.mineralCapacity;
                 _destroyShips(member, shipClass.handle, shipsLost);
@@ -272,14 +272,14 @@ contract Fleet is Ownable {
     }
 
     //get team info for battle
-    function _getTeamInfo(address[] memory team) internal view returns(uint, uint) {
-        uint numMembers = team.length;
+    function _getTeamInfo(address[] memory _team) internal view returns(uint, uint) {
+        uint numMembers = _team.length;
         uint totalAttack = 0;
         uint totalFleetSize = 0;
         for(uint i=0; i<numMembers; i++) {
             for(uint j=0; j<shipClassesList.length; j++) {
-                totalAttack += fleets[team[i]][shipClassesList[j]];
-                totalFleetSize += _getFleetSize(team[i]);
+                totalAttack += fleets[_team[i]][shipClassesList[j]];
+                totalFleetSize += _getFleetSize(_team[i]);
             }
         }
         return (totalAttack, totalFleetSize);

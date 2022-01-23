@@ -119,6 +119,7 @@ contract Map is Editor {
     event NewToken(address _new);
     event NewTreasury(address _new);
     event NewRewardsMod(uint _new);
+    event MineralGained(address _player, uint _amountGained);
     event MineralTransferred(address _from, address _to, uint _amountSent, uint _amountReceived, uint _amountBurned);
     event MineralRefined(address _fleet, uint _amount);
     event MineralMined(address _fleet, uint _amount);
@@ -319,6 +320,17 @@ contract Map is Editor {
         Token.safeTransfer(player, playerMineral);
         previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
+    }
+
+    // remember to set to onlyEditor
+    // mineral gained can also be negative
+    function mineralGained(address _player, int _amount) external {
+        require(_amount > 0, 'Map: _amount equals zero');
+
+        uint leastMineralAmount = Helper.getMax(int(fleetMineral[_player]) + _amount, 0); //player can't have less than 0
+        uint finalMineralAmount = Helper.getMin(Fleet.getMaxMineralCapacity(_player), leastMineralAmount); //player can't gain more than max capacity
+
+        emit MineralGained(_player, finalMineralAmount);
     }
 
     // remember to set to onlyEditor
