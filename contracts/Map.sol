@@ -62,7 +62,7 @@ contract Map is Editor {
 
     mapping(address => uint) public fleetMineral; //amount of mineral a fleet is carrying
     mapping (address => uint) travelCooldown; // limits how often fleets can travel
-    mapping (address => uint) fleetMiningCooldown; // limits how often a fleet can mine mineral
+    mapping (address => uint) fleetMineralGainedCooldown; // limits how often a fleet can mine mineral
     
     uint public baseCooldown; 
     uint public cooldownMod; 
@@ -289,7 +289,7 @@ contract Map is Editor {
     function mine() external {
         address player = msg.sender;
         Planet memory planet = getPlanetAtFleetLocation(player);
-        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: Fleet miners on cooldown');
+        require(fleetMineralGainedCooldown[player] <= block.timestamp, 'MAP: Fleet miners on cooldown');
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
@@ -302,7 +302,7 @@ contract Map is Editor {
         
         planets[planet.id].availableMineral -= minedAmount;
         
-        fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
+        fleetMineralGainedCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
         fleetMineral[player] += minedAmount;
         allocateToken();
         emit MineralMined(player, minedAmount);
@@ -325,14 +325,12 @@ contract Map is Editor {
     // remember to set to onlyEditor
     // mineral gained can also be negative
     function mineralGained(address _player, int _amount) external {
-        require(_amount > 0, 'Map: _amount equals zero');
-
         uint finalMineralAmount = 0;
 
         int adjustMineralAmount = int(fleetMineral[_player]) + _amount;
-
         if(adjustMineralAmount > 0) {
             finalMineralAmount = Helper.getMin(Fleet.getMaxMineralCapacity(_player), uint(adjustMineralAmount)); //player can't gain more than max capacity
+            fleetMineralGainedCooldown[_player] = block.timestamp + (miningCooldown / timeModifier);
         }
 
         fleetMineral[_player] = finalMineralAmount;
@@ -388,6 +386,7 @@ contract Map is Editor {
     function travel(uint _x, uint _y) external {
         address player = msg.sender;
         require(block.timestamp >= travelCooldown[player], "MAPS: Jump drive still recharging");
+        require(block.timestamp >= fleetMineralGainedCooldown[player], "MAPS: Mining cooldown incomplete");
 
         uint distance = getDistanceFromFleet(player, _x, _y);
         require(distance <= maxTravel, "MAPS: cannot travel that far");

@@ -233,28 +233,41 @@ contract Fleet is Ownable {
         require(isPlayerTargetted[_target] == true, 'FLEET: no battle for target');
         Battle memory battle = battles[targetToBattle[_target]];
 
-        (uint totalAttackersAttack, uint totalAttackerFleetSize) = _getTeamInfo(battle.attackers);
-        (uint totalDefendersAttack, uint totalDefenderFleetSize) = _getTeamInfo(battle.defenders);
+        (uint attackersAttack, uint attackersFleetSize) = _getTeamInfo(battle.attackers);
+        (uint defendersAttack, uint defendersFleetSize) = _getTeamInfo(battle.defenders);
 
-        uint attackerMineralCapacityLost = _getMineralLost(battle.attackers, totalDefendersAttack, totalAttackerFleetSize);
-        uint defenderMineralCapacityLost = _getMineralLost(battle.defenders, totalAttackersAttack, totalDefenderFleetSize);
+        (uint attackerMineralCapacityLost, uint[] memory attackersMineralLost) = 
+            _getMineralLost(battle.attackers, defendersAttack, attackersFleetSize);
 
-        int netAttackerTaken = int(attackerMineralCapacityLost - defenderMineralCapacityLost);
-        if(netAttackerTaken != 0) {
-            _settleMineral(battle.attackers, totalAttackerFleetSize, netAttackerTaken);
-        }
+        (uint defenderMineralCapacityLost, uint[] memory defendersMineralLost) = 
+            _getMineralLost(battle.defenders, attackersAttack, defendersFleetSize);
+
+        _settleMineral(battle.attackers, attackersAttack, defenderMineralCapacityLost, attackersMineralLost);
+        _settleMineral(battle.defenders, defendersAttack, attackerMineralCapacityLost, defendersMineralLost);
     }
 
-    function _settleMineral(address[] memory _team, uint _totalTeamFleetSize, int _teamMineralGained) internal {
+    function _settleMineral(address[] memory _team, uint _teamAttack, uint _teamMineralGained, uint[] memory _teamMineralLost) internal {
         for(uint i=0; i<_team.length; i++) {
-            Map.mineralGained(_team[i], (_teamMineralGained * int(_getFleetSize(_team[i]))) / int(_totalTeamFleetSize));
+
+            //get player's attack contribution
+            uint playerAttack = 0;
+            for(uint j=0; j<shipClassesList.length; j++) {
+                ShipClass memory shipClass = shipClasses[shipClassesList[j]];
+                playerAttack += fleets[_team[i]][shipClass.handle] * shipClass.attack;
+            }
+
+            //player received mineral based on attack contribution and how much total was taken
+            uint playerMineralGained = (_teamMineralGained * playerAttack) / _teamAttack;
+            Map.mineralGained(_team[i], int(playerMineralGained - _teamMineralLost[i]));
         }
     }
 
-    function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint) {
+    function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint, uint[] memory) {
         uint numMembers = _team.length;
         uint totalMineralCapacityLost = 0;
+        uint[] memory playerMineralCapacityLost = new uint[](numMembers); //get mineral capacity each player lost
         for(uint i=0; i<numMembers; i++) {
+            playerMineralCapacityLost[i] = 0;
             for(uint j=0; j<shipClassesList.length; j++) {
                 address member = _team[i];
                 ShipClass memory shipClass = shipClasses[shipClassesList[j]];
@@ -262,11 +275,13 @@ contract Fleet is Ownable {
                 uint shipClassFleetSize = fleets[member][shipClassesList[j]] * shipClass.size;
                 uint damageTaken = (_totalOtherTeamAttack * shipClassFleetSize) / _totalTeamSize;
                 uint shipsLost = damageTaken / shipClass.shield;
-                totalMineralCapacityLost += shipsLost * shipClass.mineralCapacity;
+                uint mineralCapacityLost = shipsLost * shipClass.mineralCapacity;
+                playerMineralCapacityLost[i] += mineralCapacityLost;
+                totalMineralCapacityLost += mineralCapacityLost;
                 _destroyShips(member, shipClass.handle, shipsLost);
             }
         }
-        return totalMineralCapacityLost;
+        return (totalMineralCapacityLost, playerMineralCapacityLost);
     }
 
     //get team info for battle
@@ -276,7 +291,8 @@ contract Fleet is Ownable {
         uint totalFleetSize = 0;
         for(uint i=0; i<numMembers; i++) {
             for(uint j=0; j<shipClassesList.length; j++) {
-                totalAttack += fleets[_team[i]][shipClassesList[j]];
+                ShipClass memory shipClass = shipClasses[shipClassesList[j]];
+                totalAttack += fleets[_team[i]][shipClass.handle] * shipClass.attack;
                 totalFleetSize += _getFleetSize(_team[i]);
             }
         }
