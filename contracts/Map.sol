@@ -26,8 +26,8 @@ contract Map is Editor {
 
         previousBalance = 0;
         baseTravelCost = 10**15;
-        baseCooldown = 2700; //45 minutes
-        cooldownMod = 900; //15 minutes
+        baseTravelCooldown = 2700; //45 minutes
+        travelCooldownPerDistance = 900; //15 minutes
         maxTravel = 10; //AU
         rewardsTimer = 0;
         timeModifier = 100;
@@ -62,10 +62,10 @@ contract Map is Editor {
 
     mapping(address => uint) public fleetMineral; //amount of mineral a fleet is carrying
     mapping (address => uint) travelCooldown; // limits how often fleets can travel
-    mapping (address => uint) fleetMineralGainedCooldown; // limits how often a fleet can mine mineral
+    mapping (address => uint) fleetMiningCooldown; // limits how often a fleet can mine mineral
     
-    uint public baseCooldown; 
-    uint public cooldownMod; 
+    uint public baseTravelCooldown; 
+    uint public travelCooldownPerDistance; 
     uint public baseTravelCost; // Token cost to travel 1 AU
     uint public maxTravel; // max distance a fleet can travel in 1 jump
 
@@ -289,21 +289,22 @@ contract Map is Editor {
     function mine() external {
         address player = msg.sender;
         Planet memory planet = getPlanetAtFleetLocation(player);
-        require(fleetMineralGainedCooldown[player] <= block.timestamp, 'MAP: Fleet miners on cooldown');
+        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: Fleet miners on cooldown');
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
         uint availableCapacity = Fleet.getMaxMineralCapacity(player) - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
-        require(availableCapacity > 0, 'MAP: cannot carry any more mineral');
+        require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
+
         uint miningCapacity = Fleet.getMiningCapacity(player);
         
         uint maxMine = Helper.getMin(availableCapacity, miningCapacity);
         uint minedAmount = Helper.getMin(planet.availableMineral, maxMine); //the less of fleet maxMine and how much mineral planet has available
-        
         planets[planet.id].availableMineral -= minedAmount;
-        
-        fleetMineralGainedCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
-        fleetMineral[player] += minedAmount;
+
+        _mineralGained(player, int(minedAmount));
+        fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
+
         allocateToken();
         emit MineralMined(player, minedAmount);
     }
@@ -326,9 +327,13 @@ contract Map is Editor {
         return fleetMineral[_player];
     }
 
-    // remember to set to onlyEditor
-    // mineral gained can also be negative
     function mineralGained(address _player, int _amount) external {
+        _mineralGained(_player, _amount);
+    }
+
+    // remember to set to onlyEditor
+    // mineral gained can also be negative; used for player attacks and mining
+    function _mineralGained(address _player, int _amount) internal {
         uint startAmount = fleetMineral[_player];
         uint maxMineralCapacity = Fleet.getMaxMineralCapacity(_player);
 
@@ -353,6 +358,10 @@ contract Map is Editor {
 
         //gained amount is the final amount - start amount (can be negative)
         int gainedAmount = int(finalMineralAmount) - int(startAmount);
+
+        if(gainedAmount > 0) {
+            _addTravelCooldown(_player, uint(gainedAmount * 120)); //2 minute travel delay per mineral mined
+        }
 
         emit MineralGained(_player, gainedAmount, burnedAmount);
     }
@@ -381,16 +390,15 @@ contract Map is Editor {
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         address player = msg.sender;
-        require(block.timestamp >= travelCooldown[player], "MAPS: Jump drive still recharging");
-        require(block.timestamp >= fleetMineralGainedCooldown[player], "MAPS: Mining cooldown incomplete");
+        require(block.timestamp >= travelCooldown[player], "MAPS: Jump drive still recharging or mineral containment in process");
 
         uint distance = getDistanceFromFleet(player, _x, _y);
         require(distance <= maxTravel, "MAPS: cannot travel that far");
 
-        travelCooldown[player] = (block.timestamp + baseCooldown + (distance*cooldownMod)) / timeModifier;
-
         uint travelCost = getFleetTravelCost(player, _x, _y);
         Treasury.pay(player, travelCost);
+
+        _addTravelCooldown(player, baseTravelCooldown + (distance*travelCooldownPerDistance));
 
         (uint fleetX, uint fleetY) =  getFleetLocation(player);
         address[] memory fleetsAtFromLocation = fleetsAtLocation[fleetX][fleetY]; //list of fleets at from location
@@ -414,6 +422,17 @@ contract Map is Editor {
         Fleet.endBattle(player);
     }
 
+    //set travel cooldown or increase it
+    function _addTravelCooldown(address _fleet, uint _seconds) internal {
+        uint cooldownTime = _seconds / timeModifier;
+        if(travelCooldown[_fleet] > block.timestamp) {
+            travelCooldown[_fleet] += cooldownTime;
+        }
+        else {
+            travelCooldown[_fleet] = block.timestamp + cooldownTime;
+        }
+    }
+
     function setFleetLocation(address _player, uint _x, uint _y) external onlyEditor {
         _setFleetLocation(_player, _x, _y);
     }
@@ -430,13 +449,13 @@ contract Map is Editor {
     }    
 
     // Setting to 0 removes the secondary cooldown period
-    function setCooldownMod(uint _new) external onlyOwner {
-        cooldownMod = _new;
+    function setTravelTimePerDistance(uint _new) external onlyOwner {
+        travelCooldownPerDistance = _new;
     }
 
     // setting to 0 removes base travel cooldown
-    function setBaseCooldown(uint _new) external onlyOwner {
-        baseCooldown = _new;
+    function setBaseTravelCooldown(uint _new) external onlyOwner {
+        baseTravelCooldown = _new;
     }
 
     // Functions to setup contract interfaces

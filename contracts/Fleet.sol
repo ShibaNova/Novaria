@@ -265,10 +265,9 @@ contract Fleet is Ownable {
     }
 
     function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint, uint[] memory) {
-        uint numMembers = _team.length;
         uint totalMineralLost = 0;
-        uint[] memory memberMineralLost = new uint[](numMembers); //get mineral capacity each player lost
-        for(uint i=0; i<numMembers; i++) {
+        uint[] memory memberMineralLost = new uint[](_team.length); //get mineral capacity each player lost
+        for(uint i=0; i<_team.length; i++) {
             address member = _team[i];
             uint memberMineralCapacityLost = 0;
             for(uint j=0; j<shipClassesList.length; j++) {
@@ -278,14 +277,10 @@ contract Fleet is Ownable {
                 uint numClassShips = fleets[member][shipClassesList[j]];
 
                 //size of members ships of this class    
-                uint shipClassFleetSize = numClassShips * shipClass.size;
-                uint damageTaken = (_totalOtherTeamAttack * shipClassFleetSize) / _totalTeamSize;
-
-                //total damage taken by member's ships of this class and thus the most ships that this player can lose of this class
-                uint maxShipsLostForDamageTaken = damageTaken / shipClass.shield;
+                uint damageTaken = (_totalOtherTeamAttack * (numClassShips * shipClass.size)) / _totalTeamSize;
 
                 //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
-                uint actualShipsLost = Helper.getMin(numClassShips, maxShipsLostForDamageTaken);
+                uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / shipClass.shield);
 
                 //destroy actual ships lost
                 _destroyShips(member, shipClass.handle, actualShipsLost);
