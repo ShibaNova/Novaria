@@ -21,6 +21,7 @@ contract Treasury is Editor {
         costModifier = 10;
         moneyPotRate = 80;
         coderRoyaltiesRate = 4;
+        teamRate = 6;
     }
 
     uint costModifier;
