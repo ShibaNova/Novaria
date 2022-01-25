@@ -11,4 +11,5 @@ interface IMap {
     function getPlanetCoordinates(uint _id) external view returns(uint, uint);
     function transferMineral(address _sender, address _receiver, uint _amount) external;
     function mineralGained(address _player, int _amount) external;
+    function getFleetMineral(address _player) external view returns(uint);
 }

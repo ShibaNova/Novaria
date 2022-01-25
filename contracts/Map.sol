@@ -119,7 +119,7 @@ contract Map is Editor {
     event NewToken(address _new);
     event NewTreasury(address _new);
     event NewRewardsMod(uint _new);
-    event MineralGained(address _player, uint _amountGained);
+    event MineralGained(address _player, int _amountGained, uint _amountBurned);
     event MineralTransferred(address _from, address _to, uint _amountSent, uint _amountReceived, uint _amountBurned);
     event MineralRefined(address _fleet, uint _amount);
     event MineralMined(address _fleet, uint _amount);
@@ -322,43 +322,39 @@ contract Map is Editor {
         emit MineralRefined(player, playerMineral);
     }
 
-    // remember to set to onlyEditor
-    // mineral gained can also be negative
-    function mineralGained(address _player, int _amount) external {
-        uint finalMineralAmount = 0;
-
-        int adjustMineralAmount = int(fleetMineral[_player]) + _amount;
-        if(adjustMineralAmount > 0) {
-            finalMineralAmount = Helper.getMin(Fleet.getMaxMineralCapacity(_player), uint(adjustMineralAmount)); //player can't gain more than max capacity
-            fleetMineralGainedCooldown[_player] = block.timestamp + (miningCooldown / timeModifier);
-        }
-
-        fleetMineral[_player] = finalMineralAmount;
-
-        emit MineralGained(_player, finalMineralAmount);
+    function getFleetMineral(address _player) external view returns(uint) {
+        return fleetMineral[_player];
     }
 
     // remember to set to onlyEditor
-    // Allows players to take mineral token from other players
-    function transferMineral(address _sender, address _receiver, uint _amount) external {
-        uint curSenderMineral = fleetMineral[_sender];
+    // mineral gained can also be negative
+    function mineralGained(address _player, int _amount) external {
+        uint startAmount = fleetMineral[_player];
+        uint maxMineralCapacity = Fleet.getMaxMineralCapacity(_player);
 
-        //player can't lose more mineral than they have
-        uint amountSent = Helper.getMin(_amount, curSenderMineral); //player cannot lose more mineral than it has
-        fleetMineral[_sender] -= amountSent;
-
-        //player can't receive more mineral than their max capacity
-        uint receiverAvailableCapacity = Fleet.getMaxMineralCapacity(_receiver) - fleetMineral[_receiver]; //max amount of mineral that fleet can carry minus what fleet already is carrying
-        uint amountReceived = Helper.getMin(amountSent, receiverAvailableCapacity);
-        fleetMineral[_receiver] += amountReceived;
-
-        //add burn call for amountSent from sender but what can't fit in receiver's mineral capacity
-        uint amountBurned = amountSent - amountReceived;
-        if(amountBurned > 0) {
-            Token.transfer(0x000000000000000000000000000000000000dEaD, amountBurned);
+        //add amount gained to current player amount
+        //(this should never be less than 0 because mineral lost calculation should never take more than player has)
+        //add check just in case the calc is wrong so final player amount is not negative and avoids overflow issues with uint
+        //unless there is an error in previous code that calls this function, maxMineralAmount and newAmount should always be the same
+        int maxMineralAmount = int(startAmount) + _amount;
+        uint newAmount = 0;
+        if(maxMineralAmount > 0) {
+            newAmount = uint(maxMineralAmount);
         }
 
-        emit MineralTransferred(_sender, _receiver, amountSent, amountReceived, amountBurned);
+        //check new amount with max capacity, make sure it's not more than max capacity
+        uint finalMineralAmount = Helper.getMin(maxMineralCapacity, newAmount);
+
+        //burn whatever cannot fit into fleet mineral capacity
+        uint burnedAmount = newAmount - finalMineralAmount;
+        if(burnedAmount > 0) {
+            Token.transfer(0x000000000000000000000000000000000000dEaD, burnedAmount);
+        }
+
+        //gained amount is the final amount - start amount (can be negative)
+        int gainedAmount = int(finalMineralAmount) - int(startAmount);
+
+        emit MineralGained(_player, gainedAmount, burnedAmount);
     }
 
     // Returns both x and y coordinates
