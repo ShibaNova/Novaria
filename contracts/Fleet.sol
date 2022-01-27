@@ -37,17 +37,17 @@ contract Fleet is Ownable {
         createShipClass("Mole", "mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         //DELETE BEFORE LAUNCH
-        names['Koray'] = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
-        addressToName[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = 'Koray';
+        _names['Koray'] = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+        _addressToName[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = 'Koray';
 
-        addressToName[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2] = 'Nate';
-        names['Nate'] = 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2;
+        _addressToName[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2] = 'Nate';
+        _names['Nate'] = 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2;
 
         fleets[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4]['viper'] = 100;
         fleets[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2]['mole'] = 100;
 
         _attackFleet(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
-        _goBattle(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+        goBattle(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
     }
 
     //ship class data
@@ -55,7 +55,7 @@ contract Fleet is Ownable {
         string name;
         string handle;
         uint size;
-        uint attack;
+        uint attackPower;
         uint shield;
         uint mineralCapacity;
         uint miningCapacity;
@@ -63,8 +63,8 @@ contract Fleet is Ownable {
         uint buildTime;
         uint cost;
     }
-    mapping (string => ShipClass) public shipClasses;
-    string[] public shipClassesList; //iterable list for ship classes, better name?
+    ShipClass[] public shipClasses; //iterable list for ship classes, better name?
+    mapping (string => uint) public handleToShipClass;
 
     //shipyard data
     struct Shipyard {
@@ -72,12 +72,14 @@ contract Fleet is Ownable {
         uint coordX;
         uint coordY;
         uint feePercent;
-        bool exists;
     }
-    mapping (uint => mapping (uint => Shipyard)) coordinateShipyards; //shipyard locations
+
+    Shipyard[] public shipyards;
+    mapping (uint => mapping(uint => bool)) public shipyardExists;
+    mapping (uint => mapping(uint => uint)) public coordinatesToShipyard; //shipyard locations
 
     struct DryDock {
-        ShipClass shipClass;
+        ShipClass shipClass; //make a copy of shipclass into dry dock, so updates to ship class won't effect build in progress
         uint amount; 
         uint completionTime;
     }
@@ -89,8 +91,8 @@ contract Fleet is Ownable {
     mapping (address => mapping(string => uint)) public fleets; //player fleet composition
 
     //player names
-    mapping (string => address) public names;
-    mapping (address => string) public addressToName;
+    mapping (string => address) _names;
+    mapping (address => string) _addressToName;
 
     //battle data
     struct Battle {
@@ -98,7 +100,11 @@ contract Fleet is Ownable {
         address attackTarget;
         uint battleDeadline;
         address[] attackers;
+        uint attackersAttackPower;
+        uint attackersFleetSize;
         address[] defenders;
+        uint defendersAttackPower;
+        uint defendersFleetSize;
     }
     Battle[] public battles;
 
@@ -124,19 +130,19 @@ contract Fleet is Ownable {
     event NewShipyard(uint _x, uint _y);
 
     function insertCoinHere(string memory _name) external {
-        require(names[_name] == address(0), 'FLEET: Name already exists');
+        require(_names[_name] == address(0), 'FLEET: Name already exists');
         address player = msg.sender;
-        require(bytes(addressToName[player]).length == 0, 'FLEET: player already has name');
+        require(bytes(_addressToName[player]).length == 0, 'FLEET: player already has name');
         Treasury.pay(player, startFee / Treasury.getCostMod());
-        names[_name] = player;
-        addressToName[player] = _name;
+        _names[_name] = player;
+        _addressToName[player] = _name;
     }
 
     function createShipClass(
         string memory _name,
         string memory _handle,
         uint _size,
-        uint _attack,
+        uint _attackPower,
         uint _shield,
         uint _mineralCapacity,
         uint _miningCapacity,
@@ -144,41 +150,26 @@ contract Fleet is Ownable {
         uint _buildTime,
         uint _cost) public onlyOwner {
 
-            shipClasses[_handle] = ShipClass(_name, _handle, _size, _attack, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost);
-            shipClassesList.push(_handle);
-        }
-
-    function getShipClass(string memory _handle) external view returns(ShipClass memory){
-        return shipClasses[_handle];
+        shipClasses.push(ShipClass(_name, _handle, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost));
+        handleToShipClass[_handle] = shipClasses.length-1;
     }
 
     function addShipyard(address _owner, uint _x, uint _y, uint _feePercent)  public onlyOwner {
-        require(coordinateShipyards[_x][_y].exists == false, 'Shipyard: shipyard already exists at location');
+        require(shipyardExists[_x][_y] == false, 'Shipyard: shipyard already exists at location');
         require(Map.isShipyardLocation(_x, _y) == true, 'Shipyard: shipyard not possible at this location');
 
-        coordinateShipyards[_x][_y] = Shipyard(_owner, _x, _y, _feePercent, true);
+        shipyards.push(Shipyard(_owner, _x, _y, _feePercent));
+        shipyardExists[_x][_y] = true;
+        coordinatesToShipyard[_x][_y] = shipyards.length-1;
         emit NewShipyard(_x, _y);
     }
 
-    function getShipyards() external view returns(Shipyard[] memory) {
-        uint shipyardCount = 0;
-        Shipyard[] memory shipyards;
-        uint[] memory planetIds = Map.getPlanetIds();
-        for(uint i=0; i<planetIds.length; i++) {
-            (uint x, uint y) = Map.getPlanetCoordinates(planetIds[i]);
-            if(coordinateShipyards[x][y].exists) {
-                shipyards[shipyardCount++] = coordinateShipyards[x][y];
-            }
-        }
-        return shipyards;
-    }
-
     function getDockCost(string memory _shipClass, uint _amount) public view returns(uint) {
-        return (_amount * shipClasses[_shipClass].cost) / Treasury.getCostMod();
+        return (_amount * shipClasses[handleToShipClass[_shipClass]].cost) / Treasury.getCostMod();
     }
 
     function getBuildTime(string memory _shipClass, uint _amount) public view returns(uint) {
-        return (_amount * shipClasses[_shipClass].buildTime) / timeModifier;
+        return (_amount * shipClasses[handleToShipClass[_shipClass]].buildTime) / timeModifier;
     }
  
     // Ship building Function
@@ -186,10 +177,10 @@ contract Fleet is Ownable {
         address player = msg.sender;
         (uint fleetX, uint fleetY) = Map.getFleetLocation(player);
         require(fleetX == _x && fleetY == _y, 'FLEET: fleet not at designated shipyard');
-        Shipyard memory shipyard = coordinateShipyards[_x][_y];
-        require(shipyard.exists == true, 'FLEET: no shipyard at this location');
+        require(shipyardExists[_x][_y] == true, 'FLEET: no shipyard at this location');
+        Shipyard memory shipyard = shipyards[coordinatesToShipyard[_x][_y]];
         require(playerDryDocks[player][shipyard.coordX][shipyard.coordY].amount == 0, 'FLEET: already in progress or ships waiting to be claimed');
-        require((shipClasses[_shipClass].size * _amount) < _getMaxFleetSize(player), 'FLEET: order is too large');
+        require((shipClasses[handleToShipClass[_shipClass]].size * _amount) < _getMaxFleetSize(player), 'FLEET: order is too large');
 
         //total build cost
         uint totalCost = getDockCost(_shipClass, _amount);
@@ -201,7 +192,7 @@ contract Fleet is Ownable {
         Treasury.pay(player, totalCost);
 
         uint completionTime = block.timestamp + getBuildTime(_shipClass, _amount);
-        playerDryDocks[player][shipyard.coordX][shipyard.coordY] = DryDock(shipClasses[_shipClass], _amount, completionTime);
+        playerDryDocks[player][shipyard.coordX][shipyard.coordY] = DryDock(shipClasses[handleToShipClass[_shipClass]], _amount, completionTime);
     }
 
     /* move ships to fleet, call must fit the following criteria:
@@ -213,7 +204,7 @@ contract Fleet is Ownable {
         address player = msg.sender;
         (uint fleetX, uint fleetY) = Map.getFleetLocation(player);
         require(fleetX == _x && fleetY == _y, 'FLEET: fleet not at designated shipyard');
-        require(coordinateShipyards[_x][_y].exists == true, 'Shipyard: no shipyard at this location');
+        require(shipyardExists[_x][_y] == true, 'Shipyard: no shipyard at this location');
 
         DryDock storage dryDock = playerDryDocks[msg.sender][_x][_y];
         require(_amount <= dryDock.amount, 'Dry Dock: ship amount requested not available in dry dock');
@@ -222,7 +213,7 @@ contract Fleet is Ownable {
         ShipClass memory dryDockClass = dryDock.shipClass;
 
         uint claimSize = _amount * dryDockClass.size;
-        uint fleetSize = _getFleetSize(player); //player's current fleet size
+        uint fleetSize = getFleetSize(player); //player's current fleet size
 
         require(fleetSize + claimSize < _getMaxFleetSize(player), 'Claim size requested cannot be larger than max fleet size');
 
@@ -243,22 +234,45 @@ contract Fleet is Ownable {
         if(isPlayerTargetted[_target] == true) {
             Battle storage foundBattle = battles[targetToBattle[_target]];
             require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: withdraw window is past');
-            participantToBattle[_player] = foundBattle.id;
-            foundBattle.attackers.push(_player);
+            _addBattleAttacker(foundBattle, _player);
         }
         else { //create battle if there is currently no attack against target
             uint battleDeadline = block.timestamp + _getAttackWindow() + _getDefendWindow();
             uint newBattleId = battles.length;
-            battles.push(Battle(newBattleId, _target, battleDeadline, new address[](0), new address[](0)));
-            Battle storage newBattle = battles[newBattleId];
-            newBattle.attackers.push(_player);
-            newBattle.defenders.push(_target);
-
+            battles.push(Battle(newBattleId, _target, battleDeadline, new address[](0), 0, 0, new address[](0), 0, 0));
             isPlayerTargetted[_target] = true;
             targetToBattle[_target] = newBattleId;
-            participantToBattle[_player] = newBattleId;
+
+            _addBattleDefender(battles[newBattleId], _target);
+            _addBattleAttacker(battles[newBattleId], _player);
         }
-        isPlayerAttacking[_player] = true;
+    }
+
+    function _addBattleAttacker(Battle storage _battle, address _player) internal {
+            _battle.attackers.push(_player);
+            isPlayerAttacking[_player] = true;
+            participantToBattle[_player] = _battle.id;
+
+            _battle.attackersAttackPower += getAttackPower(_player);
+            _battle.attackersFleetSize += getFleetSize(_player);
+    }
+
+    function _addBattleDefender(Battle storage _battle, address _player) internal {
+            _battle.defenders.push(_player);
+            isPlayerDefending[_player] = true;
+            participantToBattle[_player] = _battle.id;
+
+            _battle.defendersAttackPower += getAttackPower(_player);
+            _battle.defendersFleetSize += getFleetSize(_player);
+    }
+
+    function getAttackPower(address _player) public view returns (uint) {
+        uint totalAttack = 0;
+        for(uint i=0; i<shipClasses.length; i++) {
+            ShipClass memory shipClass = shipClasses[i];
+            totalAttack += fleets[_player][shipClass.handle] * shipClass.attackPower;
+        }
+        return totalAttack;
     }
 
     //come to the defense of another player
@@ -267,9 +281,7 @@ contract Fleet is Ownable {
 
         Battle storage foundBattle = battles[targetToBattle[_target]];
         require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: withdraw window is past');
-        participantToBattle[_player] = foundBattle.id;
-        isPlayerDefending[_player] = true;
-        foundBattle.defenders.push(_player);
+        _addBattleDefender(foundBattle, _target);
     }
 
     function leaveBattle(address _player) external {
@@ -286,6 +298,8 @@ contract Fleet is Ownable {
                 }
             }
             isPlayerAttacking[_player] = false;
+            playerBattle.attackersAttackPower -= getAttackPower(_player);
+            playerBattle.attackersFleetSize -= getFleetSize(_player);
         }
 
         if(isPlayerDefending[_player]) {
@@ -297,6 +311,8 @@ contract Fleet is Ownable {
                 }
             }
             isPlayerDefending[_player] = false;
+            playerBattle.defendersAttackPower -= getAttackPower(_player);
+            playerBattle.defendersFleetSize -= getFleetSize(_player);
         }
 
         //if player is only attacker in battle
@@ -316,17 +332,15 @@ contract Fleet is Ownable {
     //after 1) all attackers leave battle or 2) battle is completed or 3) battle target jumps away
     function _endBattle(Battle storage battleToEnd) internal {
         //remove all attacker references
-        uint numAttackers = battleToEnd.attackers.length;
-        for(uint i=0; i<numAttackers; i++) {
-            delete isPlayerAttacking[battleToEnd.attackers[i]];
+        for(uint i=0; i<battleToEnd.attackers.length; i++) {
             delete participantToBattle[battleToEnd.attackers[i]];
+            delete isPlayerAttacking[battleToEnd.attackers[i]];
         }
 
         //remove all defender references
-        uint numDefenders = battleToEnd.defenders.length;
-        for(uint i=0; i<numDefenders; i++) {
-            delete isPlayerDefending[battleToEnd.defenders[i]];
+        for(uint i=0; i<battleToEnd.defenders.length; i++) {
             delete participantToBattle[battleToEnd.defenders[i]];
+            delete isPlayerDefending[battleToEnd.defenders[i]];
         }
 
         //remove player targetted references
@@ -338,41 +352,19 @@ contract Fleet is Ownable {
         battles.pop();
     }
 
-    function goBattle(address _target) external {
-        _goBattle(_target);
-    }
-
-    function _goBattle(address _target) internal {
+    function goBattle(address _target) public {
         require(isPlayerTargetted[_target] == true, 'FLEET: no battle for target');
         Battle storage battle = battles[targetToBattle[_target]];
 
-        (uint attackersAttack, uint attackersFleetSize) = _getTeamInfo(battle.attackers);
-        (uint defendersAttack, uint defendersFleetSize) = _getTeamInfo(battle.defenders);
-
         (uint attackerTeamMineralLost, uint[] memory attackersMineralLost) = 
-            _getMineralLost(battle.attackers, defendersAttack, attackersFleetSize);
+            _getMineralLost(battle.attackers, battle.defendersAttackPower, battle.attackersFleetSize);
 
         (uint defenderTeamMineralLost, uint[] memory defendersMineralLost) = 
-            _getMineralLost(battle.defenders, attackersAttack, defendersFleetSize);
+            _getMineralLost(battle.defenders, battle.attackersAttackPower, battle.defendersFleetSize);
 
-        _settleMineral(battle.attackers, attackersAttack, defenderTeamMineralLost, attackersMineralLost);
-        _settleMineral(battle.defenders, defendersAttack, attackerTeamMineralLost, defendersMineralLost);
+        _settleMineral(battle.attackers, battle.attackersAttackPower, defenderTeamMineralLost, attackersMineralLost);
+        _settleMineral(battle.defenders, battle.defendersAttackPower, attackerTeamMineralLost, defendersMineralLost);
         _endBattle(battle);
-    }
-
-    //get team info for battle
-    function _getTeamInfo(address[] memory _team) internal view returns(uint, uint) {
-        uint numMembers = _team.length;
-        uint totalAttack = 0;
-        uint totalFleetSize = 0;
-        for(uint i=0; i<numMembers; i++) {
-            for(uint j=0; j<shipClassesList.length; j++) {
-                ShipClass memory shipClass = shipClasses[shipClassesList[j]];
-                totalAttack += fleets[_team[i]][shipClass.handle] * shipClass.attack;
-                totalFleetSize += _getFleetSize(_team[i]);
-            }
-        }
-        return (totalAttack, totalFleetSize);
     }
 
     function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint, uint[] memory) {
@@ -381,23 +373,21 @@ contract Fleet is Ownable {
         for(uint i=0; i<_team.length; i++) {
             address member = _team[i];
             uint memberMineralCapacityLost = 0;
-            for(uint j=0; j<shipClassesList.length; j++) {
-                ShipClass memory shipClass = shipClasses[shipClassesList[j]];
-
+            for(uint j=0; j<shipClasses.length; j++) {
                 //number of ships that team member has of this class
-                uint numClassShips = fleets[member][shipClassesList[j]];
+                uint numClassShips = fleets[member][shipClasses[j].handle];
 
                 //size of members ships of this class    
-                uint damageTaken = (_totalOtherTeamAttack * (numClassShips * shipClass.size)) / _totalTeamSize;
+                uint damageTaken = (_totalOtherTeamAttack * (numClassShips * shipClasses[j].size)) / _totalTeamSize;
 
                 //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
-                uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / shipClass.shield);
+                uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / shipClasses[j].shield);
 
                 //destroy actual ships lost
-                _destroyShips(member, shipClass.handle, actualShipsLost);
+                _destroyShips(member, shipClasses[j].handle, actualShipsLost);
 
                 //calculate mineral capacity lost by this class of member's ships; mineral capacity lost is based off of actual ships that were lost
-                memberMineralCapacityLost += (actualShipsLost * shipClass.mineralCapacity);
+                memberMineralCapacityLost += (actualShipsLost * shipClasses[j].mineralCapacity);
             }
             //member's final lost mineral is the minimum of how much member currently has in fleet and how much mineral capacity was just lost
             memberMineralLost[i] += (Helper.getMin(Map.getFleetMineral(member), memberMineralCapacityLost));
@@ -406,25 +396,30 @@ contract Fleet is Ownable {
         return (totalMineralLost, memberMineralLost);
     }
 
-    function _settleMineral(address[] memory _team, uint _teamAttack, uint _totalTeamMineralGained, uint[] memory _teamMineralLost) internal {
+    function _settleMineral(address[] memory _team, uint _teamAttackPower, uint _totalTeamMineralGained, uint[] memory _teamMineralLost) internal {
         for(uint i=0; i<_team.length; i++) {
 
             //get player's attack contribution
             uint playerAttack = 0;
-            for(uint j=0; j<shipClassesList.length; j++) {
-                ShipClass memory shipClass = shipClasses[shipClassesList[j]];
-                playerAttack += fleets[_team[i]][shipClass.handle] * shipClass.attack;
+            for(uint j=0; j<shipClasses.length; j++) {
+                playerAttack += fleets[_team[i]][shipClasses[i].handle] * shipClasses[i].attackPower;
             }
 
             //player receives mineral based on attack contribution and how much total was taken
             uint playerMineralGained = 0;
-            if(_teamAttack > 0) {
-                playerMineralGained = (_totalTeamMineralGained * playerAttack) / _teamAttack;
+            if(_teamAttackPower > 0) {
+                playerMineralGained = (_totalTeamMineralGained * playerAttack) / _teamAttackPower;
             }
 
             //player mineral gained subtracts how much player lost from how much player gained (can be negative)
             Map.mineralGained(_team[i], int(playerMineralGained - _teamMineralLost[i]));
         }
+    }
+
+    function recall() external {
+        address player = msg.sender;
+        require(getFleetSize(player) == _getBaseFleetSize(), "FLEET: fleet cannot have any ships for recall");
+        Map.setFleetLocation(player, 0, 0);
     }
 
     //can player participate in this battle
@@ -438,8 +433,8 @@ contract Fleet is Ownable {
 
         require(isPlayerAttacking[_player] == false && isPlayerDefending[_player] == false, 'FLEET: player already in another battle');
 
-        require(_getFleetSize(_target) > _getBaseFleetSize(), 'FLEET: cannot attack a player that has no ships');
-        require(_getFleetSize(_player) > _getBaseFleetSize(), 'FLEET: cannot attack/defend without ships');
+        require(getFleetSize(_target) > _getBaseFleetSize(), 'FLEET: cannot attack a player that has no ships');
+        require(getFleetSize(_player) > _getBaseFleetSize(), 'FLEET: cannot attack/defend without ships');
         _;
     }
 
@@ -470,25 +465,21 @@ contract Fleet is Ownable {
 
     function _getMaxFleetSize(address _player) internal view returns (uint) {
         uint maxFleetSize = baseMaxFleetSize; 
-        for(uint i=0; i<shipClassesList.length; i++) {
-            uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
-            maxFleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].hangarSize);
+        for(uint i=0; i<shipClasses.length; i++) {
+            uint shipClassAmount = fleets[_player][shipClasses[i].handle]; //get number of player's ships in this ship class
+            maxFleetSize += (shipClassAmount * shipClasses[i].hangarSize);
         }
         return maxFleetSize / Treasury.getCostMod();
     }
 
-    function getFleetSize(address _player) external view returns(uint) {
-        return _getFleetSize(_player);
-    }
-    
-    function _getFleetSize(address _player) internal view returns(uint) {
+    function getFleetSize(address _player) public view returns(uint) {
         uint fleetSize = 0;
-        if(bytes(addressToName[_player]).length > 0) {
+        if(bytes(_addressToName[_player]).length > 0) {
             fleetSize += _getBaseFleetSize();
         }
-        for(uint i=0; i<shipClassesList.length; i++) {
-            uint shipClassAmount = fleets[_player][shipClassesList[i]]; //get number of player's ships in this ship class
-            fleetSize += (shipClassAmount * shipClasses[shipClassesList[i]].size);
+        for(uint i=0; i<shipClasses.length; i++) {
+            uint shipClassAmount = fleets[_player][shipClasses[i].handle]; //get number of player's ships in this ship class
+            fleetSize += (shipClassAmount * shipClasses[i].size);
         }
         return fleetSize;
     }
@@ -497,19 +488,11 @@ contract Fleet is Ownable {
         return baseFleetSize / Treasury.getCostMod();
     }
 
-
-    function recall() external {
-        address player = msg.sender;
-        require(_getFleetSize(player) == _getBaseFleetSize(), "FLEET: fleet cannot have any ships for recall");
-        Map.setFleetLocation(player, 0, 0);
-    }
-
     //get the max mineral capacity of player's fleet
     function getMaxMineralCapacity(address _player) public view returns (uint){
         uint mineralCapacity = 0;
-        for(uint i=0; i<shipClassesList.length; i++) {
-            string memory curShipClass = shipClassesList[i];
-            mineralCapacity += (fleets[_player][curShipClass] * shipClasses[curShipClass].mineralCapacity);
+        for(uint i=0; i<shipClasses.length; i++) {
+            mineralCapacity += (fleets[_player][shipClasses[i].handle] * shipClasses[i].mineralCapacity);
         }
         return mineralCapacity / Treasury.getCostMod();
     }
@@ -517,9 +500,8 @@ contract Fleet is Ownable {
     //get the max mining capacity of player's fleet (how much mineral can a player mine each mining attempt)
     function getMiningCapacity(address _player) public view returns (uint){
         uint miningCapacity = 0;
-        for(uint i=0; i<shipClassesList.length; i++) {
-            string memory curShipClass = shipClassesList[i];
-            miningCapacity += (fleets[_player][curShipClass] * shipClasses[curShipClass].miningCapacity);
+        for(uint i=0; i<shipClasses.length; i++) {
+            miningCapacity += (fleets[_player][shipClasses[i].handle] * shipClasses[i].miningCapacity);
         }
         return miningCapacity / Treasury.getCostMod();
     }
@@ -533,6 +515,14 @@ contract Fleet is Ownable {
     }
 
     function editCost(string memory _handle, uint _newCost) public onlyOwner {
-        shipClasses[_handle].cost = _newCost;
+        shipClasses[handleToShipClass[_handle]].cost = _newCost;
+    }
+
+    function getAddressByName(string memory _name) external view returns (address) {
+        return _names[_name];
+    }
+
+    function getNameByAddress(address _address) external view returns (string memory) {
+        return _addressToName[_address];
     }
 }

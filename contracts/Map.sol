@@ -71,10 +71,6 @@ contract Map is Editor {
 
     string[] public placeTypes; // list of placeTypes
 
-    // Coordinates return the place id
-    mapping (uint => mapping(uint => bool)) public placeExists;
-    mapping (uint => mapping(uint => uint)) public coordinatePlaces;
-
     struct Place {
         uint id; //native key 
         string placeType;
@@ -83,6 +79,8 @@ contract Map is Editor {
         uint coordY;
     }
     Place[] public places;
+    mapping (uint => mapping(uint => bool)) public placeExists;
+    mapping (uint => mapping(uint => uint)) public coordinatePlaces;
 
     struct Planet {
         uint id; //native key
@@ -169,19 +167,6 @@ contract Map is Editor {
 
     function addPlanet(uint _starId, uint _x, uint _y, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
         _addPlanet(_starId, _x, _y, _isMiningPlanet, _hasRefinery, _hasShipyard);
-    }
-
-    function getPlanetIds() external view returns(uint[] memory) {
-        uint numPlanets = planets.length;
-        uint[] memory planetIds = new uint[](numPlanets);
-        for(uint i=0; i<numPlanets; i++) {
-            planetIds[i] = planets[i].id;
-        }
-        return planetIds;
-    }
-
-    function getPlanetCoordinates(uint _id) external view returns(uint, uint) {
-        return (places[planets[_id].placeId].coordX, places[planets[_id].placeId].coordY);
     }
 
     function _addJumpgate(address _owner, uint _x, uint _y) internal {
