@@ -37,10 +37,10 @@ contract Map is Editor {
         placeTypes.push('planet');
         placeTypes.push('jumpgate');
 
-        _addStar(2, 2, 9); // first star
-        _addPlanet(0, 0, 0, false, true, true); //Haven
-        _addPlanet(0, 3, 4, true, false, false); //unrefined planet
-        _addPlanet(0, 1, 6, true, false, false); //unrefined planet
+        _addStar(2, 2, 'Solar', 9); // first star
+        _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
+        _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
+        _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -77,6 +77,7 @@ contract Map is Editor {
         uint childId;
         uint coordX;
         uint coordY;
+        string name;
     }
     Place[] public places;
     mapping (uint => mapping(uint => bool)) public placeExists;
@@ -124,30 +125,30 @@ contract Map is Editor {
     event NewPlanet(uint _star, uint _x, uint _y);
     event NewStar(uint _x, uint _y);
 
-    function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y) internal {
+    function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name) internal {
         require(placeExists[_x][_y] == false, 'Place already exists in these coordinates');
         uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y));
+        places.push(Place(placeId, _placeType, _childId, _x, _y, _name));
 
         //set place in coordinate mapping
         placeExists[_x][_y] = true;
         coordinatePlaces[_x][_y] = placeId;
     }
 
-    function _addStar(uint _x, uint _y, uint _luminosity) internal {
+    function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
         //add star to stars list
         uint starId = stars.length;
         stars.push(Star(starId, places.length, _luminosity, 0, 0));
 
-        _addPlace('star', starId, _x, _y);
+        _addPlace('star', starId, _x, _y, _name);
         emit NewStar(_x, _y);
     }
 
-    function addStar(uint _x, uint _y, uint _luminosity) external onlyOwner {
-        _addStar(_x, _y, _luminosity);
+    function addStar(uint _x, uint _y, string memory _name, uint _luminosity) external onlyOwner {
+        _addStar(_x, _y, _name, _luminosity);
     }
 
-    function _addPlanet(uint _starId, uint _x, uint _y, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) internal {
+    function _addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) internal {
         uint starX = places[stars[_starId].placeId].coordX;
         uint starY = places[stars[_starId].placeId].coordY;
         uint starDistance = Helper.getDistance(starX, starY, _x, _y);
@@ -161,12 +162,12 @@ contract Map is Editor {
         uint planetId = planets.length;
         planets.push(Planet(planetId, places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
 
-        _addPlace('planet', planetId, _x, _y);
+        _addPlace('planet', planetId, _x, _y, _name);
         emit NewPlanet(_starId, _x, _y);
     }
 
-    function addPlanet(uint _starId, uint _x, uint _y, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
-        _addPlanet(_starId, _x, _y, _isMiningPlanet, _hasRefinery, _hasShipyard);
+    function addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
+        _addPlanet(_starId, _x, _y, _name, _isMiningPlanet, _hasRefinery, _hasShipyard);
     }
 
     function _addJumpgate(address _owner, uint _x, uint _y) internal {
@@ -174,22 +175,22 @@ contract Map is Editor {
     }
 
     /* get coordinatePlaces cannot handle a map box larger than 255 */
-    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(uint[] memory) {
+    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(Place[] memory) {
         uint xDistance = (_rx - _lx) + 1;
         uint yDistance = (_ry - _ly) + 1;
         uint numCoordinates = xDistance * yDistance;
         require(xDistance * yDistance < 256, 'MAP: Too much data in loop');
 
-        uint[] memory foundCoordinatePlaceIds = new uint[]((numCoordinates));
+        Place[] memory foundCoordinatePlaces = new Place[]((numCoordinates));
 
         uint counter = 0;
         for(uint i=_lx; i<=_rx;i++) {
             for(uint j=_ly; j<=_ry;j++) {
-                foundCoordinatePlaceIds[counter] = coordinatePlaces[i][j];
+                foundCoordinatePlaces[counter] = places[coordinatePlaces[i][j]];
                 counter++;
             }
         }
-        return foundCoordinatePlaceIds;
+        return foundCoordinatePlaces;
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
