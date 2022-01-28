@@ -63,7 +63,7 @@ contract Fleet is Ownable {
         uint buildTime;
         uint cost;
     }
-    ShipClass[] public shipClasses; //iterable list for ship classes, better name?
+    ShipClass[] public shipClasses;
     mapping (string => uint) public handleToShipClass;
 
     //shipyard data
@@ -269,8 +269,7 @@ contract Fleet is Ownable {
     function getAttackPower(address _player) public view returns (uint) {
         uint totalAttack = 0;
         for(uint i=0; i<shipClasses.length; i++) {
-            ShipClass memory shipClass = shipClasses[i];
-            totalAttack += fleets[_player][shipClass.handle] * shipClass.attackPower;
+            totalAttack += fleets[_player][shipClasses[i].handle] * shipClasses[i].attackPower;
         }
         return totalAttack;
     }
