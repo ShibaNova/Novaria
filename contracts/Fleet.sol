@@ -38,17 +38,30 @@ contract Fleet is Ownable {
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         //DELETE BEFORE LAUNCH
         _names['Koray'] = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
-        _addressToName[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = 'Koray';
+/*        _addressToName[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = 'Koray';
 
         _addressToName[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2] = 'Nate';
         _names['Nate'] = 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2;
 
         fleets[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4]['viper'] = 100;
-        fleets[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2]['mole'] = 100;
+        fleets[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2]['mole'] = 100;*/
 
         _attackFleet(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
         goBattle(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
     }
+
+    struct Player {
+        string name;
+        mapping (address => mapping(string => uint)) fleet; //player fleet composition
+
+        // player address -> shipyard x coordinate -> shipyard y coordinate -> Drydock
+        mapping (address => mapping (uint => mapping (uint => DryDock))) dryDocks; //each player can have only 1 drydock at each location
+    }
+
+    mapping (address => Player) players;
+
+    //complete mapping of all names to avoid duplicates
+    mapping (string => address) _names;
 
     //ship class data
     struct ShipClass {
@@ -83,16 +96,6 @@ contract Fleet is Ownable {
         uint amount; 
         uint completionTime;
     }
-    // player address -> shipyard x coordinate -> shipyard y coordinate -> Drydock
-    mapping (address => mapping (uint => mapping (uint => DryDock))) playerDryDocks; //each player can have only 1 drydock at each location
-   
-   // ***Add function to view fleet!!!!
-    // player address -> ship class -> number of ships
-    mapping (address => mapping(string => uint)) public fleets; //player fleet composition
-
-    //player names
-    mapping (string => address) _names;
-    mapping (address => string) _addressToName;
 
     //battle data
     struct Battle {
@@ -132,7 +135,7 @@ contract Fleet is Ownable {
     function insertCoinHere(string memory _name) external {
         require(_names[_name] == address(0), 'FLEET: Name already exists');
         address player = msg.sender;
-        require(bytes(_addressToName[player]).length == 0, 'FLEET: player already has name');
+        require(bytes(players[player]).name.length == 0, 'FLEET: player already has name');
         Treasury.pay(player, startFee / Treasury.getCostMod());
         _names[_name] = player;
         _addressToName[player] = _name;

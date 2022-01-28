@@ -5,11 +5,9 @@ pragma solidity ^0.8.7;
 library Helper {
 
     function isEqual(string memory _str1, string memory _str2) internal pure returns (bool) {
-        if(keccak256(abi.encodePacked(_str1)) == keccak256(abi.encodePacked(_str2))) {
-            return true;
-        }
-        return false;
+        return keccak256(abi.encodePacked(_str1)) == keccak256(abi.encodePacked(_str2));
     }
+
     function _sqrt(uint y) internal pure returns (uint z) {
         if (y > 3) {
             z = y;
