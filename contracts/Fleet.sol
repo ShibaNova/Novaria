@@ -23,9 +23,9 @@ contract Fleet is Ownable {
        // ITreasury _treasury, 
        // ShibaBEP20 _Token
         ) {
-        Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
-        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
         _baseMaxFleetSize = 1000;
         _baseFleetSize = 100;
         _timeModifier = 50;

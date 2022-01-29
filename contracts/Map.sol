@@ -21,6 +21,7 @@ contract Map is Editor {
     ) {
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
        // Fleet = _fleet;
 
