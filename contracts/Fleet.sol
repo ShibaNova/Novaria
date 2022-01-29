@@ -50,7 +50,6 @@ contract Fleet is Ownable {
 //        goBattle(0);
     }
 
-
     enum BattleStatus{ PEACE, ATTACK, DEFEND }
     //complete mapping of all names to avoid duplicates
     mapping (string => address) _names;
@@ -168,10 +167,6 @@ contract Fleet is Ownable {
         _shipyardExists[_x][_y] = true;
         _coordinatesToShipyard[_x][_y] = _shipyards.length-1;
         emit NewShipyard(_x, _y);
-    }
-
-    function getShipyards() external view returns (Shipyard[] memory) {
-        return _shipyards;
     }
 
     // Ship building Function
@@ -374,6 +369,14 @@ contract Fleet is Ownable {
     
     function getBattles() external view returns (Battle[] memory) {
         return _battles;
+    }
+
+    function getShipyards() external view returns (Shipyard[] memory) {
+        return _shipyards;
+    }
+
+    function getShipClasses() external view returns (ShipClass[] memory) {
+        return _shipClasses;
     }
 
     function getDockCost(uint shipClassId, uint _amount) public view returns(uint) {
