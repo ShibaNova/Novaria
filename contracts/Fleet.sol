@@ -26,30 +26,31 @@ contract Fleet is Ownable {
         Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        baseMaxFleetSize = 1000;
-        baseFleetSize = 100;
-        timeModifier = 5;
-        attackWindow = 1800; //30 minutes
-        defendWindow = 1800; //30 minutes
+        _baseMaxFleetSize = 1000;
+        _baseFleetSize = 100;
+        _timeModifier = 5;
+        _battleWindow = 3600; //60 minutes
+        _battleSizeRestriction = 4;
+        _startFee = 10**18;
 
         //load start data
         createShipClass("Viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
+
         //DELETE BEFORE LAUNCH
-/*        _names['Koray'] = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
-        _addressToName[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4] = 'Koray';
+        _createPlayer('_Koray', 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+        _players[0].ships.push(100);
 
-        _addressToName[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2] = 'Nate';
-        _names['Nate'] = 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2;
+        _createPlayer('_Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+        _players[0].ships.push(10);
 
-        fleets[0x5B38Da6a701c568545dCfcB03FcB875f56beddC4]['viper'] = 100;
-        fleets[0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2]['mole'] = 100;
-
-        _attackFleet(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
-        goBattle(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);*/
+        //goBattle(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, BattleStatus.ATTACK);
+//        decideBattle(0);
     }
 
+
+    enum BattleStatus{ PEACE, ATTACK, DEFEND }
     //complete mapping of all names to avoid duplicates
     mapping (string => address) _names;
 
@@ -58,7 +59,7 @@ contract Fleet is Ownable {
         uint experience;
         uint[] ships;
         SpaceDock[] spaceDocks;
-        bool isInBattle;
+        BattleStatus battleStatus;
         uint battleId;
     }
     Player[] _players;
@@ -102,7 +103,6 @@ contract Fleet is Ownable {
     //battle data
     struct Battle {
         uint id;
-        address attackTarget;
         uint battleDeadline;
         address[] attackers;
         uint attackersAttackPower;
@@ -113,39 +113,32 @@ contract Fleet is Ownable {
     }
     Battle[] _battles;
 
-    //mappings to easily access player battles
-    //player can be in up to 2 battles, one where player is target and one where player is attacker or defender
-    mapping (address => bool) public isPlayerTargetted;
-    mapping (address => uint) public targetToBattle;
-
-    mapping (address => bool) public isPlayerAttacking;
-    mapping (address => bool) public isPlayerDefending;
-    mapping (address => uint) public participantToBattle;
-
     IMap public Map;
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
-    uint baseMaxFleetSize;
-    uint baseFleetSize; //size of capital ship
-    uint timeModifier;
-    uint attackWindow;
-    uint defendWindow;
-    uint startFee = 10**18;
+    uint _baseMaxFleetSize;
+    uint _baseFleetSize; //size of capital ship
+    uint _timeModifier;
+    uint _battleWindow;
+    uint _battleSizeRestriction;
+    uint _startFee;
 
     event NewShipyard(uint _x, uint _y);
+
+    function _createPlayer(string memory _name, address _player) internal {
+        _players.push();
+        _players[_players.length-1].name = _name;
+        _names[_name] = _player; //add to name map
+        addressToPlayer[_player] = _players.length-1;
+        playerExists[_player] == true;
+    }
 
     function insertCoinHere(string memory _name) external {
         require(bytes(_name).length < 16, 'FLEET: name too long');
         require(_names[_name] == address(0), 'FLEET: duplicate name');
-        address player = msg.sender;
-        require(playerExists[player] == false, 'FLEET: player exists');
-        Treasury.pay(player, startFee / Treasury.getCostMod());
-
-        _players.push();
-        _players[_players.length-1].name = _name;
-        _names[_name] = player; //add to name map
-        addressToPlayer[player] = _players.length-1;
-        playerExists[player] == true;
+        require(playerExists[msg.sender] == false, 'FLEET: player exists');
+        Treasury.pay(msg.sender, _startFee / Treasury.getCostMod());
+        _createPlayer(_name, msg.sender);
     }
 
     function getPlayers() external view returns (Player[] memory) {
@@ -232,96 +225,72 @@ contract Fleet is Ownable {
         _players[addressToPlayer[_player]].ships[_shipClassId] -= (Helper.getMin(_amount, _players[addressToPlayer[_player]].ships[_shipClassId]));
     }
 
-    //initiate an attack against another player
-    function attackFleet(address _player, address _target) external {
-        _attackFleet(_player, _target);
+    //can player participate in this battle
+    modifier canJoinBattle(address _player, address _target) {
+        require(playerExists[_player] == true, 'FLEET: no player');
+        require(playerExists[_target] == true, 'FLEET: no target');
+        require(_player != _target, 'FLEET: Player/target not same');
+        require(_players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FLEET: in battle');
+
+        //verify players are at same location
+        (uint attackX, uint attackY) = Map.getFleetLocation(_player);
+        (uint targetX, uint targetY) = Map.getFleetLocation(_target);
+        require(attackX == targetX && attackY == targetY, 'FLEET: dif. location');
+
+        require(getFleetSize(_target) * _battleSizeRestriction > getFleetSize(_player), 'FLEET: player low ships');
+        require(getFleetSize(_player) * _battleSizeRestriction > getFleetSize(_target), 'FLEET: target low ships');
+        _;
     }
-    function _attackFleet(address _player, address _target) internal canParticipateInBattle(_player, _target) {
-        if(isPlayerTargetted[_target] == true) {
-            Battle storage foundBattle = _battles[targetToBattle[_target]];
-            require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: withdraw window is past');
-            _addBattleAttacker(foundBattle, _player);
+
+    function goBattle(address _target, BattleStatus mission) public canJoinBattle(msg.sender, _target) {
+        Player storage targetPlayer = _players[addressToPlayer[_target]];
+        require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: player not under attack');
+
+        Player storage hero = _players[addressToPlayer[msg.sender]];
+        uint battleId = targetPlayer.battleId;
+        if(mission == BattleStatus.ATTACK) {
+            if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
+                uint battleDeadline = block.timestamp + _getBattleWindow();
+                battleId = _battles.length;
+                _battles.push(Battle(battleId, battleDeadline, new address[](0), 0, 0, new address[](0), 0, 0));
+                targetPlayer.battleStatus = BattleStatus.DEFEND;
+                targetPlayer.battleId = battleId;
+                _battles[battleId].defendersAttackPower += getAttackPower(msg.sender);
+                _battles[battleId].defendersFleetSize += getFleetSize(msg.sender);
+            }
+            _battles[battleId].attackers.push(msg.sender);
+            hero.battleStatus = BattleStatus.ATTACK;
+            _battles[battleId].attackersAttackPower += getAttackPower(msg.sender);
+            _battles[battleId].attackersFleetSize += getFleetSize(msg.sender);
         }
-        else { //create battle if there is currently no attack against target
-            uint battleDeadline = block.timestamp + _getAttackWindow() + _getDefendWindow();
-            uint newBattleId = _battles.length;
-            _battles.push(Battle(newBattleId, _target, battleDeadline, new address[](0), 0, 0, new address[](0), 0, 0));
-            isPlayerTargetted[_target] = true;
-            targetToBattle[_target] = newBattleId;
-
-            _addBattleDefender(_battles[newBattleId], _target);
-            _addBattleAttacker(_battles[newBattleId], _player);
+        else {
+            _battles[battleId].defenders.push(msg.sender);
+            hero.battleStatus = BattleStatus.DEFEND;
+            _battles[battleId].defendersAttackPower += getAttackPower(msg.sender);
+            _battles[battleId].defendersFleetSize += getFleetSize(msg.sender);
         }
+        hero.battleId = battleId;
     }
 
-    function _addBattleAttacker(Battle storage _battle, address _player) internal {
-            _battle.attackers.push(_player);
-            isPlayerAttacking[_player] = true;
-            participantToBattle[_player] = _battle.id;
-
-            _battle.attackersAttackPower += getAttackPower(_player);
-            _battle.attackersFleetSize += getFleetSize(_player);
-    }
-
-    function _addBattleDefender(Battle storage _battle, address _player) internal {
-            _battle.defenders.push(_player);
-            isPlayerDefending[_player] = true;
-            participantToBattle[_player] = _battle.id;
-
-            _battle.defendersAttackPower += getAttackPower(_player);
-            _battle.defendersFleetSize += getFleetSize(_player);
-    }
-
-    function getAttackPower(address _player) public view returns (uint) {
-        uint totalAttack = 0;
-        for(uint i=0; i<_shipClasses.length; i++) {
-            totalAttack += _players[addressToPlayer[_player]].ships[i] * _shipClasses[i].attackPower;
-        }
-        return totalAttack;
-    }
-
-    //come to the defense of another player
-    function defendFleet(address _player, address _target) external canParticipateInBattle(_player, _target) {
-        require(isPlayerTargetted[_target] == true, 'FLEET: cannot defend a player that is not under attack');
-
-        Battle storage foundBattle = _battles[targetToBattle[_target]];
-        require(block.timestamp < (foundBattle.battleDeadline - _getAttackWindow()), 'FLEET: withdraw window is past');
-        _addBattleDefender(foundBattle, _target);
-    }
-
-    //need to add modifier restricting to Map contract
-    function endBattle(address _player) external {
-        if(isPlayerTargetted[_player]) {
-            _endBattle(_battles[targetToBattle[_player]]);
-        }
-    }
-
-    //after 1) all attackers leave battle or 2) battle is completed or 3) battle target jumps away
+    //after battle is complete
     function _endBattle(Battle storage battleToEnd) internal {
-        //remove all attacker references
+        //put attackers and denders into peace status
         for(uint i=0; i<battleToEnd.attackers.length; i++) {
-            delete participantToBattle[battleToEnd.attackers[i]];
-            delete isPlayerAttacking[battleToEnd.attackers[i]];
+            _players[addressToPlayer[battleToEnd.attackers[i]]].battleStatus = BattleStatus.PEACE;
         }
 
-        //remove all defender references
         for(uint i=0; i<battleToEnd.defenders.length; i++) {
-            delete participantToBattle[battleToEnd.defenders[i]];
-            delete isPlayerDefending[battleToEnd.defenders[i]];
+            _players[addressToPlayer[battleToEnd.defenders[i]]].battleStatus = BattleStatus.PEACE;
         }
-
-        //remove player targetted references
-        delete isPlayerTargetted[battleToEnd.attackTarget];
-        delete targetToBattle[battleToEnd.attackTarget];
 
         //remove battle from battles list
         _battles[battleToEnd.id] = _battles[_battles.length-1];
         _battles.pop();
     }
 
-    function goBattle(address _target) public {
-        require(isPlayerTargetted[_target] == true, 'FLEET: no battle for target');
-        Battle storage battle = _battles[targetToBattle[_target]];
+    function decideBattle(uint battleId) public {
+        Battle storage battle = _battles[battleId];
+        require(block.timestamp > battle.battleDeadline, 'FLEET: battle preppiing');
 
         (uint attackerTeamMineralLost, uint[] memory attackersMineralLost) = 
             _getMineralLost(battle.attackers, battle.defendersAttackPower, battle.attackersFleetSize);
@@ -389,22 +358,6 @@ contract Fleet is Ownable {
         Map.setFleetLocation(player, 0, 0);
     }
 
-    //can player participate in this battle
-    modifier canParticipateInBattle(address _player, address _target) {
-        require(_player != _target, 'FLEET: Player/target cannot be the same player (dummy!)');
-
-        //verify players are at same location
-        (uint attackX, uint attackY) = Map.getFleetLocation(_player);
-        (uint targetX, uint targetY) = Map.getFleetLocation(_target);
-        require(attackX == targetX && attackY == targetY, 'FLEET: player and target not at same location');
-
-        require(isPlayerAttacking[_player] == false && isPlayerDefending[_player] == false, 'FLEET: player already in another battle');
-
-        require(getFleetSize(_target) > _getBaseFleetSize(), 'FLEET: cannot attack a player that has no ships');
-        require(getFleetSize(_player) > _getBaseFleetSize(), 'FLEET: cannot attack/defend without ships');
-        _;
-    }
-
     function getFleets(address _player) external view returns (uint[] memory) {
         return _players[addressToPlayer[_player]].ships;
     }
@@ -414,9 +367,8 @@ contract Fleet is Ownable {
     }
 
     function getBuildTime(uint _shipClassId, uint _amount) public view returns(uint) {
-        return (_amount * _shipClasses[_shipClassId].buildTime) / timeModifier;
+        return (_amount * _shipClasses[_shipClassId].buildTime) / _timeModifier;
     }
-
     function getSpaceDocks(address _player, uint _x, uint _y) public view returns (SpaceDock[] memory) {
         SpaceDock[] memory foundDocks;
         uint foundDockCount;
@@ -441,12 +393,15 @@ contract Fleet is Ownable {
         return _battles[battleId].defenders;
     }
 
-    function _getAttackWindow() internal view returns (uint) {
-        return attackWindow / timeModifier;
+    function _getBattleWindow() internal view returns (uint) {
+        return _battleWindow / _timeModifier;
     }
-
-    function _getDefendWindow() internal view returns (uint) {
-        return defendWindow / timeModifier;
+    function getAttackPower(address _player) public view returns (uint) {
+        uint totalAttack = 0;
+        for(uint i=0; i<_shipClasses.length; i++) {
+            totalAttack += _players[addressToPlayer[_player]].ships[i] * _shipClasses[i].attackPower;
+        }
+        return totalAttack;
     }
 
     function getMaxFleetSize(address _player) external view returns (uint) {
@@ -454,7 +409,7 @@ contract Fleet is Ownable {
     }
 
     function _getMaxFleetSize(address _player) internal view returns (uint) {
-        uint maxFleetSize = baseMaxFleetSize; 
+        uint maxFleetSize = _baseMaxFleetSize; 
         for(uint i=0; i<_shipClasses.length; i++) {
             uint shipClassAmount = _players[addressToPlayer[_player]].ships[i]; //get number of player's ships in this ship class
             maxFleetSize += (shipClassAmount * _shipClasses[i].hangarSize);
@@ -475,7 +430,7 @@ contract Fleet is Ownable {
     }
 
     function _getBaseFleetSize() internal view returns (uint) {
-        return baseFleetSize / Treasury.getCostMod();
+        return _baseFleetSize / Treasury.getCostMod();
     }
 
     //get the max mineral capacity of player's fleet
@@ -494,10 +449,6 @@ contract Fleet is Ownable {
             miningCapacity += (_players[addressToPlayer[_player]].ships[i] * _shipClasses[i].miningCapacity);
         }
         return miningCapacity / Treasury.getCostMod();
-    }
-
-    function setTimeModifier(uint _timeModifier) external onlyOwner{
-        timeModifier = _timeModifier;
     }
 
     function setTreasury (address _treasury) external onlyOwner {
