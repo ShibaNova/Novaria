@@ -19,9 +19,8 @@ contract Map is Editor {
         //IShadowPool _shadowPool,
        // IFleet _fleet
     ) {
-        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-        Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
+        Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
+        Treasury = ITreasury(0x42bCB57E0617728A7E4e13D8cD6458879cd576D1);
        // ShadowPool = _shadowPool;
        // Fleet = _fleet;
 
@@ -42,6 +41,7 @@ contract Map is Editor {
         _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
         _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
         _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
+        _addPlanet(0, 5, 5, 'BestValueShips', false, true, true); // BestValueShips
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -196,6 +196,10 @@ contract Map is Editor {
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
         return (coordinatePlaces[_x][_y]);
+    }
+
+    function getPlaceName(uint _x, uint _y) external view returns(string memory) {
+        return places[getPlaceId(_x, _y)].name;
     }
 
     // currently no check for duplicates

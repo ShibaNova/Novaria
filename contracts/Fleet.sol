@@ -23,9 +23,9 @@ contract Fleet is Ownable {
        // ITreasury _treasury, 
        // ShibaBEP20 _Token
         ) {
-        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-        Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
+        Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
+        Treasury = ITreasury(0x42bCB57E0617728A7E4e13D8cD6458879cd576D1);
+        Map = IMap(0x59d65CDcd319315471Dd24a0398cbc539c0E1b25);
         _baseMaxFleetSize = 1000;
         _baseFleetSize = 100;
         _timeModifier = 50;
@@ -37,14 +37,15 @@ contract Fleet is Ownable {
         createShipClass("Viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
+        addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
 
         //DELETE BEFORE LAUNCH
-        _createPlayer('_Koray', 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
-        _players[0].ships[0] = 100;
-        _players[0].ships[1] = 19;
+        // _createPlayer('_Koray', 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa);
+        // _players[0].ships[0] = 100;
+        // _players[0].ships[1] = 19;
 
-        _createPlayer('_Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
-        _players[1].ships[0] = 33;
+        // _createPlayer('_Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+        // _players[1].ships[0] = 33;
 
         //enterBattle(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, BattleStatus.ATTACK);
 //        goBattle(0);
@@ -82,6 +83,7 @@ contract Fleet is Ownable {
 
     //shipyard data
     struct Shipyard {
+        string name;
         address owner;
         uint coordX;
         uint coordY;
@@ -163,7 +165,9 @@ contract Fleet is Ownable {
         require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
         require(Map.isShipyardLocation(_x, _y) == true, 'FLEET: shipyard unavailable');
 
-        _shipyards.push(Shipyard(_owner, _x, _y, _feePercent));
+        string memory name = Map.getPlaceName(_x, _y);
+
+        _shipyards.push(Shipyard(name, _owner, _x, _y, _feePercent));
         _shipyardExists[_x][_y] = true;
         _coordinatesToShipyard[_x][_y] = _shipyards.length-1;
         emit NewShipyard(_x, _y);
