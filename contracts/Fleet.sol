@@ -11,8 +11,7 @@ import "./libs/SafeBEP20.sol";
  
     //miningCooldown - 30 min.
     //jumpDriveCooldown - 30 min + distance
-    //attackWindow - 30 min.
-    //defendWindow - 30 min.
+    //battleWindow - 30 min.
     //building ships
 
 contract Fleet is Ownable {
@@ -35,7 +34,7 @@ contract Fleet is Ownable {
 
         //load start data
         createShipClass("Viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
-        createShipClass("Mole", 2, 0, 10, 10**17, 5 * 10**16, 0, 30, 2 * 10**18);
+        createShipClass("Mole", 2, 0, 10, 5 * 10**17, 10**17, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
 
@@ -176,12 +175,11 @@ contract Fleet is Ownable {
     // Ship building Function
     function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount) external {
         address sender = msg.sender;
-        (uint fleetX, uint fleetY) = Map.getFleetLocation(sender);
-        require(fleetX == _x && fleetY == _y, 'FLEET: not at shipyard');
-        require(_shipyardExists[_x][_y] == true, 'FLEET: no shipyard');
         Shipyard memory shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
 
-        require((_shipClasses[_shipClassId].size * _amount) < _getMaxFleetSize(sender), 'FLEET: order is too large');
+        require(getSpaceDocks(sender, _x, _y).length == 0, 'FLEET: no dock available');
+
+        require((_shipClasses[_shipClassId].size * _amount) < _getMaxFleetSize(sender), 'FLEET: order too large');
 
         //total build cost
         uint totalCost = getDockCost(_shipClassId, _amount);
@@ -218,6 +216,9 @@ contract Fleet is Ownable {
 
         player.ships[dock.shipClassId] += _amount; //add ships to fleet
         dock.amount -= _amount; //remove ships from drydock
+
+        dock = player.spaceDocks[player.spaceDocks.length-1];
+        player.spaceDocks.pop();
     }
 
     //destroy ships
@@ -237,8 +238,13 @@ contract Fleet is Ownable {
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         require(attackX == targetX && attackY == targetY, 'FLEET: dif. location');
 
-        require(getFleetSize(_target) * _battleSizeRestriction > getFleetSize(_player), 'FLEET: player low ships');
-        require(getFleetSize(_player) * _battleSizeRestriction > getFleetSize(_target), 'FLEET: target low ships');
+        //target = 500
+        //player = 1000
+        //1) 500 * 2(1002) > 1000 TRUE
+        //2) 1000 * 2(4000) > 251 TRUE
+
+        require(getFleetSize(_player) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
+        require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(_player), 'FLEET: target too small');
         _;
     }
 

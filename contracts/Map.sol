@@ -194,6 +194,31 @@ contract Map is Editor {
         return foundCoordinatePlaces;
     }
 
+    function _getCoordinatePlace(uint _x, uint _y) internal view returns (Place memory) {
+        return places[coordinatePlaces[_x][_y]];
+    }
+
+    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, bool, bool, uint) {
+        string memory placeName;
+        string memory placeType;
+        bool hasShipyard;
+        bool hasRefinery;
+        uint mineral;
+
+        if(placeExists[_x][_y]) {
+            Place memory place  = places[coordinatePlaces[_x][_y]];
+            placeName = place.name;
+            placeType = place.placeType;
+            if(Helper.isEqual(placeType, 'planet')) {
+                Planet memory planet = planets[place.childId];
+                hasShipyard = planet.hasShipyard;
+                hasRefinery = planet.hasRefinery;
+                mineral = planet.availableMineral;
+            }
+        }
+        return (placeName, placeType, hasShipyard, hasRefinery, mineral);
+    }
+
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
         return (coordinatePlaces[_x][_y]);
     }
