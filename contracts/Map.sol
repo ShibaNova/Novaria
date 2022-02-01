@@ -79,6 +79,7 @@ contract Map is Editor {
         uint coordX;
         uint coordY;
         string name;
+        uint scrap;
     }
     Place[] public places;
     mapping (uint => mapping(uint => bool)) public placeExists;
@@ -129,7 +130,7 @@ contract Map is Editor {
     function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name) internal {
         require(placeExists[_x][_y] == false, 'Place already exists in these coordinates');
         uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y, _name));
+        places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0));
 
         //set place in coordinate mapping
         placeExists[_x][_y] = true;
@@ -198,9 +199,10 @@ contract Map is Editor {
         return places[coordinatePlaces[_x][_y]];
     }
 
-    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, bool, bool, uint) {
+    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint) {
         string memory placeName;
         string memory placeType;
+        uint scrap;
         bool hasShipyard;
         bool hasRefinery;
         uint mineral;
@@ -209,6 +211,7 @@ contract Map is Editor {
             Place memory place  = places[coordinatePlaces[_x][_y]];
             placeName = place.name;
             placeType = place.placeType;
+            scrap = place.scrap;
             if(Helper.isEqual(placeType, 'planet')) {
                 Planet memory planet = planets[place.childId];
                 hasShipyard = planet.hasShipyard;
@@ -216,7 +219,7 @@ contract Map is Editor {
                 mineral = planet.availableMineral;
             }
         }
-        return (placeName, placeType, hasShipyard, hasRefinery, mineral);
+        return (placeName, placeType, scrap, hasShipyard, hasRefinery, mineral);
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
@@ -300,12 +303,27 @@ contract Map is Editor {
     function isShipyardLocation(uint _x, uint _y) external view returns (bool) {
         return getPlanetAtLocation(_x, _y).hasShipyard;
     }
+
+    //collect scrap from a coordinate
+    function collect(uint _x, uint _y) external {
+        address player = msg.sender;
+        Place memory place  = places[coordinatePlaces[_x][_y]];
+        require(place.scrap > 0, 'MAP: no scrap');
+
+        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
+
+        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
+        require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
+        uint collectedAmount = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
+        _mineralGained(player, int(collectedAmount));
+        fleetMiningCooldown[player] = block.timestamp + ((miningCooldown / 5) / timeModifier);
+    }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
     function mine() external {
         address player = msg.sender;
         Planet memory planet = getPlanetAtFleetLocation(player);
-        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: Fleet miners on cooldown');
+        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
@@ -374,10 +392,6 @@ contract Map is Editor {
 
         //gained amount is the final amount - start amount (can be negative)
         int gainedAmount = int(finalMineralAmount) - int(startAmount);
-
-        if(gainedAmount > 0) {
-            _addTravelCooldown(_player, uint(gainedAmount * 120)); //2 minute travel delay per mineral mined
-        }
 
         emit MineralGained(_player, gainedAmount, burnedAmount);
     }
