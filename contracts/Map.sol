@@ -255,6 +255,17 @@ contract Map is Editor {
             allocateToken();
         }
     }
+    
+    function addScrapToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
+        //get place and add it to place
+        places[coordinatePlaces[_x][_y]].scrap += _amount * 98 / 100;
+        
+    }
+
+    // When Token allocated for scrap gets added to contract, call this function
+    function increasePreviousBalance(uint _amount) external onlyEditor {
+        previousBalance += _amount * 98 / 100;
+    }
 
     // Function to mine, refine, transfer unrefined Token
     function allocateToken() public {
@@ -306,6 +317,7 @@ contract Map is Editor {
 
     //collect scrap from a coordinate
     function collect(uint _x, uint _y) external {
+        uint collectSpeedMultiplier = 5;
         address player = msg.sender;
         Place memory place  = places[coordinatePlaces[_x][_y]];
         require(place.scrap > 0, 'MAP: no scrap');
@@ -316,7 +328,7 @@ contract Map is Editor {
         require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
         uint collectedAmount = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
         _mineralGained(player, int(collectedAmount));
-        fleetMiningCooldown[player] = block.timestamp + ((miningCooldown / 5) / timeModifier);
+        fleetMiningCooldown[player] = block.timestamp + ((miningCooldown / collectSpeedMultiplier) / timeModifier);
     }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
@@ -355,6 +367,7 @@ contract Map is Editor {
         Token.safeTransfer(player, playerMineral);
         previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
+        //requestToken();
     }
 
     function getFleetMineral(address _player) external view returns(uint) {

@@ -190,7 +190,9 @@ contract Fleet is Ownable {
         uint ownerFee = (totalCost * shipyard.feePercent) / 100;
         Token.safeTransferFrom(sender, shipyard.owner, ownerFee);
 
-        Treasury.pay(sender, totalCost);
+        uint scrapFee = 25;
+        Treasury.pay(sender, (totalCost * (100-scrapFee)) / 100);
+        Token.safeTransferFrom(sender, address(Map), (totalCost * scrapFee) / 100); //send scrap to Map contract
 
         uint completionTime = block.timestamp + getBuildTime(_shipClassId, _amount);
         Player storage player = _players[addressToPlayer[sender]];
@@ -239,11 +241,6 @@ contract Fleet is Ownable {
         (uint attackX, uint attackY) = Map.getFleetLocation(_player);
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         require(attackX == targetX && attackY == targetY, 'FLEET: dif. location');
-
-        //target = 500
-        //player = 1000
-        //1) 500 * 2(1002) > 1000 TRUE
-        //2) 1000 * 2(4000) > 251 TRUE
 
         require(getFleetSize(_player) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
         require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(_player), 'FLEET: target too small');
