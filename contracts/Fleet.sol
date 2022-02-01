@@ -103,16 +103,18 @@ contract Fleet is Ownable {
 
     //battle data
     struct Battle {
-        uint id;
         uint battleDeadline;
-        address[] attackers;
-        uint attackersAttackPower;
-        uint attackersFleetSize;
-        address[] defenders;
-        uint defendersAttackPower;
-        uint defendersFleetSize;
+        Team attackTeam;
+        Team defendTeam;
     }
     Battle[] _battles;
+
+    struct Team {
+        address[] members;
+        uint attackPower;
+        uint fleetSize;
+        uint mineral;
+    }
 
     IMap public Map;
     ITreasury public Treasury;
@@ -248,54 +250,46 @@ contract Fleet is Ownable {
         _;
     }
 
+    function _joinTeam(address _hero, uint _battleId, Team storage _team, BattleStatus _mission) internal {
+            _players[addressToPlayer[_hero]].battleId = _battleId;
+            _players[addressToPlayer[_hero]].battleStatus = _mission;
+            _team.members.push(_hero);
+            _team.attackPower += getAttackPower(_hero);
+            _team.fleetSize += getFleetSize(_hero);
+            _team.fleetSize += Map.getFleetMineral(_hero);
+    }
+
     function enterBattle(address _target, BattleStatus mission) public canJoinBattle(msg.sender, _target) {
         Player storage targetPlayer = _players[addressToPlayer[_target]];
         require(mission != BattleStatus.PEACE, 'FLEET: no peace');
         require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: player not under attack');
 
-        Player storage hero = _players[addressToPlayer[msg.sender]];
-        uint battleId = targetPlayer.battleId;
+        uint targetBattleId = targetPlayer.battleId;
         if(mission == BattleStatus.ATTACK) {
             if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
-                uint battleDeadline = block.timestamp + _getBattleWindow();
-                battleId = _battles.length;
-                _battles.push(Battle(battleId, battleDeadline, new address[](0), 0, 0, new address[](0), 0, 0));
-
-                targetPlayer.battleId = battleId;
-
-                targetPlayer.battleStatus = BattleStatus.DEFEND;
-                _battles[battleId].defenders.push(_target);
-                _battles[battleId].defendersAttackPower += getAttackPower(_target);
-                _battles[battleId].defendersFleetSize += getFleetSize(_target);
+                _battles.push(Battle(block.timestamp + _getBattleWindow(), Team(new address[](0), 0, 0, 0), Team(new address[](0), 0, 0, 0)));
+                _joinTeam(_target, _battles.length-1, _battles[_battles.length-1].defendTeam, BattleStatus.DEFEND);
             }
-
-            hero.battleStatus = BattleStatus.ATTACK;
-            _battles[battleId].attackers.push(msg.sender);
-            _battles[battleId].attackersAttackPower += getAttackPower(msg.sender);
-            _battles[battleId].attackersFleetSize += getFleetSize(msg.sender);
+            _joinTeam(_target, targetBattleId, _battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
         }
         else if(mission == BattleStatus.DEFEND) {
-            hero.battleStatus = BattleStatus.DEFEND;
-            _battles[battleId].defenders.push(msg.sender);
-            _battles[battleId].defendersAttackPower += getAttackPower(msg.sender);
-            _battles[battleId].defendersFleetSize += getFleetSize(msg.sender);
+            _joinTeam(_target, targetBattleId, _battles[targetBattleId].defendTeam, BattleStatus.DEFEND);
         }
-        hero.battleId = battleId;
     }
 
     //after battle is complete
-    function _endBattle(Battle storage battleToEnd) internal {
+    function _endBattle(uint _battleId) internal {
         //put attackers and denders into peace status
-        for(uint i=0; i<battleToEnd.attackers.length; i++) {
-            _players[addressToPlayer[battleToEnd.attackers[i]]].battleStatus = BattleStatus.PEACE;
+        Battle memory battleToEnd = _battles[_battleId];
+        for(uint i=0; i<battleToEnd.attackTeam.members.length; i++) {
+            _players[addressToPlayer[battleToEnd.attackTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
-
-        for(uint i=0; i<battleToEnd.defenders.length; i++) {
-            _players[addressToPlayer[battleToEnd.defenders[i]]].battleStatus = BattleStatus.PEACE;
+        for(uint i=0; i<battleToEnd.defendTeam.members.length; i++) {
+            _players[addressToPlayer[battleToEnd.defendTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
 
         //remove battle from battles list
-        _battles[battleToEnd.id] = _battles[_battles.length-1];
+        _battles[_battleId] = _battles[_battles.length-1];
         _battles.pop();
     }
 
@@ -304,14 +298,14 @@ contract Fleet is Ownable {
         require(block.timestamp > battle.battleDeadline, 'FLEET: battle preppiing');
 
         (uint attackerTeamMineralLost, uint[] memory attackersMineralLost) = 
-            _getMineralLost(battle.attackers, battle.defendersAttackPower, battle.attackersFleetSize);
+            _getMineralLost(battle.attackTeam.members, battle.defendTeam.attackPower, battle.attackTeam.fleetSize);
 
         (uint defenderTeamMineralLost, uint[] memory defendersMineralLost) = 
-            _getMineralLost(battle.defenders, battle.attackersAttackPower, battle.defendersFleetSize);
+            _getMineralLost(battle.defendTeam.members, battle.attackTeam.attackPower, battle.defendTeam.fleetSize);
 
-        _settleMineral(battle.attackers, battle.attackersAttackPower, defenderTeamMineralLost, attackersMineralLost);
-        _settleMineral(battle.defenders, battle.defendersAttackPower, attackerTeamMineralLost, defendersMineralLost);
-        _endBattle(battle);
+//        _settleMineral(battle.attackTeam.members, battle.attackTeam.attackPower, defenderTeamMineralLost, attackersMineralLost);
+ //       _settleMineral(battle.defendTeam.members, battle.defendersAttackPower, attackerTeamMineralLost, defendersMineralLost);
+        _endBattle(battleId);
     }
 
     function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint, uint[] memory) {
@@ -412,13 +406,13 @@ contract Fleet is Ownable {
         return _players[addressToPlayer[_player]].spaceDocks;
     }
  
-    function getAttackers(uint battleId) external view returns (address[] memory) {
+/*    function getAttackers(uint battleId) external view returns (address[] memory) {
         return _battles[battleId].attackers;
     }
 
     function getDefenders(uint battleId) external view returns (address[] memory) {
         return _battles[battleId].defenders;
-    }
+    }*/
 
     function _getBattleWindow() internal view returns (uint) {
         return _battleWindow / _timeModifier;
