@@ -11,4 +11,6 @@ interface IMap {
     function mineralGained(address _player, int _amount) external;
     function getFleetMineral(address _player) external view returns(uint);
     function getPlaceName(uint _x, uint _y) external view returns(string memory);
+    function increasePreviousBalance(uint _amount) external;
+    function addScrapToPlace(uint _x, uint _y, uint _amount) external;
 }
