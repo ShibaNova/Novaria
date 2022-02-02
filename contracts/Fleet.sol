@@ -300,12 +300,11 @@ contract Fleet is Ownable {
         (uint defenderTeamMineralLost, uint[] memory defendersMineralLost) = 
             _getMineralLost(battle.defendTeam.members, battle.attackTeam.attackPower, battle.defendTeam.fleetSize);
 
-//        _settleMineral(battle.attackTeam.members, battle.attackTeam.attackPower, defenderTeamMineralLost, attackersMineralLost);
- //       _settleMineral(battle.defendTeam.members, battle.defendersAttackPower, attackerTeamMineralLost, defendersMineralLost);
         _endBattle(battleId);
     }
 
     function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint, uint[] memory) {
+        uint totalValueLost = 0;
         uint totalMineralLost = 0;
         uint[] memory memberMineralLost = new uint[](_team.length); //get mineral capacity each player lost
         for(uint i=0; i<_team.length; i++) {
@@ -321,37 +320,19 @@ contract Fleet is Ownable {
                 //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
                 uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / _shipClasses[j].shield);
 
-                //destroy actual ships lost
-                _destroyShips(member, j, uint16(actualShipsLost));
+                totalValueLost = actualShipsLost  * _shipClasses[j].cost;
 
                 //calculate mineral capacity lost by this class of member's ships; mineral capacity lost is based off of actual ships that were lost
                 memberMineralCapacityLost += (actualShipsLost * _shipClasses[j].mineralCapacity);
+
+                //destroy actual ships lost
+                _destroyShips(member, j, uint16(actualShipsLost));
             }
-            //member's final lost mineral is the minimum of how much member currently has in fleet and how much mineral capacity was just lost
-            memberMineralLost[i] += (Helper.getMin(Map.getFleetMineral(member), memberMineralCapacityLost));
+            //member's final lost mineral is the percentage of filled mineral capacity
+            memberMineralLost[i] = (memberMineralCapacityLost * Map.getFleetMineral(member)) / getMineralCapacity(member);
             totalMineralLost += memberMineralLost[i];
         }
         return (totalMineralLost, memberMineralLost);
-    }
-
-    function _settleMineral(address[] memory _team, uint _teamAttackPower, uint _totalTeamMineralGained, uint[] memory _teamMineralLost) internal {
-        for(uint i=0; i<_team.length; i++) {
-
-            //get player's attack contribution
-            uint playerAttack = 0;
-            for(uint j=0; j<_shipClasses.length; j++) {
-                playerAttack += _players[addressToPlayer[_team[i]]].ships[i] * _shipClasses[i].attackPower;
-            }
-
-            //player receives mineral based on attack contribution and how much total was taken
-            uint playerMineralGained = 0;
-            if(_teamAttackPower > 0) {
-                playerMineralGained = (_totalTeamMineralGained * playerAttack) / _teamAttackPower;
-            }
-
-            //player mineral gained subtracts how much player lost from how much player gained (can be negative)
-            Map.mineralGained(_team[i], int(playerMineralGained - _teamMineralLost[i]));
-        }
     }
 
     function recall() external {
@@ -403,13 +384,13 @@ contract Fleet is Ownable {
         return _players[addressToPlayer[_player]].spaceDocks;
     }
  
-/*    function getAttackers(uint battleId) external view returns (address[] memory) {
-        return _battles[battleId].attackers;
+    function getAttackers(uint battleId) external view returns (address[] memory) {
+        return _battles[battleId].attackTeam.members;
     }
 
     function getDefenders(uint battleId) external view returns (address[] memory) {
-        return _battles[battleId].defenders;
-    }*/
+        return _battles[battleId].defendTeam.members;
+    }
 
     function _getBattleWindow() internal view returns (uint) {
         return _battleWindow / _timeModifier;
@@ -453,6 +434,15 @@ contract Fleet is Ownable {
 
     //get the max mineral capacity of player's fleet
     function getMaxMineralCapacity(address _player) public view returns (uint){
+        uint mineralCapacity = 0;
+        for(uint i=0; i<_shipClasses.length; i++) {
+            mineralCapacity += (_players[addressToPlayer[_player]].ships[i] * _shipClasses[i].mineralCapacity);
+        }
+        return mineralCapacity / Treasury.getCostMod();
+    }
+
+    // how much mineral can a player currently hold
+    function getMineralCapacity(address _player) public view returns (uint){
         uint mineralCapacity = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
             mineralCapacity += (_players[addressToPlayer[_player]].ships[i] * _shipClasses[i].mineralCapacity);
