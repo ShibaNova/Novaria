@@ -79,7 +79,7 @@ contract Map is Editor {
         uint coordX;
         uint coordY;
         string name;
-        uint scrap;
+        uint salvage;
     }
     Place[] public places;
     mapping (uint => mapping(uint => bool)) public placeExists;
@@ -202,7 +202,7 @@ contract Map is Editor {
     function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint) {
         string memory placeName;
         string memory placeType;
-        uint scrap;
+        uint salvage;
         bool hasShipyard;
         bool hasRefinery;
         uint mineral;
@@ -211,7 +211,7 @@ contract Map is Editor {
             Place memory place  = places[coordinatePlaces[_x][_y]];
             placeName = place.name;
             placeType = place.placeType;
-            scrap = place.scrap;
+            salvage = place.salvage;
             if(Helper.isEqual(placeType, 'planet')) {
                 Planet memory planet = planets[place.childId];
                 hasShipyard = planet.hasShipyard;
@@ -219,7 +219,7 @@ contract Map is Editor {
                 mineral = planet.availableMineral;
             }
         }
-        return (placeName, placeType, scrap, hasShipyard, hasRefinery, mineral);
+        return (placeName, placeType, salvage, hasShipyard, hasRefinery, mineral);
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
@@ -256,13 +256,13 @@ contract Map is Editor {
         }
     }
     
-    function addScrapToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
+    function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
         //get place and add it to place
-        places[coordinatePlaces[_x][_y]].scrap += _amount * 98 / 100;
+        places[coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
         
     }
 
-    // When Token allocated for scrap gets added to contract, call this function
+    // When Token allocated for salvage gets added to contract, call this function
     function increasePreviousBalance(uint _amount) external onlyEditor {
         previousBalance += _amount * 98 / 100;
     }
@@ -315,12 +315,12 @@ contract Map is Editor {
         return getPlanetAtLocation(_x, _y).hasShipyard;
     }
 
-    //collect scrap from a coordinate
+    //collect salvage from a coordinate
     function collect(uint _x, uint _y) external {
         uint collectSpeedMultiplier = 5;
         address player = msg.sender;
         Place memory place  = places[coordinatePlaces[_x][_y]];
-        require(place.scrap > 0, 'MAP: no scrap');
+        require(place.salvage > 0, 'MAP: no salvage');
 
         require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
 
@@ -351,7 +351,7 @@ contract Map is Editor {
         _mineralGained(player, int(minedAmount));
         fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
 
-        allocateToken();
+        //requestToken();
         emit MineralMined(player, minedAmount);
     }
     
@@ -418,16 +418,21 @@ contract Map is Editor {
         return fleetsAtLocation[_x][_y];
     }
 
+    function getDistanceFromFleet (address _fleet, uint _x, uint _y) public view returns(uint) {
+        uint oldX = fleetLocation[_fleet][0];
+        uint oldY = fleetLocation[_fleet][1];
+        return Helper.getDistance(oldX, oldY, _x, _y);
+    }
+
     function getFleetTravelCost(address _fleet, uint _x, uint _y) public view returns (uint) {
        uint fleetSize = Fleet.getFleetSize(_fleet);
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
        return (distance**2 * baseTravelCost * fleetSize) / Treasury.getCostMod();
     }
 
-    function getDistanceFromFleet (address _fleet, uint _x, uint _y) public view returns(uint) {
-        uint oldX = fleetLocation[_fleet][0];
-        uint oldY = fleetLocation[_fleet][1];
-        return Helper.getDistance(oldX, oldY, _x, _y);
+    function getFleetTravelCooldown(address _fleet, uint _x, uint _y) public view returns (uint) {
+       uint distance = getDistanceFromFleet(_fleet, _x, _y);
+       return baseTravelCooldown + (distance*travelCooldownPerDistance);
     }
 
     // ship travel to _x and _y
@@ -441,7 +446,7 @@ contract Map is Editor {
         uint travelCost = getFleetTravelCost(player, _x, _y);
         Treasury.pay(player, travelCost);
 
-        _addTravelCooldown(player, baseTravelCooldown + (distance*travelCooldownPerDistance));
+        _addTravelCooldown(player, getFleetTravelCooldown(player, _x, _y));
 
         (uint fleetX, uint fleetY) =  getFleetLocation(player);
         address[] memory fleetsAtFromLocation = fleetsAtLocation[fleetX][fleetY]; //list of fleets at from location
