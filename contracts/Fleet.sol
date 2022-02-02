@@ -26,7 +26,7 @@ contract Fleet is Ownable {
         Treasury = ITreasury(0x42bCB57E0617728A7E4e13D8cD6458879cd576D1);
         Map = IMap(0x59d65CDcd319315471Dd24a0398cbc539c0E1b25);
         _baseMaxFleetSize = 1000;
-        _baseFleetSize = 100;
+        _baseFleetSize = 0;
         _timeModifier = 50;
         _battleWindow = 3600; //60 minutes
         _battleSizeRestriction = 4;
@@ -274,6 +274,48 @@ contract Fleet is Ownable {
         }
     }
 
+    function goBattle(uint battleId) public {
+        Battle storage battle = _battles[battleId];
+        require(block.timestamp > battle.battleDeadline, 'FLEET: battle preppiing');
+
+        Team[2] memory teams = [battle.attackTeam, battle.defendTeam];
+        //uint totalMineralLost += 
+        for(uint i=0; i<teams.length-1; i++) {
+        }
+
+        (uint attackerTeamMineralLost, uint attackerTeamShipValueLost) = _calcBattle(battle.attackTeam, battle.defendTeam.attackPower);
+        (uint defenderTeamMineralLost, uint defenderTeamShipValueLost) = _calcBattle(battle.defendTeam, battle.attackTeam.attackPower);
+        _endBattle(battleId);
+    }
+
+    function _calcBattle(Team memory _team, uint _attackPowerAgainst) internal returns(uint, uint) {
+        uint totalValueLost = 0;
+        uint totalMineralLost = 0;
+        for(uint i=0; i<_team.members.length; i++) {
+            address member = _team.members[i];
+            uint memberMineralCapacityLost = 0;
+            for(uint16 j=0; j<_shipClasses.length; j++) {
+                uint numClassShips = _players[addressToPlayer[member]].ships[j]; //number of ships that team member has of this class
+
+                uint damageTaken = (_attackPowerAgainst * (numClassShips * _shipClasses[j].size)) / _team.fleetSize; //size of members ships of this class    
+
+                //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
+                uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / _shipClasses[j].shield);
+
+                totalValueLost += actualShipsLost  * _shipClasses[j].cost;
+
+                //calculate mineral capacity lost by this class of member's ships; mineral capacity lost is based off of actual ships that were lost
+                memberMineralCapacityLost += (actualShipsLost * _shipClasses[j].mineralCapacity);
+
+                //destroy ships lost
+                _destroyShips(member, j, uint16(actualShipsLost));
+            }
+            //member's final lost mineral is the percentage of filled mineral capacity
+            totalMineralLost += (memberMineralCapacityLost * Map.getFleetMineral(member)) / getMineralCapacity(member);
+        }
+        return (totalMineralLost, totalValueLost);
+    }
+
     //after battle is complete
     function _endBattle(uint _battleId) internal {
         //put attackers and denders into peace status
@@ -288,51 +330,6 @@ contract Fleet is Ownable {
         //remove battle from battles list
         _battles[_battleId] = _battles[_battles.length-1];
         _battles.pop();
-    }
-
-    function goBattle(uint battleId) public {
-        Battle storage battle = _battles[battleId];
-        require(block.timestamp > battle.battleDeadline, 'FLEET: battle preppiing');
-
-        (uint attackerTeamMineralLost, uint[] memory attackersMineralLost) = 
-            _getMineralLost(battle.attackTeam.members, battle.defendTeam.attackPower, battle.attackTeam.fleetSize);
-
-        (uint defenderTeamMineralLost, uint[] memory defendersMineralLost) = 
-            _getMineralLost(battle.defendTeam.members, battle.attackTeam.attackPower, battle.defendTeam.fleetSize);
-
-        _endBattle(battleId);
-    }
-
-    function _getMineralLost(address[] memory _team, uint _totalOtherTeamAttack, uint _totalTeamSize) internal returns(uint, uint[] memory) {
-        uint totalValueLost = 0;
-        uint totalMineralLost = 0;
-        uint[] memory memberMineralLost = new uint[](_team.length); //get mineral capacity each player lost
-        for(uint i=0; i<_team.length; i++) {
-            address member = _team[i];
-            uint memberMineralCapacityLost = 0;
-            for(uint16 j=0; j<_shipClasses.length; j++) {
-                //number of ships that team member has of this class
-                uint numClassShips = _players[addressToPlayer[member]].ships[j];
-
-                //size of members ships of this class    
-                uint damageTaken = (_totalOtherTeamAttack * (numClassShips * _shipClasses[j].size)) / _totalTeamSize;
-
-                //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
-                uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / _shipClasses[j].shield);
-
-                totalValueLost = actualShipsLost  * _shipClasses[j].cost;
-
-                //calculate mineral capacity lost by this class of member's ships; mineral capacity lost is based off of actual ships that were lost
-                memberMineralCapacityLost += (actualShipsLost * _shipClasses[j].mineralCapacity);
-
-                //destroy actual ships lost
-                _destroyShips(member, j, uint16(actualShipsLost));
-            }
-            //member's final lost mineral is the percentage of filled mineral capacity
-            memberMineralLost[i] = (memberMineralCapacityLost * Map.getFleetMineral(member)) / getMineralCapacity(member);
-            totalMineralLost += memberMineralLost[i];
-        }
-        return (totalMineralLost, memberMineralLost);
     }
 
     function recall() external {
