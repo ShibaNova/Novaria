@@ -9,10 +9,10 @@ import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
  
-    //miningCooldown - 30 min.
-    //jumpDriveCooldown - 30 min + distance
-    //battleWindow - 30 min.
-    //building ships
+//miningCooldown - 30 min.
+//jumpDriveCooldown - 30 min + distance
+//battleWindow - 30 min.
+//building ships
 
 contract Fleet is Ownable {
     using SafeBEP20 for ShibaBEP20;
@@ -27,15 +27,15 @@ contract Fleet is Ownable {
         Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
         _baseMaxFleetSize = 1000;
         _baseFleetSize = 0;
-        _timeModifier = 100;
+        _timeModifier = 1000;
         _battleWindow = 3600; //60 minutes
         _battleSizeRestriction = 4;
         _startFee = 10**18;
         _scrapPercentage = 25;
 
         //load start data
-        createShipClass("Viper", 1, 1, 5, 0, 0, 0, 60, 10**18);
-        createShipClass("Mole", 2, 0, 10, 5 * 10**17, 10**17, 0, 30, 2 * 10**18);
+        createShipClass("Viper", 1, 1, 3, 0, 0, 0, 60, 10**18);
+        createShipClass("Mole", 2, 0, 5, 5 * 10**17, 10**17, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
         loadPlayers();
@@ -123,21 +123,24 @@ contract Fleet is Ownable {
 
     //BEGIN*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
     function loadPlayers() public {
-        _createPlayer('_Koray', 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa);
+        _createPlayer('Koray', 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
         _players[0].ships[0] = 100;
         _players[0].ships[1] = 19;
 
-        _createPlayer('_Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+        _createPlayer('Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
         _players[1].ships[0] = 43;
         _players[1].ships[1] = 4;
     }
 
     function battleTest() public {
-        enterBattle(0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa, BattleStatus.ATTACK);
+        enterBattle(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, BattleStatus.ATTACK);
     }
     //END*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
 
     function _createPlayer(string memory _name, address _player) internal {
+        require(bytes(_name).length < 16, 'FLEET: name too long');
+        require(_names[_name] == address(0), 'FLEET: duplicate name');
+        require(playerExists[_player] == false, 'FLEET: player exists');
         _players.push();
         _players[_players.length-1].name = _name;
         _names[_name] = _player; //add to name map
@@ -146,9 +149,6 @@ contract Fleet is Ownable {
     }
 
     function insertCoinHere(string memory _name) external {
-        require(bytes(_name).length < 16, 'FLEET: name too long');
-        require(_names[_name] == address(0), 'FLEET: duplicate name');
-        require(playerExists[msg.sender] == false, 'FLEET: player exists');
         Treasury.pay(msg.sender, _startFee / Treasury.getCostMod());
         _createPlayer(_name, msg.sender);
     }
@@ -317,11 +317,13 @@ contract Fleet is Ownable {
                     _destroyShips(member, k, uint16(actualShipsLost));
                 }
                 //member's final lost mineral is the percentage of filled mineral capacity
-                totalMineralLost += (memberMineralCapacityLost * Map.getFleetMineral(member)) / getMineralCapacity(member);
+                if(memberMineralCapacityLost > 0) {
+                    totalMineralLost += (memberMineralCapacityLost * Map.getFleetMineral(member)) / getMineralCapacity(member);
+                }
             }
         }
 
-        Map.addSalvageToPlace(battle.coordX, battle.coordY, totalMineralLost + totalScrap);
+   //     Map.addSalvageToPlace(battle.coordX, battle.coordY, totalMineralLost + totalScrap);
 
         _endBattle(battleId);
     }
