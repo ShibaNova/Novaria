@@ -22,12 +22,12 @@ contract Fleet is Ownable {
        // ITreasury _treasury, 
        // ShibaBEP20 _Token
         ) {
-        Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
-        Treasury = ITreasury(0x42bCB57E0617728A7E4e13D8cD6458879cd576D1);
-        Map = IMap(0x59d65CDcd319315471Dd24a0398cbc539c0E1b25);
+        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
         _baseMaxFleetSize = 1000;
         _baseFleetSize = 0;
-        _timeModifier = 50;
+        _timeModifier = 100;
         _battleWindow = 3600; //60 minutes
         _battleSizeRestriction = 4;
         _startFee = 10**18;
@@ -38,17 +38,7 @@ contract Fleet is Ownable {
         createShipClass("Mole", 2, 0, 10, 5 * 10**17, 10**17, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
-
-        //DELETE BEFORE LAUNCH
-        // _createPlayer('_Koray', 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa);
-        // _players[0].ships[0] = 100;
-        // _players[0].ships[1] = 19;
-
-        // _createPlayer('_Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
-        // _players[1].ships[0] = 33;
-
-        //enterBattle(0x5B38Da6a701c568545dCfcB03FcB875f56beddC4, BattleStatus.ATTACK);
-//        goBattle(0);
+        loadPlayers();
     }
 
     enum BattleStatus{ PEACE, ATTACK, DEFEND }
@@ -116,7 +106,6 @@ contract Fleet is Ownable {
         address[] members;
         uint attackPower;
         uint fleetSize;
-        uint mineralCapacity;
     }
 
     IMap public Map;
@@ -131,6 +120,22 @@ contract Fleet is Ownable {
     uint _scrapPercentage;
 
     event NewShipyard(uint _x, uint _y);
+
+    //BEGIN*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
+    function loadPlayers() public {
+        _createPlayer('_Koray', 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa);
+        _players[0].ships[0] = 100;
+        _players[0].ships[1] = 19;
+
+        _createPlayer('_Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+        _players[1].ships[0] = 43;
+        _players[1].ships[1] = 4;
+    }
+
+    function battleTest() public {
+        enterBattle(0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa, BattleStatus.ATTACK);
+    }
+    //END*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
 
     function _createPlayer(string memory _name, address _player) internal {
         _players.push();
@@ -166,7 +171,7 @@ contract Fleet is Ownable {
         _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost));
     }
 
-    function addShipyard(address _owner, uint _x, uint _y, uint _feePercent)  public onlyOwner {
+    function addShipyard(address _owner, uint _x, uint _y, uint _feePercent) public onlyOwner {
         require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
         require(Map.isShipyardLocation(_x, _y) == true, 'FLEET: shipyard unavailable');
 
@@ -258,7 +263,6 @@ contract Fleet is Ownable {
             _team.members.push(_hero);
             _team.attackPower += getAttackPower(_hero);
             _team.fleetSize += getFleetSize(_hero);
-            _team.mineralCapacity += getMineralCapacity(_hero);
     }
 
     function enterBattle(address _target, BattleStatus mission) public canJoinBattle(msg.sender, _target) {
@@ -354,7 +358,7 @@ contract Fleet is Ownable {
         Map.setFleetLocation(player, 0, 0);
     }
 
-    function getFleets(address _player) external view returns (uint16[16] memory) {
+    function getShips(address _player) external view returns (uint16[16] memory) {
         return _players[addressToPlayer[_player]].ships;
     }
 

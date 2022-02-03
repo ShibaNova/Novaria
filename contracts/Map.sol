@@ -17,25 +17,25 @@ contract Map is Editor {
         // ShibaBEP20 _token,
         // ITreasury _treasury
         //IShadowPool _shadowPool,
-       // IFleet _fleet
+        //IFleet _fleet
     ) {
-        Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
-        Treasury = ITreasury(0x42bCB57E0617728A7E4e13D8cD6458879cd576D1);
+        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
-       // Fleet = _fleet;
 
         previousBalance = 0;
-        baseTravelCost = 10**15;
-        baseTravelCooldown = 2700; //45 minutes
-        travelCooldownPerDistance = 900; //15 minutes
-        maxTravel = 10; //AU
-        rewardsTimer = 0;
+        _baseTravelCost = 10**15;
+        _baseTravelCooldown = 2700; //45 minutes
+        _travelCooldownPerDistance = 900; //15 minutes
+        _maxTravel = 10; //AU
+        _rewardsTimer = 0;
         timeModifier = 100;
         miningCooldown = 1800; //30 minutes
 
-        placeTypes.push('star');
-        placeTypes.push('planet');
-        placeTypes.push('jumpgate');
+        _placeTypes.push('star');
+        _placeTypes.push('planet');
+        _placeTypes.push('jumpgate');
 
         _addStar(2, 2, 'Solar', 9); // first star
         _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
@@ -50,8 +50,8 @@ contract Map is Editor {
     IFleet public Fleet; // Fleet Contract
 
     uint public previousBalance; // helper for allocating Token
-    uint public rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
-    uint rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
+    uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
+    uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
     mapping (uint => bool) isPaused; // can pause token mineing for jackpots
     uint timeModifier; //allow all times to be changed
@@ -61,16 +61,16 @@ contract Map is Editor {
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
     mapping(uint => mapping (uint => address[])) fleetsAtLocation; //reverse index to see what fleets are at what location
 
-    mapping(address => uint) public fleetMineral; //amount of mineral a fleet is carrying
-    mapping (address => uint) travelCooldown; // limits how often fleets can travel
+    mapping(address => uint) _fleetMineral; //amount of mineral a fleet is carrying
+    mapping (address => uint) _travelCooldown; // limits how often fleets can travel
     mapping (address => uint) fleetMiningCooldown; // limits how often a fleet can mine mineral
     
-    uint public baseTravelCooldown; 
-    uint public travelCooldownPerDistance; 
-    uint public baseTravelCost; // Token cost to travel 1 AU
-    uint public maxTravel; // max distance a fleet can travel in 1 jump
+    uint _baseTravelCooldown; 
+    uint _travelCooldownPerDistance; 
+    uint _baseTravelCost; // Token cost to travel 1 AU
+    uint _maxTravel; // max distance a fleet can travel in 1 jump
 
-    string[] public placeTypes; // list of placeTypes
+    string[] _placeTypes; // list of placeTypes
 
     struct Place {
         uint id; //native key 
@@ -81,9 +81,9 @@ contract Map is Editor {
         string name;
         uint salvage;
     }
-    Place[] public places;
-    mapping (uint => mapping(uint => bool)) public placeExists;
-    mapping (uint => mapping(uint => uint)) public coordinatePlaces;
+    Place[] _places;
+    mapping (uint => mapping(uint => bool)) _placeExists;
+    mapping (uint => mapping(uint => uint)) _coordinatePlaces;
 
     struct Planet {
         uint id; //native key
@@ -95,7 +95,7 @@ contract Map is Editor {
         bool hasRefinery;
         bool hasShipyard;
     }
-    Planet[] public planets;
+    Planet[] _planets;
 
     struct Star {
         uint id; //native key
@@ -104,16 +104,7 @@ contract Map is Editor {
         uint totalMiningPlanets;
         uint totalMiningPlanetDistance;
     }
-    Star[] public stars;
-
-    struct Jumpgate {
-        uint id; //native key
-        uint placeId; //foreign key to places
-        uint tetheredGateId;
-        address owner;
-        uint gateFee;
-    }
-    Jumpgate[] jumpgates;
+    Star[] _stars;
 
     event NewShadowPool(address _new);
     event NewFleet(address _new);
@@ -128,19 +119,19 @@ contract Map is Editor {
     event NewStar(uint _x, uint _y);
 
     function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name) internal {
-        require(placeExists[_x][_y] == false, 'Place already exists in these coordinates');
-        uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0));
+        require(_placeExists[_x][_y] == false, 'Place already exists in these coordinates');
+        uint placeId = _places.length;
+        _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0));
 
         //set place in coordinate mapping
-        placeExists[_x][_y] = true;
-        coordinatePlaces[_x][_y] = placeId;
+        _placeExists[_x][_y] = true;
+        _coordinatePlaces[_x][_y] = placeId;
     }
 
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
         //add star to stars list
-        uint starId = stars.length;
-        stars.push(Star(starId, places.length, _luminosity, 0, 0));
+        uint starId = _stars.length;
+        _stars.push(Star(starId, _places.length, _luminosity, 0, 0));
 
         _addPlace('star', starId, _x, _y, _name);
         emit NewStar(_x, _y);
@@ -151,18 +142,18 @@ contract Map is Editor {
     }
 
     function _addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) internal {
-        uint starX = places[stars[_starId].placeId].coordX;
-        uint starY = places[stars[_starId].placeId].coordY;
+        uint starX = _places[_stars[_starId].placeId].coordX;
+        uint starY = _places[_stars[_starId].placeId].coordY;
         uint starDistance = Helper.getDistance(starX, starY, _x, _y);
 
         //add planet info to star
         if(_isMiningPlanet) {
-            stars[_starId].totalMiningPlanetDistance += starDistance;
-            stars[_starId].totalMiningPlanets += 1;
+            _stars[_starId].totalMiningPlanetDistance += starDistance;
+            _stars[_starId].totalMiningPlanets += 1;
         }
 
-        uint planetId = planets.length;
-        planets.push(Planet(planetId, places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
+        uint planetId = _planets.length;
+        _planets.push(Planet(planetId, _places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
 
         _addPlace('planet', planetId, _x, _y, _name);
         emit NewPlanet(_starId, _x, _y);
@@ -170,10 +161,6 @@ contract Map is Editor {
 
     function addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
         _addPlanet(_starId, _x, _y, _name, _isMiningPlanet, _hasRefinery, _hasShipyard);
-    }
-
-    function _addJumpgate(address _owner, uint _x, uint _y) internal {
-
     }
 
     /* get coordinatePlaces cannot handle a map box larger than 255 */
@@ -188,7 +175,7 @@ contract Map is Editor {
         uint counter = 0;
         for(uint i=_lx; i<=_rx;i++) {
             for(uint j=_ly; j<=_ry;j++) {
-                foundCoordinatePlaces[counter] = places[coordinatePlaces[i][j]];
+                foundCoordinatePlaces[counter] = _places[_coordinatePlaces[i][j]];
                 counter++;
             }
         }
@@ -196,51 +183,41 @@ contract Map is Editor {
     }
 
     function _getCoordinatePlace(uint _x, uint _y) internal view returns (Place memory) {
-        return places[coordinatePlaces[_x][_y]];
+        return _places[_coordinatePlaces[_x][_y]];
     }
 
+    //three different return statements to avoid stack too deep error
     function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint) {
-        string memory placeName;
-        string memory placeType;
-        uint salvage;
-        bool hasShipyard;
-        bool hasRefinery;
-        uint mineral;
-
-        if(placeExists[_x][_y]) {
-            Place memory place  = places[coordinatePlaces[_x][_y]];
-            placeName = place.name;
-            placeType = place.placeType;
-            salvage = place.salvage;
-            if(Helper.isEqual(placeType, 'planet')) {
-                Planet memory planet = planets[place.childId];
-                hasShipyard = planet.hasShipyard;
-                hasRefinery = planet.hasRefinery;
-                mineral = planet.availableMineral;
+        if(_placeExists[_x][_y] == true) {
+            Place memory place  = _places[_coordinatePlaces[_x][_y]];
+            if(Helper.isEqual(place.placeType, 'planet')) {
+                return(place.name, place.placeType, place.salvage,
+                _planets[place.childId].hasShipyard, _planets[place.childId].hasRefinery, _planets[place.childId].availableMineral);
             }
+            return(place.name, place.placeType, place.salvage, false, false, 0);
         }
-        return (placeName, placeType, salvage, hasShipyard, hasRefinery, mineral);
+        return ("", "", 0, false, false, 0);
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
-        return (coordinatePlaces[_x][_y]);
+        return (_coordinatePlaces[_x][_y]);
     }
 
     function getPlaceName(uint _x, uint _y) external view returns(string memory) {
-        return places[getPlaceId(_x, _y)].name;
+        return _places[getPlaceId(_x, _y)].name;
     }
 
     // currently no check for duplicates
     function addPlaceType(string memory _name) external onlyOwner {
-        placeTypes.push(_name);
+        _placeTypes.push(_name);
     }
 
     // get total star luminosity
     function getTotalLuminosity() public view returns(uint) {
         uint totalLuminosity = 0;
-        for(uint i=0; i<stars.length; i++) {
-            if(stars[i].totalMiningPlanets > 0) {
-                totalLuminosity += stars[i].luminosity;
+        for(uint i=0; i<_stars.length; i++) {
+            if(_stars[i].totalMiningPlanets > 0) {
+                totalLuminosity += _stars[i].luminosity;
             }
         }
         return totalLuminosity;
@@ -249,16 +226,16 @@ contract Map is Editor {
     // Pulls token from the shadow pool, eventually internal function
     //PROBLEM: does not function - review 
     function requestToken() external onlyOwner{
-        if (block.timestamp >= rewardsTimer) {
-            ShadowPool.replenishPlace(address(this), rewardsMod);
-            rewardsTimer = block.timestamp + rewardsDelay;
+        if (block.timestamp >= _rewardsTimer) {
+            ShadowPool.replenishPlace(address(this), _rewardsMod);
+            _rewardsTimer = block.timestamp + rewardsDelay;
             allocateToken();
         }
     }
     
     function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
         //get place and add it to place
-        places[coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
+        _places[_coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
         
     }
 
@@ -275,11 +252,11 @@ contract Map is Editor {
             uint totalStarLuminosity = getTotalLuminosity();
 
             //loop through planets and add new token
-            for(uint i=0; i<planets.length; i++) {
-                Planet memory planet = planets[i];
+            for(uint i=0; i<_planets.length; i++) {
+                Planet memory planet = _planets[i];
 
                 if(planet.isMiningPlanet) {
-                    Star memory star = stars[planet.starId];
+                    Star memory star = _stars[planet.starId];
 
                     uint newStarSystemToken = newAmount * (star.luminosity / totalStarLuminosity);
 
@@ -289,7 +266,7 @@ contract Map is Editor {
                         newMineral = newStarSystemToken * (star.totalMiningPlanetDistance - planet.starDistance) /
                             (star.totalMiningPlanetDistance * (star.totalMiningPlanets - 1));
                     }
-                    planets[i].availableMineral += newMineral;
+                    _planets[i].availableMineral += newMineral;
                 }
             }
             previousBalance = Token.balanceOf(address(this));
@@ -297,9 +274,9 @@ contract Map is Editor {
     }
 
     function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
-        Place memory place = places[coordinatePlaces[_x][_y]];
+        Place memory place = _places[_coordinatePlaces[_x][_y]];
         require(Helper.isEqual(place.placeType, 'planet'), 'No planet found at this location.');
-        return planets[place.childId];
+        return _planets[place.childId];
     }
 
     function getPlanetAtFleetLocation(address _sender) internal view returns (Planet memory) {
@@ -319,12 +296,12 @@ contract Map is Editor {
     function collect(uint _x, uint _y) external {
         uint collectSpeedMultiplier = 5;
         address player = msg.sender;
-        Place memory place  = places[coordinatePlaces[_x][_y]];
+        Place memory place  = _places[_coordinatePlaces[_x][_y]];
         require(place.salvage > 0, 'MAP: no salvage');
 
         require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
 
-        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
+        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - _fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
         require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
         uint collectedAmount = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
         _mineralGained(player, int(collectedAmount));
@@ -339,14 +316,14 @@ contract Map is Editor {
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
-        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
+        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - _fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
         require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
 
         uint miningCapacity = Fleet.getMiningCapacity(player);
         
         uint maxMine = Helper.getMin(availableCapacity, miningCapacity);
         uint minedAmount = Helper.getMin(planet.availableMineral, maxMine); //the less of fleet maxMine and how much mineral planet has available
-        planets[planet.id].availableMineral -= minedAmount;
+        _planets[planet.id].availableMineral -= minedAmount;
 
         _mineralGained(player, int(minedAmount));
         fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
@@ -360,9 +337,9 @@ contract Map is Editor {
         Planet memory planet = getPlanetAtFleetLocation(player);
         require(planet.hasRefinery == true, "MAP: Fleet not at a refinery");
 
-        uint playerMineral = fleetMineral[player];
+        uint playerMineral = _fleetMineral[player];
         require(playerMineral > 0, "MAP: Player/Fleet has no mineral");
-        fleetMineral[player] = 0;
+        _fleetMineral[player] = 0;
 
         Token.safeTransfer(player, playerMineral);
         previousBalance -= playerMineral;
@@ -371,7 +348,7 @@ contract Map is Editor {
     }
 
     function getFleetMineral(address _player) external view returns(uint) {
-        return fleetMineral[_player];
+        return _fleetMineral[_player];
     }
 
     function mineralGained(address _player, int _amount) external {
@@ -381,7 +358,7 @@ contract Map is Editor {
     // remember to set to onlyEditor
     // mineral gained can also be negative; used for player attacks and mining
     function _mineralGained(address _player, int _amount) internal {
-        uint startAmount = fleetMineral[_player];
+        uint startAmount = _fleetMineral[_player];
         uint maxMineralCapacity = Fleet.getMaxMineralCapacity(_player);
 
         //add amount gained to current player amount
@@ -427,23 +404,23 @@ contract Map is Editor {
     function getFleetTravelCost(address _fleet, uint _x, uint _y) public view returns (uint) {
        uint fleetSize = Fleet.getFleetSize(_fleet);
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
-       return (distance**2 * baseTravelCost * fleetSize) / Treasury.getCostMod();
+       return (distance**2 * _baseTravelCost * fleetSize) / Treasury.getCostMod();
     }
 
     function getFleetTravelCooldown(address _fleet, uint _x, uint _y) public view returns (uint) {
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
-       return baseTravelCooldown + (distance*travelCooldownPerDistance);
+       return _baseTravelCooldown + (distance*_travelCooldownPerDistance);
     }
 
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         address sender = msg.sender;
-        require(block.timestamp >= travelCooldown[sender], "MAPS: jump drive recharging");
+        require(block.timestamp >= _travelCooldown[sender], "MAPS: jump drive recharging");
         require(Fleet.isInBattle(sender) == false, "MAPS: in battle");
         require(Fleet.getFleetSize(sender) > 0, "MAPS: no fleet");
 
         uint distance = getDistanceFromFleet(sender, _x, _y);
-        require(distance <= maxTravel, "MAPS: cannot travel that far");
+        require(distance <= _maxTravel, "MAPS: cannot travel that far");
 
         uint travelCost = getFleetTravelCost(sender, _x, _y);
         Treasury.pay(sender, travelCost);
@@ -472,11 +449,11 @@ contract Map is Editor {
     //set travel cooldown or increase it
     function _addTravelCooldown(address _fleet, uint _seconds) internal {
         uint cooldownTime = _seconds / timeModifier;
-        if(travelCooldown[_fleet] > block.timestamp) {
-            travelCooldown[_fleet] += cooldownTime;
+        if(_travelCooldown[_fleet] > block.timestamp) {
+            _travelCooldown[_fleet] += cooldownTime;
         }
         else {
-            travelCooldown[_fleet] = block.timestamp + cooldownTime;
+            _travelCooldown[_fleet] = block.timestamp + cooldownTime;
         }
     }
 
@@ -492,17 +469,17 @@ contract Map is Editor {
 
     // Setting to 0 disables travel
     function setMaxTravel(uint _new) external onlyOwner {
-        maxTravel = _new;
+        _maxTravel = _new;
     }    
 
     // Setting to 0 removes the secondary cooldown period
     function setTravelTimePerDistance(uint _new) external onlyOwner {
-        travelCooldownPerDistance = _new;
+        _travelCooldownPerDistance = _new;
     }
 
     // setting to 0 removes base travel cooldown
     function setBaseTravelCooldown(uint _new) external onlyOwner {
-        baseTravelCooldown = _new;
+        _baseTravelCooldown = _new;
     }
 
     // Functions to setup contract interfaces
@@ -529,11 +506,11 @@ contract Map is Editor {
     // Maintenance functions
     function setRewardsMod(uint _new) external onlyOwner {
         require(_new <= 100, "MAP: must be <= 100");
-        rewardsMod = _new; // can set to 0 to turn off Token incoming to contract
+        _rewardsMod = _new; // can set to 0 to turn off Token incoming to contract
         emit NewRewardsMod(_new);
     }
     function setRewardsTimer(uint _new) external onlyOwner {
-        rewardsTimer = _new;
+        _rewardsTimer = _new;
     }
     function setRewardsDelay(uint _new) external onlyOwner {
         rewardsDelay = _new;
@@ -543,7 +520,7 @@ contract Map is Editor {
         isPaused[_id] = _isPaused;
     }
     function setBaseTravelCost(uint _new) external onlyOwner {
-        baseTravelCost = _new;
+        _baseTravelCost = _new;
     }
 
     // setting to 0 removes base travel cooldown
