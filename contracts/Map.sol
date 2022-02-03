@@ -437,18 +437,20 @@ contract Map is Editor {
 
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
-        address player = msg.sender;
-        require(block.timestamp >= travelCooldown[player], "MAPS: Jump drive still recharging or mineral containment in process");
+        address sender = msg.sender;
+        require(block.timestamp >= travelCooldown[sender], "MAPS: jump drive recharging");
+        require(Fleet.isInBattle(sender) == false, "MAPS: in battle");
+        require(Fleet.getFleetSize(sender) > 0, "MAPS: no fleet");
 
-        uint distance = getDistanceFromFleet(player, _x, _y);
+        uint distance = getDistanceFromFleet(sender, _x, _y);
         require(distance <= maxTravel, "MAPS: cannot travel that far");
 
-        uint travelCost = getFleetTravelCost(player, _x, _y);
-        Treasury.pay(player, travelCost);
+        uint travelCost = getFleetTravelCost(sender, _x, _y);
+        Treasury.pay(sender, travelCost);
 
-        _addTravelCooldown(player, getFleetTravelCooldown(player, _x, _y));
+        _addTravelCooldown(sender, getFleetTravelCooldown(sender, _x, _y));
 
-        (uint fleetX, uint fleetY) =  getFleetLocation(player);
+        (uint fleetX, uint fleetY) =  getFleetLocation(sender);
         address[] memory fleetsAtFromLocation = fleetsAtLocation[fleetX][fleetY]; //list of fleets at from location
         uint numFleetsAtLocation = fleetsAtFromLocation.length; //number of fleets at from location
 
@@ -456,18 +458,15 @@ contract Map is Editor {
         /* this loop goes through fleets at the player's "from" location and when it finds the fleet,
             it removes puts the last element in the array in that fleets place and then removes the last element */
         for(uint i=0;i<numFleetsAtLocation;i++) {
-            if(fleetsAtFromLocation[i] == player) {
+            if(fleetsAtFromLocation[i] == sender) {
                 fleetsAtLocation[fleetX][fleetY][i] = fleetsAtLocation[fleetX][fleetY][numFleetsAtLocation-1]; //assign last element in array to where fleet was
                 fleetsAtLocation[fleetX][fleetY].pop(); //remove last element in array
             }
         }
 
         //add fleet to new location fleet list
-        fleetsAtLocation[_x][_y].push(player);
-        _setFleetLocation(player, _x, _y);
-
-        //exit any battles targeted at player
-        Fleet.endBattle(player);
+        fleetsAtLocation[_x][_y].push(sender);
+        _setFleetLocation(sender, _x, _y);
     }
 
     //set travel cooldown or increase it

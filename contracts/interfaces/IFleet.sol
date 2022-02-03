@@ -8,5 +8,5 @@ interface IFleet {
     function getMiningCapacity(address _player) external view returns (uint);
     function getMaxFleetSize(address player) external view returns (uint);
     function getFleetSize(address player) external view returns(uint);
-    function endBattle(address _player) external;
+    function isInBattle(address _player) external returns(bool);
 }
