@@ -32,6 +32,8 @@ contract Fleet is Ownable {
         _battleSizeRestriction = 4;
         _startFee = 10**18;
         _scrapPercentage = 25;
+        _battleCounter = 0;
+
 
         //load start data
         createShipClass("Viper", 1, 1, 3, 0, 0, 0, 60, 10**18);
@@ -94,6 +96,7 @@ contract Fleet is Ownable {
 
     //battle data
     struct Battle {
+        uint battleCount;
         uint battleDeadline;
         uint coordX;
         uint coordY;
@@ -118,6 +121,7 @@ contract Fleet is Ownable {
     uint _battleSizeRestriction;
     uint _startFee;
     uint _scrapPercentage;
+    uint _battleCounter;
 
     event NewShipyard(uint _x, uint _y);
 
@@ -275,7 +279,7 @@ contract Fleet is Ownable {
             if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
                 Team memory attackTeam; Team memory defendTeam;
                 (uint targetX, uint targetY) = Map.getFleetLocation(_target);
-                _battles.push(Battle(block.timestamp + _getBattleWindow(), targetX, targetY, attackTeam, defendTeam));
+                _battles.push(Battle(_battleCounter++, block.timestamp + _getBattleWindow(), targetX, targetY, attackTeam, defendTeam));
                 _joinTeam(_target, _battles.length-1, _battles[_battles.length-1].defendTeam, BattleStatus.DEFEND);
             }
             _joinTeam(_target, targetBattleId, _battles[targetBattleId].attackTeam, BattleStatus.ATTACK);

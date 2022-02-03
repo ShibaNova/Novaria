@@ -63,7 +63,8 @@ contract Map is Editor {
 
     mapping(address => uint) _fleetMineral; //amount of mineral a fleet is carrying
     mapping (address => uint) _travelCooldown; // limits how often fleets can travel
-    mapping (address => uint) fleetMiningCooldown; // limits how often a fleet can mine mineral
+    mapping (address => uint) _fleetMiningCooldown; // limits how often a fleet can mine mineral
+    mapping (address => uint) _fleetLastShipyardPlanet; // last planet fleet visited
     
     uint _baseTravelCooldown; 
     uint _travelCooldownPerDistance; 
@@ -299,20 +300,20 @@ contract Map is Editor {
         Place memory place  = _places[_coordinatePlaces[_x][_y]];
         require(place.salvage > 0, 'MAP: no salvage');
 
-        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
+        require(_fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
 
         uint availableCapacity = Fleet.getMaxMineralCapacity(player) - _fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
         require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
         uint collectedAmount = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
         _mineralGained(player, int(collectedAmount));
-        fleetMiningCooldown[player] = block.timestamp + ((miningCooldown / collectSpeedMultiplier) / timeModifier);
+        _fleetMiningCooldown[player] = block.timestamp + ((miningCooldown / collectSpeedMultiplier) / timeModifier);
     }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
     function mine() external {
         address player = msg.sender;
         Planet memory planet = getPlanetAtFleetLocation(player);
-        require(fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
+        require(_fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
         require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
 
@@ -326,7 +327,7 @@ contract Map is Editor {
         _planets[planet.id].availableMineral -= minedAmount;
 
         _mineralGained(player, int(minedAmount));
-        fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
+        _fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
 
         //requestToken();
         emit MineralMined(player, minedAmount);
