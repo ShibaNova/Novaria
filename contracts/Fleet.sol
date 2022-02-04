@@ -220,6 +220,7 @@ contract Fleet is Ownable {
         4) claim size must not put fleet over max fleet size */
     function claimShips(uint spaceDockId, uint16 _amount) external {
         address sender = msg.sender;
+        require(playerExists[sender] == true, 'FLEET: no player');
         Player storage player = _players[addressToPlayer[sender]];
         SpaceDock storage dock = player.spaceDocks[spaceDockId];
         (uint fleetX, uint fleetY) = Map.getFleetLocation(sender);
@@ -351,6 +352,7 @@ contract Fleet is Ownable {
 
     //if player battle status is NOT PEACE, player is in a battle
     function isInBattle(address _player) external view returns(bool) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         if(_players[addressToPlayer[_player]].battleStatus != BattleStatus.PEACE) {
             return true;
         }
@@ -360,6 +362,7 @@ contract Fleet is Ownable {
     }
 
     function getShips(address _player) external view returns (uint16[16] memory) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         return _players[addressToPlayer[_player]].ships;
     }
 
@@ -391,6 +394,7 @@ contract Fleet is Ownable {
         return (_amount * _shipClasses[_shipClassId].buildTime) / _timeModifier;
     }
     function getSpaceDocks(address _player, uint _x, uint _y) public view returns (SpaceDock[] memory) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         SpaceDock[] memory foundDocks;
         uint foundDockCount;
         SpaceDock[] memory playerDocks = _players[addressToPlayer[_player]].spaceDocks;
@@ -403,6 +407,7 @@ contract Fleet is Ownable {
     }
 
     function getPlayerSpaceDocks(address _player) external view returns (SpaceDock[] memory) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         return _players[addressToPlayer[_player]].spaceDocks;
     }
  
@@ -429,6 +434,7 @@ contract Fleet is Ownable {
         return _battleWindow / _timeModifier;
     }
     function getAttackPower(address _player) public view returns (uint) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         uint totalAttack = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
             totalAttack += _players[addressToPlayer[_player]].ships[i] * _shipClasses[i].attackPower;
@@ -437,10 +443,12 @@ contract Fleet is Ownable {
     }
 
     function getMaxFleetSize(address _player) external view returns (uint) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         return _getMaxFleetSize(_player);
     }
 
     function _getMaxFleetSize(address _player) internal view returns (uint) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         uint maxFleetSize = _baseMaxFleetSize; 
         for(uint i=0; i<_shipClasses.length; i++) {
             uint shipClassAmount = _players[addressToPlayer[_player]].ships[i]; //get number of player's ships in this ship class
@@ -450,6 +458,7 @@ contract Fleet is Ownable {
     }
 
     function getFleetSize(address _player) public view returns(uint) {
+        require(playerExists[_player] == true, 'FLEET: no player');
         uint fleetSize = 0;
         if(playerExists[_player]) {
             fleetSize += _getBaseFleetSize();
@@ -467,6 +476,7 @@ contract Fleet is Ownable {
 
     //get the max mineral capacity of player's fleet
     function getMaxMineralCapacity(address _player) public view returns (uint){
+        require(playerExists[_player] == true, 'FLEET: no player');
         uint mineralCapacity = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
             mineralCapacity += (_players[addressToPlayer[_player]].ships[i] * _shipClasses[i].mineralCapacity);
@@ -476,6 +486,7 @@ contract Fleet is Ownable {
 
     // how much mineral can a player currently hold
     function getMineralCapacity(address _player) public view returns (uint){
+        require(playerExists[_player] == true, 'FLEET: no player');
         uint mineralCapacity = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
             mineralCapacity += (_players[addressToPlayer[_player]].ships[i] * _shipClasses[i].mineralCapacity);
@@ -485,6 +496,7 @@ contract Fleet is Ownable {
 
     //get the max mining capacity of player's fleet (how much mineral can a player mine each mining attempt)
     function getMiningCapacity(address _player) public view returns (uint){
+        require(playerExists[_player] == true, 'FLEET: no player');
         uint miningCapacity = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
             miningCapacity += (_players[addressToPlayer[_player]].ships[i] * _shipClasses[i].miningCapacity);
@@ -505,6 +517,7 @@ contract Fleet is Ownable {
     }
 
     function getNameByAddress(address _address) external view returns (string memory) {
+        require(playerExists[_address] == true, 'FLEET: no player');
         return _players[addressToPlayer[_address]].name;
     }
 
