@@ -54,7 +54,7 @@ contract Map is Editor {
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
     uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
-    mapping (uint => bool) isPaused; // can pause token mineing for jackpots
+    mapping (uint => bool) isPaused; // can pause token mining for mining planets
     uint _timeModifier; //allow all times to be changed
     uint _miningCooldown; // how long before 
     uint _minTravelSize; //min. fleet size required to travel
@@ -295,50 +295,57 @@ contract Map is Editor {
         return getPlanetAtLocation(_x, _y).hasShipyard;
     }
 
+    //common implementation for any kind of mineral/salvage collection
+    function _gather(address _player, uint _locationAmount, uint _coolDown) internal returns(uint) {
+        require(_locationAmount > 0, 'MAP: no gather');
+        require(_fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
+
+        uint availableCapacity = Fleet.getMaxMineralCapacity(_player) - _fleetMineral[_player]; //max amount of mineral fleet can carry minus what fleet already is carrying
+        require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
+        
+        uint maxGather = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(_player));
+        uint gatheredAmount = Helper.getMin(_locationAmount, maxGather); //the less of fleet maxGather and how much amount place has
+
+        _mineralGained(_player, int(gatheredAmount));
+        _fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
+        return gatheredAmount;
+    }
+
     //collect salvage from a coordinate
     function collect(uint _x, uint _y) external {
         uint collectSpeedMultiplier = 5;
-        address player = msg.sender;
-        Place memory place  = _places[_coordinatePlaces[_x][_y]];
-        require(place.salvage > 0, 'MAP: no salvage');
-
-        require(_fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
-
-        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - _fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
-        require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
-        uint collectedAmount = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
-        _mineralGained(player, int(collectedAmount));
-        _fleetMiningCooldown[player] = block.timestamp + ((_miningCooldown / collectSpeedMultiplier) / _timeModifier);
+        _places[_coordinatePlaces[_x][_y]].salvage -= (
+            _gather(msg.sender, _places[_coordinatePlaces[_x][_y]].salvage, _miningCooldown / collectSpeedMultiplier)
+        );
     }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
     function mine() external {
         address player = msg.sender;
         Planet memory planet = getPlanetAtFleetLocation(player);
-        require(_fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
-        require(planet.availableMineral > 0, 'MAP: no mineral found');
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
+        require(planet.availableMineral > 0, 'MAP: no mineral found');
+
+        require(_fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
 
         uint availableCapacity = Fleet.getMaxMineralCapacity(player) - _fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
         require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
 
-        uint miningCapacity = Fleet.getMiningCapacity(player);
-        
-        uint maxMine = Helper.getMin(availableCapacity, miningCapacity);
+        uint maxMine = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
         uint minedAmount = Helper.getMin(planet.availableMineral, maxMine); //the less of fleet maxMine and how much mineral planet has available
-        _planets[planet.id].availableMineral -= minedAmount;
 
         _mineralGained(player, int(minedAmount));
         _fleetMiningCooldown[player] = block.timestamp + (_miningCooldown / _timeModifier);
 
         //requestToken();
         emit MineralMined(player, minedAmount);
+
+        _planets[planet.id].availableMineral -= minedAmount;
     }
     
     function refine() external {
         address player = msg.sender;
-        Planet memory planet = getPlanetAtFleetLocation(player);
-        require(planet.hasRefinery == true, "MAP: Fleet not at a refinery");
+        require(getPlanetAtFleetLocation(player).hasRefinery == true, "MAP: Fleet not at a refinery");
 
         uint playerMineral = _fleetMineral[player];
         require(playerMineral > 0, "MAP: Player/Fleet has no mineral");
