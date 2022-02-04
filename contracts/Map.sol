@@ -30,8 +30,9 @@ contract Map is Editor {
         _travelCooldownPerDistance = 900; //15 minutes
         _maxTravel = 10; //AU
         _rewardsTimer = 0;
-        timeModifier = 100;
-        miningCooldown = 1800; //30 minutes
+        _timeModifier = 100;
+        _miningCooldown = 1800; //30 minutes
+        _minTravelSize = 25;
 
         _placeTypes.push('star');
         _placeTypes.push('planet');
@@ -54,8 +55,9 @@ contract Map is Editor {
     uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
     mapping (uint => bool) isPaused; // can pause token mineing for jackpots
-    uint timeModifier; //allow all times to be changed
-    uint miningCooldown; // how long before 
+    uint _timeModifier; //allow all times to be changed
+    uint _miningCooldown; // how long before 
+    uint _minTravelSize; //min. fleet size required to travel
 
     // Fleet Info and helpers
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
@@ -64,7 +66,7 @@ contract Map is Editor {
     mapping(address => uint) _fleetMineral; //amount of mineral a fleet is carrying
     mapping (address => uint) _travelCooldown; // limits how often fleets can travel
     mapping (address => uint) _fleetMiningCooldown; // limits how often a fleet can mine mineral
-    mapping (address => uint) _fleetLastShipyardPlanet; // last planet fleet visited
+    mapping (address => uint) _fleetLastShipyardPlace; // last shipyard place that fleet visited
     
     uint _baseTravelCooldown; 
     uint _travelCooldownPerDistance; 
@@ -289,7 +291,7 @@ contract Map is Editor {
         return getPlanetAtLocation(_x, _y).hasRefinery;
     }
 
-    function isShipyardLocation(uint _x, uint _y) external view returns (bool) {
+    function isShipyardLocation(uint _x, uint _y) public view returns (bool) {
         return getPlanetAtLocation(_x, _y).hasShipyard;
     }
 
@@ -306,7 +308,7 @@ contract Map is Editor {
         require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
         uint collectedAmount = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
         _mineralGained(player, int(collectedAmount));
-        _fleetMiningCooldown[player] = block.timestamp + ((miningCooldown / collectSpeedMultiplier) / timeModifier);
+        _fleetMiningCooldown[player] = block.timestamp + ((_miningCooldown / collectSpeedMultiplier) / _timeModifier);
     }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
@@ -327,7 +329,7 @@ contract Map is Editor {
         _planets[planet.id].availableMineral -= minedAmount;
 
         _mineralGained(player, int(minedAmount));
-        _fleetMiningCooldown[player] = block.timestamp + (miningCooldown / timeModifier);
+        _fleetMiningCooldown[player] = block.timestamp + (_miningCooldown / _timeModifier);
 
         //requestToken();
         emit MineralMined(player, minedAmount);
@@ -418,7 +420,7 @@ contract Map is Editor {
         address sender = msg.sender;
         require(block.timestamp >= _travelCooldown[sender], "MAPS: jump drive recharging");
         require(Fleet.isInBattle(sender) == false, "MAPS: in battle");
-        require(Fleet.getFleetSize(sender) > 0, "MAPS: no fleet");
+        require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small for travel");
 
         uint distance = getDistanceFromFleet(sender, _x, _y);
         require(distance <= _maxTravel, "MAPS: cannot travel that far");
@@ -445,11 +447,21 @@ contract Map is Editor {
         //add fleet to new location fleet list
         fleetsAtLocation[_x][_y].push(sender);
         _setFleetLocation(sender, _x, _y);
+
+        //if player travelled to a shipyard planet, set this planet as player's recall spot
+        if(isShipyardLocation(_x, _y)) {
+            _fleetLastShipyardPlace[sender] = _coordinatePlaces[_x][_y];
+        }
+    }
+
+    function recall() external {
+        require(Fleet.getFleetSize(msg.sender) < _minTravelSize, "FLEET: fleet too large for recall");
+        _setFleetLocation(msg.sender, _places[_fleetLastShipyardPlace[msg.sender]].coordX, _places[_fleetLastShipyardPlace[msg.sender]].coordY);
     }
 
     //set travel cooldown or increase it
     function _addTravelCooldown(address _fleet, uint _seconds) internal {
-        uint cooldownTime = _seconds / timeModifier;
+        uint cooldownTime = _seconds / _timeModifier;
         if(_travelCooldown[_fleet] > block.timestamp) {
             _travelCooldown[_fleet] += cooldownTime;
         }
@@ -526,7 +538,7 @@ contract Map is Editor {
 
     // setting to 0 removes base travel cooldown
     function setTimeModifier(uint _new) external onlyOwner {
-        timeModifier = _new;
+        _timeModifier = _new;
     }
 }
 
