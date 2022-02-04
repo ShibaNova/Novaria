@@ -33,6 +33,7 @@ contract Map is Editor {
         _timeModifier = 100;
         _miningCooldown = 1800; //30 minutes
         _minTravelSize = 25;
+        _collectCooldownReduction = 5;
 
         _placeTypes.push('star');
         _placeTypes.push('planet');
@@ -58,6 +59,7 @@ contract Map is Editor {
     uint _timeModifier; //allow all times to be changed
     uint _miningCooldown; // how long before 
     uint _minTravelSize; //min. fleet size required to travel
+    uint _collectCooldownReduction;
 
     // Fleet Info and helpers
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
@@ -117,7 +119,7 @@ contract Map is Editor {
     event MineralGained(address _player, int _amountGained, uint _amountBurned);
     event MineralTransferred(address _from, address _to, uint _amountSent, uint _amountReceived, uint _amountBurned);
     event MineralRefined(address _fleet, uint _amount);
-    event MineralMined(address _fleet, uint _amount);
+    event MineralGathered(address _fleet, uint _amount);
     event NewPlanet(uint _star, uint _x, uint _y);
     event NewStar(uint _x, uint _y);
 
@@ -239,7 +241,6 @@ contract Map is Editor {
     function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
         //get place and add it to place
         _places[_coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
-        
     }
 
     // When Token allocated for salvage gets added to contract, call this function
@@ -297,7 +298,7 @@ contract Map is Editor {
 
     //common implementation for any kind of mineral/salvage collection
     function _gather(address _player, uint _locationAmount, uint _coolDown) internal returns(uint) {
-        require(_locationAmount > 0, 'MAP: no gather');
+        require(_locationAmount > 0, 'MAP: nothing to gather');
         require(_fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
 
         uint availableCapacity = Fleet.getMaxMineralCapacity(_player) - _fleetMineral[_player]; //max amount of mineral fleet can carry minus what fleet already is carrying
@@ -308,39 +309,25 @@ contract Map is Editor {
 
         _mineralGained(_player, int(gatheredAmount));
         _fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
+
+        //requestToken();
+        emit MineralGathered(_player, gatheredAmount);
         return gatheredAmount;
     }
 
     //collect salvage from a coordinate
     function collect(uint _x, uint _y) external {
-        uint collectSpeedMultiplier = 5;
-        _places[_coordinatePlaces[_x][_y]].salvage -= (
-            _gather(msg.sender, _places[_coordinatePlaces[_x][_y]].salvage, _miningCooldown / collectSpeedMultiplier)
-        );
+        _places[_coordinatePlaces[_x][_y]].salvage -=
+            _gather(msg.sender, _places[_coordinatePlaces[_x][_y]].salvage, _miningCooldown / _collectCooldownReduction);
     }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
     function mine() external {
-        address player = msg.sender;
-        Planet memory planet = getPlanetAtFleetLocation(player);
+        Planet memory planet = getPlanetAtFleetLocation(msg.sender);
         require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
-        require(planet.availableMineral > 0, 'MAP: no mineral found');
 
-        require(_fleetMiningCooldown[player] <= block.timestamp, 'MAP: mining on cooldown');
-
-        uint availableCapacity = Fleet.getMaxMineralCapacity(player) - _fleetMineral[player]; //max amount of mineral fleet can carry minus what fleet already is carrying
-        require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
-
-        uint maxMine = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(player));
-        uint minedAmount = Helper.getMin(planet.availableMineral, maxMine); //the less of fleet maxMine and how much mineral planet has available
-
-        _mineralGained(player, int(minedAmount));
-        _fleetMiningCooldown[player] = block.timestamp + (_miningCooldown / _timeModifier);
-
-        //requestToken();
-        emit MineralMined(player, minedAmount);
-
-        _planets[planet.id].availableMineral -= minedAmount;
+        _planets[planet.id].availableMineral -= 
+            _gather(msg.sender, planet.availableMineral, _miningCooldown);
     }
     
     function refine() external {
@@ -455,7 +442,7 @@ contract Map is Editor {
         fleetsAtLocation[_x][_y].push(sender);
         _setFleetLocation(sender, _x, _y);
 
-        //if player travelled to a shipyard planet, set this planet as player's recall spot
+        //if player traveled to a shipyard planet, set this planet as player's recall spot
         if(isShipyardLocation(_x, _y)) {
             _fleetLastShipyardPlace[sender] = _coordinatePlaces[_x][_y];
         }

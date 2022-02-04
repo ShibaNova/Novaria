@@ -36,7 +36,7 @@ contract Fleet is Ownable {
 
         //load start data
         createShipClass("Viper", 1, 1, 3, 0, 0, 0, 60, 10**18);
-        createShipClass("Mole", 2, 0, 5, 5 * 10**17, 10**17, 0, 30, 2 * 10**18);
+        createShipClass("Mole", 2, 0, 5, 10**17, 10**16, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
         loadPlayers();
@@ -357,12 +357,6 @@ contract Fleet is Ownable {
         else {
             return false;
         }
-    }
-
-    function recall() external {
-        address player = msg.sender;
-        require(getFleetSize(player) == _getBaseFleetSize(), "FLEET: fleet cannot have any ships for recall");
-        Map.setFleetLocation(player, 0, 0);
     }
 
     function getShips(address _player) external view returns (uint16[16] memory) {
