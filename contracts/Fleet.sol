@@ -34,7 +34,6 @@ contract Fleet is Ownable {
         _scrapPercentage = 25;
         _battleCounter = 0;
 
-
         //load start data
         createShipClass("Viper", 1, 1, 3, 0, 0, 0, 60, 10**18);
         createShipClass("Mole", 2, 0, 5, 5 * 10**17, 10**17, 0, 30, 2 * 10**18);
@@ -104,6 +103,7 @@ contract Fleet is Ownable {
         Team defendTeam;
     }
     Battle[] _battles;
+    mapping(uint => uint) _battleCountToId;
 
     struct Team {
         address[] members;
@@ -280,6 +280,7 @@ contract Fleet is Ownable {
                 Team memory attackTeam; Team memory defendTeam;
                 (uint targetX, uint targetY) = Map.getFleetLocation(_target);
                 _battles.push(Battle(_battleCounter++, block.timestamp + _getBattleWindow(), targetX, targetY, attackTeam, defendTeam));
+                _battleCountToId[_battleCounter] = _battles.length-1;
                 _joinTeam(_target, _battles.length-1, _battles[_battles.length-1].defendTeam, BattleStatus.DEFEND);
             }
             _joinTeam(_target, targetBattleId, _battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
@@ -368,6 +369,10 @@ contract Fleet is Ownable {
         return _players[addressToPlayer[_player]].ships;
     }
 
+    function getBattleByCount(uint _battleCount) external view returns (Battle memory) {
+        return _battles[_battleCountToId[_battleCount]];
+    }
+    
     function getBattle(uint battleId) external view returns (Battle memory) {
         return _battles[battleId];
     }
