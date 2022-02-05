@@ -416,41 +416,19 @@ contract Map is Editor {
         require(Fleet.isInBattle(sender) == false, "MAPS: in battle");
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small for travel");
 
-        uint distance = getDistanceFromFleet(sender, _x, _y);
-        require(distance <= _maxTravel, "MAPS: cannot travel that far");
+        require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
 
-        uint travelCost = getFleetTravelCost(sender, _x, _y);
-        Treasury.pay(sender, travelCost);
+        Treasury.pay(sender, getFleetTravelCost(sender, _x, _y));
 
         _addTravelCooldown(sender, getFleetTravelCooldown(sender, _x, _y));
 
         (uint fleetX, uint fleetY) =  getFleetLocation(sender);
-        address[] memory fleetsAtFromLocation = fleetsAtLocation[fleetX][fleetY]; //list of fleets at from location
-        uint numFleetsAtLocation = fleetsAtFromLocation.length; //number of fleets at from location
-
-        // PROBLEM: we need to remove this loop. Is there a reason we're storing fleets at location instead of just creating a function that returns this info?
-        /* this loop goes through fleets at the player's "from" location and when it finds the fleet,
-            it removes puts the last element in the array in that fleets place and then removes the last element */
-        for(uint i=0;i<numFleetsAtLocation;i++) {
-            if(fleetsAtFromLocation[i] == sender) {
-                fleetsAtLocation[fleetX][fleetY][i] = fleetsAtLocation[fleetX][fleetY][numFleetsAtLocation-1]; //assign last element in array to where fleet was
-                fleetsAtLocation[fleetX][fleetY].pop(); //remove last element in array
-            }
-        }
-
-        //add fleet to new location fleet list
-        fleetsAtLocation[_x][_y].push(sender);
-        _setFleetLocation(sender, _x, _y);
+        _setFleetLocation(sender, fleetX, fleetY, _x, _y);
 
         //if player traveled to a shipyard planet, set this planet as player's recall spot
         if(isShipyardLocation(_x, _y)) {
             _fleetLastShipyardPlace[sender] = _coordinatePlaces[_x][_y];
         }
-    }
-
-    function recall() external {
-        require(Fleet.getFleetSize(msg.sender) < _minTravelSize, "FLEET: fleet too large for recall");
-        _setFleetLocation(msg.sender, _places[_fleetLastShipyardPlace[msg.sender]].coordX, _places[_fleetLastShipyardPlace[msg.sender]].coordY);
     }
 
     //set travel cooldown or increase it
@@ -464,14 +442,34 @@ contract Map is Editor {
         }
     }
 
-    function setFleetLocation(address _player, uint _x, uint _y) external onlyEditor {
-        _setFleetLocation(_player, _x, _y);
+    function recall() external {
+        require(Fleet.getFleetSize(msg.sender) < _minTravelSize, "FLEET: fleet too large for recall");
+        (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
+        _setFleetLocation(msg.sender, fleetX, fleetY,
+            _places[_fleetLastShipyardPlace[msg.sender]].coordX, _places[_fleetLastShipyardPlace[msg.sender]].coordY);
     }
 
-    function _setFleetLocation(address _player, uint _x, uint _y) internal {
-        //change fleet location in fleet mapping
-        fleetLocation[_player][0] = _x;
-        fleetLocation[_player][1] = _y;
+    function setFleetLocation(address _player, uint _xFrom, uint _yFrom, uint _xTo, uint _yTo) external onlyEditor {
+        _setFleetLocation(_player, _xFrom, _yFrom, _xTo, _yTo);
+    }
+
+    //change fleet location in fleet mapping
+    function _setFleetLocation(address _player, uint _xFrom, uint _yFrom, uint _xTo, uint _yTo) internal {
+        address[] memory fleetsAtFromLocation = fleetsAtLocation[_xFrom][_yFrom]; //list of fleets at from location
+        uint numFleetsAtLocation = fleetsAtFromLocation.length; //number of fleets at from location
+        /* this loop goes through fleets at the player's "from" location and when it finds the fleet,
+            it removes puts the last element in the array in that fleets place and then removes the last element */
+        for(uint i=0;i<numFleetsAtLocation;i++) {
+            if(fleetsAtFromLocation[i] == _player) {
+                fleetsAtLocation[_xFrom][_yFrom][i] = fleetsAtLocation[_xFrom][_yFrom][numFleetsAtLocation-1]; //assign last element in array to where fleet was
+                fleetsAtLocation[_xFrom][_yFrom].pop(); //remove last element in array
+            }
+        }
+
+        //add fleet to new location fleet list
+        fleetsAtLocation[_xTo][_yTo].push(_player);
+        fleetLocation[_player][0] = _xTo;
+        fleetLocation[_player][1] = _yTo;
     }
 
     // Setting to 0 disables travel
