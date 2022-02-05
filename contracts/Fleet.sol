@@ -2,7 +2,7 @@
  
 pragma solidity 0.8.7;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import './libs/Editor.sol';
 import "./interfaces/ITreasury.sol";
 import './libs/Helper.sol';
 import "./interfaces/IMap.sol";
@@ -14,7 +14,7 @@ import "./libs/SafeBEP20.sol";
 //battleWindow - 30 min.
 //building ships
 
-contract Fleet is Ownable {
+contract Fleet is Editor {
     using SafeBEP20 for ShibaBEP20;
 
     constructor (
@@ -481,7 +481,7 @@ contract Fleet is Ownable {
     }
 
     //NEEDS TO BE RESTRICTED TO MAP CONTRACT
-    function setMineral(address _player, uint _amount) external {
+    function setMineral(address _player, uint _amount) external onlyEditor {
         require(playerExists[_player] == true, 'FLEET: no player');
         _players[addressToPlayer[_player]].mineral = _amount;
     }
