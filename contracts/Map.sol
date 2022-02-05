@@ -45,6 +45,9 @@ contract Map is Editor {
         _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
         _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
         _addPlanet(0, 5, 5, 'BestValueShips', false, true, true); // BestValueShips
+        _addEmpty(1, 2);
+        _addEmpty(1, 1);
+        _addEmpty(0, 4);
     }
 
     ShibaBEP20 public Token; // TOKEN Token

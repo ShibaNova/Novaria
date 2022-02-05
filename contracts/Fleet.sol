@@ -125,6 +125,7 @@ contract Fleet is Editor {
     uint _startFee;
 
     event NewShipyard(uint _x, uint _y);
+    event NewMap(address _address);
 
     //BEGIN*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
     function loadPlayers() public {
@@ -516,6 +517,11 @@ contract Fleet is Editor {
         return miningCapacity / Treasury.getCostMod();
     }
 
+    function setMap(address _new) external onlyOwner {
+        require(address(0) != _new);
+        Map = IMap(_new); 
+        emit NewMap(_new);
+    }
     function setTreasury (address _treasury) external onlyOwner {
         Map = IMap(_treasury);
     }
