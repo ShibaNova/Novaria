@@ -35,6 +35,7 @@ contract Map is Editor {
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
 
+        _placeTypes.push('empty');
         _placeTypes.push('star');
         _placeTypes.push('planet');
         _placeTypes.push('jumpgate');
@@ -132,6 +133,13 @@ contract Map is Editor {
         _coordinatePlaces[_x][_y] = placeId;
     }
 
+    function addEmpty(uint _x, uint _y) external onlyOwner {
+        _addEmpty(_x, _y);
+    }
+    function _addEmpty(uint _x, uint _y) internal {
+        _addPlace('empty', 0, _x, _y, '');
+    }
+
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
         //add star to stars list
         uint starId = _stars.length;
@@ -140,7 +148,6 @@ contract Map is Editor {
         _addPlace('star', starId, _x, _y, _name);
         emit NewStar(_x, _y);
     }
-
     function addStar(uint _x, uint _y, string memory _name, uint _luminosity) external onlyOwner {
         _addStar(_x, _y, _name, _luminosity);
     }
@@ -162,7 +169,6 @@ contract Map is Editor {
         _addPlace('planet', planetId, _x, _y, _name);
         emit NewPlanet(_starId, _x, _y);
     }
-
     function addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
         _addPlanet(_starId, _x, _y, _name, _isMiningPlanet, _hasRefinery, _hasShipyard);
     }
