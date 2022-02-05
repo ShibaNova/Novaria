@@ -6,7 +6,7 @@ interface IMap {
     function isRefinery(uint _x, uint _y) external view returns(bool);
     function getFleetLocation (address _player) external view returns(uint x, uint y);
     function isShipyardLocation(uint _x, uint _y) external view returns (bool);
-    function setFleetLocation(address _player, uint _x, uint _y) external;
+    function setFleetLocation(address _player, uint _xTo, uint _yTo, uint _xFrom, uint _yFrom) external;
     function mineralGained(address _player, int _amount) external;
     function getFleetMineral(address _player) external view returns(uint);
     function getPlaceName(uint _x, uint _y) external view returns(string memory);

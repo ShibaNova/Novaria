@@ -155,6 +155,7 @@ contract Fleet is Ownable {
     function insertCoinHere(string memory _name) external {
         Treasury.pay(msg.sender, _startFee / Treasury.getCostMod());
         _createPlayer(_name, msg.sender);
+        Map.setFleetLocation(msg.sender, 0, 0, 0, 0);
     }
 
     function getPlayers() external view returns (Player[] memory) {
