@@ -271,6 +271,8 @@ contract Fleet is Ownable {
     }
 
     function enterBattle(address _target, BattleStatus mission) public canJoinBattle(msg.sender, _target) {
+        (uint targetX, uint targetY) = Map.getFleetLocation(_target);
+        require(Map.isRefineryLocation(targetX, targetY) != true, 'FLEET: refinery is DMZ');
         Player storage targetPlayer = _players[addressToPlayer[_target]];
         require(mission != BattleStatus.PEACE, 'FLEET: no peace');
         require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: player not under attack');
@@ -279,7 +281,6 @@ contract Fleet is Ownable {
         if(mission == BattleStatus.ATTACK) {
             if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
                 Team memory attackTeam; Team memory defendTeam;
-                (uint targetX, uint targetY) = Map.getFleetLocation(_target);
                 _battles.push(Battle(_battleCounter++, block.timestamp + _getBattleWindow(), targetX, targetY, attackTeam, defendTeam));
                 _battleCountToId[_battleCounter] = _battles.length-1;
                 _joinTeam(_target, _battles.length-1, _battles[_battles.length-1].defendTeam, BattleStatus.DEFEND);
