@@ -50,9 +50,10 @@ contract Fleet is Ownable {
         string name;
         uint experience;
         uint16[16] ships;
-        SpaceDock[] spaceDocks;
-        BattleStatus battleStatus;
         uint battleId;
+        uint mineral;
+        BattleStatus battleStatus;
+        SpaceDock[] spaceDocks;
     }
     Player[] _players;
     mapping (address => bool) playerExists;
@@ -61,13 +62,13 @@ contract Fleet is Ownable {
     //ship class data
     struct ShipClass {
         string name;
-        uint size;
-        uint attackPower;
-        uint shield;
+        uint16 size;
+        uint16 attackPower;
+        uint16 shield;
         uint mineralCapacity;
         uint miningCapacity;
-        uint hangarSize;
-        uint buildTime;
+        uint16 hangarSize;
+        uint16 buildTime;
         uint cost;
     }
     ShipClass[] _shipClasses;
@@ -78,7 +79,7 @@ contract Fleet is Ownable {
         address owner;
         uint coordX;
         uint coordY;
-        uint feePercent;
+        uint8 feePercent;
     }
 
     Shipyard[] _shipyards;
@@ -86,8 +87,8 @@ contract Fleet is Ownable {
     mapping (uint => mapping(uint => uint)) _coordinatesToShipyard; //shipyard locations
 
     struct SpaceDock {
-        uint shipClassId;
-        uint amount; 
+        uint16 shipClassId;
+        uint16 amount; 
         uint completionTime;
         uint coordX;
         uint coordY;
@@ -114,14 +115,14 @@ contract Fleet is Ownable {
     IMap public Map;
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
-    uint _baseMaxFleetSize;
-    uint _baseFleetSize; //size of capital ship
-    uint _timeModifier;
-    uint _battleWindow;
-    uint _battleSizeRestriction;
+    uint16 _baseMaxFleetSize;
+    uint16 _baseFleetSize; //size of capital ship
+    uint16 _timeModifier;
+    uint16 _battleWindow;
+    uint16 _battleSizeRestriction;
+    uint16 _scrapPercentage;
+    uint16 _battleCounter;
     uint _startFee;
-    uint _scrapPercentage;
-    uint _battleCounter;
 
     event NewShipyard(uint _x, uint _y);
 
@@ -164,19 +165,19 @@ contract Fleet is Ownable {
 
     function createShipClass(
         string memory _name,
-        uint _size,
-        uint _attackPower,
-        uint _shield,
+        uint16 _size,
+        uint16 _attackPower,
+        uint16 _shield,
         uint _mineralCapacity,
         uint _miningCapacity,
-        uint _hangarSize,
-        uint _buildTime,
+        uint16 _hangarSize,
+        uint16 _buildTime,
         uint _cost) public onlyOwner {
 
         _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost));
     }
 
-    function addShipyard(address _owner, uint _x, uint _y, uint _feePercent) public onlyOwner {
+    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) public onlyOwner {
         require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
         require(Map.isShipyardLocation(_x, _y) == true, 'FLEET: shipyard unavailable');
 
@@ -189,18 +190,16 @@ contract Fleet is Ownable {
     }
 
     // Ship building Function
-    function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount) external {
+    function buildShips(uint _x, uint _y, uint16 _shipClassId, uint16 _amount) external {
         address sender = msg.sender;
-        Shipyard memory shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
-
         require(getSpaceDocks(sender, _x, _y).length == 0, 'FLEET: no dock available');
-
         require((_shipClasses[_shipClassId].size * _amount) < _getMaxFleetSize(sender), 'FLEET: order too large');
 
         //total build cost
         uint totalCost = getDockCost(_shipClassId, _amount);
 
         //send fee to shipyard owner
+        Shipyard memory shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
         uint ownerFee = (totalCost * shipyard.feePercent) / 100;
         Token.safeTransferFrom(sender, shipyard.owner, ownerFee);
 
@@ -325,7 +324,7 @@ contract Fleet is Ownable {
                 }
                 //member's final lost mineral is the percentage of filled mineral capacity
                 if(memberMineralCapacityLost > 0) {
-                    totalMineralLost += (memberMineralCapacityLost * Map.getFleetMineral(member)) / getMineralCapacity(member);
+                    totalMineralLost += (memberMineralCapacityLost * _players[addressToPlayer[member]].mineral) / getMineralCapacity(member);
                 }
             }
         }
@@ -371,8 +370,8 @@ contract Fleet is Ownable {
         return _battles[_battleCountToId[_battleCount]];
     }
     
-    function getBattle(uint battleId) external view returns (Battle memory) {
-        return _battles[battleId];
+    function getBattle(uint _battleId) external view returns (Battle memory) {
+        return _battles[_battleId];
     }
     
     function getBattles() external view returns (Battle[] memory) {
@@ -423,12 +422,12 @@ contract Fleet is Ownable {
         return foundBattles;
     }
 
-    function getAttackers(uint battleId) external view returns (address[] memory) {
-        return _battles[battleId].attackTeam.members;
+    function getAttackers(uint _battleId) external view returns (address[] memory) {
+        return _battles[_battleId].attackTeam.members;
     }
 
-    function getDefenders(uint battleId) external view returns (address[] memory) {
-        return _battles[battleId].defendTeam.members;
+    function getDefenders(uint _battleId) external view returns (address[] memory) {
+        return _battles[_battleId].defendTeam.members;
     }
 
     function _getBattleWindow() internal view returns (uint) {
@@ -473,6 +472,17 @@ contract Fleet is Ownable {
 
     function _getBaseFleetSize() internal view returns (uint) {
         return _baseFleetSize / Treasury.getCostMod();
+    }
+
+    function getMineral(address _player) external view returns(uint) {
+        require(playerExists[_player] == true, 'FLEET: no player');
+        return _players[addressToPlayer[_player]].mineral;
+    }
+
+    //NEEDS TO BE RESTRICTED TO MAP CONTRACT
+    function setMineral(address _player, uint _amount) external {
+        require(playerExists[_player] == true, 'FLEET: no player');
+        _players[addressToPlayer[_player]].mineral = _amount;
     }
 
     //get the max mineral capacity of player's fleet

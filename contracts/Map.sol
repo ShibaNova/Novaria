@@ -65,7 +65,6 @@ contract Map is Editor {
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
     mapping(uint => mapping (uint => address[])) fleetsAtLocation; //reverse index to see what fleets are at what location
 
-    mapping(address => uint) _fleetMineral; //amount of mineral a fleet is carrying
     mapping (address => uint) _travelCooldown; // limits how often fleets can travel
     mapping (address => uint) _fleetMiningCooldown; // limits how often a fleet can mine mineral
     mapping (address => uint) _fleetLastShipyardPlace; // last shipyard place that fleet visited
@@ -296,13 +295,13 @@ contract Map is Editor {
         return getPlanetAtLocation(_x, _y).hasShipyard;
     }
 
-    //common implementation for any kind of mineral/salvage collection
+    //shared core implementation for any kind of mineral/salvage collection
     function _gather(address _player, uint _locationAmount, uint _coolDown) internal returns(uint) {
         require(_locationAmount > 0, 'MAP: nothing to gather');
         require(_fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
 
-        uint availableCapacity = Fleet.getMaxMineralCapacity(_player) - _fleetMineral[_player]; //max amount of mineral fleet can carry minus what fleet already is carrying
-        require(availableCapacity > 0, 'MAP: fleet cannot carry any more mineral');
+        uint availableCapacity = Fleet.getMaxMineralCapacity(_player) - Fleet.getMineral(_player); //max amount of mineral fleet can carry minus what fleet already is carrying
+        require(availableCapacity > 0, 'MAP: fleet max capacity');
         
         uint maxGather = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(_player));
         uint gatheredAmount = Helper.getMin(_locationAmount, maxGather); //the less of fleet maxGather and how much amount place has
@@ -334,9 +333,9 @@ contract Map is Editor {
         address player = msg.sender;
         require(getPlanetAtFleetLocation(player).hasRefinery == true, "MAP: Fleet not at a refinery");
 
-        uint playerMineral = _fleetMineral[player];
+        uint playerMineral = Fleet.getMineral(player);
         require(playerMineral > 0, "MAP: Player/Fleet has no mineral");
-        _fleetMineral[player] = 0;
+        Fleet.setMineral(player, 0);
 
         Token.safeTransfer(player, playerMineral);
         previousBalance -= playerMineral;
@@ -344,19 +343,9 @@ contract Map is Editor {
         //requestToken();
     }
 
-    function getFleetMineral(address _player) external view returns(uint) {
-        return _fleetMineral[_player];
-    }
-
-    function mineralGained(address _player, int _amount) external {
-        _mineralGained(_player, _amount);
-    }
-
-    // remember to set to onlyEditor
     // mineral gained can also be negative; used for player attacks and mining
     function _mineralGained(address _player, int _amount) internal {
-        uint startAmount = _fleetMineral[_player];
-        uint maxMineralCapacity = Fleet.getMaxMineralCapacity(_player);
+        uint startAmount = Fleet.getMineral(_player);
 
         //add amount gained to current player amount
         //(this should never be less than 0 because mineral lost calculation should never take more than player has)
@@ -369,7 +358,10 @@ contract Map is Editor {
         }
 
         //check new amount with max capacity, make sure it's not more than max capacity
-        uint finalMineralAmount = Helper.getMin(maxMineralCapacity, newAmount);
+        uint finalMineralAmount = uint(Helper.getMin(Fleet.getMaxMineralCapacity(_player), newAmount));
+
+        //set player's mineral
+        Fleet.setMineral(_player, finalMineralAmount);
 
         //burn whatever cannot fit into fleet mineral capacity
         uint burnedAmount = newAmount - finalMineralAmount;
