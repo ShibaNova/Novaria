@@ -179,7 +179,13 @@ contract Map is Editor {
         uint counter = 0;
         for(uint i=_lx; i<=_rx;i++) {
             for(uint j=_ly; j<=_ry;j++) {
-                foundCoordinatePlaces[counter] = _places[_coordinatePlaces[i][j]];
+                if(_placeExists[i][j] == true) {
+                    foundCoordinatePlaces[counter] = _places[_coordinatePlaces[i][j]];
+                }
+                else {
+                    Place memory emptyPlace;
+                    foundCoordinatePlaces[counter] = emptyPlace;
+                }
                 counter++;
             }
         }
