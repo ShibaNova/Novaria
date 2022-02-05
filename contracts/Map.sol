@@ -36,6 +36,7 @@ contract Map is Editor {
         _collectCooldownReduction = 5;
 
         _placeTypes.push('empty');
+        _placeTypes.push('hostile');
         _placeTypes.push('star');
         _placeTypes.push('planet');
         _placeTypes.push('jumpgate');
@@ -48,6 +49,7 @@ contract Map is Editor {
         _addEmpty(1, 2);
         _addEmpty(1, 1);
         _addEmpty(0, 4);
+        _addHostile(2, 2);
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -141,6 +143,13 @@ contract Map is Editor {
     }
     function _addEmpty(uint _x, uint _y) internal {
         _addPlace('empty', 0, _x, _y, '');
+    }
+
+    function addHostile(uint _x, uint _y) external onlyOwner {
+        _addEmpty(_x, _y);
+    }
+    function _addHostile(uint _x, uint _y) internal {
+        _addPlace('hostile', 0, _x, _y, '');
     }
 
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
