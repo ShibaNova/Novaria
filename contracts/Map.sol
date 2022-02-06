@@ -39,6 +39,7 @@ contract Map is Editor {
         _placeTypes.push('hostile');
         _placeTypes.push('star');
         _placeTypes.push('planet');
+        _placeTypes.push('asteroid');
         _placeTypes.push('jumpgate');
 
         _addStar(2, 2, 'Solar', 9); // first star
@@ -116,6 +117,13 @@ contract Map is Editor {
     }
     Star[] _stars;
 
+    struct Asteroid {
+        uint id;
+        uint placeId;
+        uint availableMineral;
+    }
+    Asteroid[] _asteroids;
+
     event NewShadowPool(address _new);
     event NewFleet(address _new);
     event NewToken(address _new);
@@ -129,7 +137,7 @@ contract Map is Editor {
     event NewStar(uint _x, uint _y);
 
     function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name) internal {
-        require(_placeExists[_x][_y] == false, 'Place already exists in these coordinates');
+        require(_placeExists[_x][_y] == false, 'Place already exists');
         uint placeId = _places.length;
         _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0));
 
@@ -150,6 +158,15 @@ contract Map is Editor {
     }
     function _addHostile(uint _x, uint _y) internal {
         _addPlace('hostile', 0, _x, _y, '');
+    }
+
+    function addAsteroid(uint _x, uint _y) external onlyOwner {
+        _addAsteroid(_x, _y);
+    }
+    function _addAsteroid(uint _x, uint _y) internal {
+        uint asteroidId = _asteroids.length;
+        _asteroids.push(Asteroid(asteroidId, _places.length, 1000));
+        _addPlace('asteroid', 0, _x, _y, '');
     }
 
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
@@ -183,6 +200,21 @@ contract Map is Editor {
     }
     function addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
         _addPlanet(_starId, _x, _y, _name, _isMiningPlanet, _hasRefinery, _hasShipyard);
+    }
+
+/*    function explore(uint _x, uint _y) external {
+        address sender = msg.sender;
+        require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
+    }*/
+
+    function _getRandomPlaceType() internal view returns (string memory) {
+        uint rand = Helper.createRandomNumber(100);
+
+        if(rand >= 70 && rand <= 79) { return 'hostile'; }
+        if(rand <= 88) { return 'asteroid'; }
+        if(rand <= 91) { return 'planet'; }
+        if(rand == 99) { return 'star'; }
+        return 'empty';
     }
 
     /* get coordinatePlaces cannot handle a map box larger than 255 */
@@ -427,12 +459,12 @@ contract Map is Editor {
 
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
+        require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
         address sender = msg.sender;
         require(block.timestamp >= _travelCooldown[sender], "MAPS: jump drive recharging");
-        require(Fleet.isInBattle(sender) == false, "MAPS: in battle");
-        require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small for travel");
-
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
+        require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
+        require(Fleet.isInBattle(sender) == false, "MAPS: in battle");
 
         Treasury.pay(sender, getFleetTravelCost(sender, _x, _y));
 
