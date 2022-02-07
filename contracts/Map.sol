@@ -50,7 +50,7 @@ contract Map is Editor {
         _addEmpty(1, 2);
         _addEmpty(1, 1);
         _addEmpty(0, 4);
-        _addHostile(2, 2);
+        _addHostile(2, 1);
     }
 
     ShibaBEP20 public Token; // TOKEN Token
