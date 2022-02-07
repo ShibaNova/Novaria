@@ -237,8 +237,10 @@ contract Fleet is Editor {
         player.ships[dock.shipClassId] += _amount; //add ships to fleet
         dock.amount -= _amount; //remove ships from drydock
 
-        dock = player.spaceDocks[player.spaceDocks.length-1];
-        player.spaceDocks.pop();
+        if(dock.amount <= 0) {
+            dock = player.spaceDocks[player.spaceDocks.length-1];
+            player.spaceDocks.pop();
+        }
     }
 
     //destroy ships
@@ -541,5 +543,10 @@ contract Fleet is Editor {
 
     function getPlayerExists(address _player) external view returns (bool) {
         return playerExists[_player];
+    }
+
+    function getPlayer(address _player) external view returns (Player memory) {
+        require(playerExists[_player] == true, 'FLEET: no player');
+        return _players[addressToPlayer[_player]];
     }
 }
