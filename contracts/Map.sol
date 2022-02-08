@@ -356,7 +356,7 @@ contract Map is Editor {
         require(_locationAmount > 0, 'MAP: nothing to gather');
         require(_fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
 
-        uint availableCapacity = Fleet.getMaxMineralCapacity(_player) - Fleet.getMineral(_player); //max amount of mineral fleet can carry minus what fleet already is carrying
+        uint availableCapacity = Fleet.getMineralCapacity(_player) - Fleet.getMineral(_player); //max amount of mineral fleet can carry minus what fleet already is carrying
         require(availableCapacity > 0, 'MAP: fleet max capacity');
         
         uint maxGather = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(_player));
@@ -414,7 +414,7 @@ contract Map is Editor {
         }
 
         //check new amount with max capacity, make sure it's not more than max capacity
-        uint finalMineralAmount = uint(Helper.getMin(Fleet.getMaxMineralCapacity(_player), newAmount));
+        uint finalMineralAmount = uint(Helper.getMin(Fleet.getMineralCapacity(_player), newAmount));
 
         //set player's mineral
         Fleet.setMineral(_player, finalMineralAmount);
