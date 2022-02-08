@@ -70,7 +70,7 @@ contract Fleet is Editor {
         uint buildTime;
         uint cost;
     }
-    ShipClass[] _shipClasses;
+    ShipClass[32] _shipClasses;
 
     //shipyard data
     struct Shipyard {
@@ -169,7 +169,7 @@ contract Fleet is Editor {
         uint _buildTime,
         uint _cost) public onlyOwner {
 
-        _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost));
+        _shipClasses[_shipClasses.length-1] = ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost);
     }
 
     function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) public onlyOwner {
@@ -376,7 +376,7 @@ contract Fleet is Editor {
         return _shipyards;
     }
 
-    function getShipClasses() external view returns (ShipClass[] memory) {
+    function getShipClasses() external view returns (ShipClass[32] memory) {
         return _shipClasses;
     }
 
