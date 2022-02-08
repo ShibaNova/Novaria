@@ -26,7 +26,7 @@ contract Fleet is Editor {
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
         Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
         _baseMaxFleetSize = 5000;
-        _timeModifier = 1000;
+        _timeModifier = 100;
         _battleWindow = 3600; //60 minutes
         _battleSizeRestriction = 4;
         _startFee = 10**18;
@@ -248,15 +248,16 @@ contract Fleet is Editor {
         require(_playerExists[_player] == true, 'FLEET: no player');
         require(_playerExists[_target] == true, 'FLEET: no target');
         require(_player != _target, 'FLEET: Player/target not same');
-        require(_players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FLEET: in battle');
 
         //verify players are at same location
         (uint attackX, uint attackY) = Map.getFleetLocation(_player);
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         require(attackX == targetX && attackY == targetY, 'FLEET: dif. location');
+        require(Map.isRefineryLocation(targetX, targetY) != true, 'FLEET: refinery is DMZ');
 
         require(getFleetSize(_player) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
         require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(_player), 'FLEET: target too small');
+        require(_players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FLEET: in battle');
         _;
     }
 
@@ -270,10 +271,9 @@ contract Fleet is Editor {
 
     function enterBattle(address _target, BattleStatus mission) public canJoinBattle(msg.sender, _target) {
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
-        require(Map.isRefineryLocation(targetX, targetY) != true, 'FLEET: refinery is DMZ');
         Player storage targetPlayer = _players[addressToPlayer[_target]];
         require(mission != BattleStatus.PEACE, 'FLEET: no peace');
-        require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: player not under attack');
+        require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: defend,no attack');
 
         uint targetBattleId = targetPlayer.battleId;
         if(mission == BattleStatus.ATTACK) {
