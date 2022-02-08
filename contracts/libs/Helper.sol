@@ -31,13 +31,6 @@ library Helper {
         return (0, false);
     }
 
-    // get next UTC hour as an epoch timestamp, used for sorting launch groups
-    // ex) 1756 UTC returns 1800 UTC
-    // _time must be a block.timestamp
-    function getLaunchHour(uint _time) public pure returns(uint) {
-        return ((_time + 3600 - 1) / 3600 ) * 3600;
-    }
-
     // Create random number <= _mod
     function createRandomNumber (uint _mod) internal view returns(uint){
         return uint(keccak256(abi.encodePacked(block.timestamp, blockhash(20)))) % _mod;

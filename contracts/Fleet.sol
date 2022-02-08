@@ -62,13 +62,13 @@ contract Fleet is Editor {
     //ship class data
     struct ShipClass {
         string name;
-        uint16 size;
-        uint16 attackPower;
-        uint16 shield;
+        uint size;
+        uint attackPower;
+        uint shield;
         uint mineralCapacity;
         uint miningCapacity;
-        uint16 hangarSize;
-        uint16 buildTime;
+        uint hangarSize;
+        uint buildTime;
         uint cost;
     }
     ShipClass[] _shipClasses;
@@ -87,8 +87,8 @@ contract Fleet is Editor {
     mapping (uint => mapping(uint => uint)) _coordinatesToShipyard; //shipyard locations
 
     struct SpaceDock {
-        uint16 shipClassId;
-        uint16 amount; 
+        uint shipClassId;
+        uint amount; 
         uint completionTime;
         uint coordX;
         uint coordY;
@@ -115,13 +115,13 @@ contract Fleet is Editor {
     IMap public Map;
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
-    uint16 _baseMaxFleetSize;
-    uint16 _baseFleetSize; //size of capital ship
-    uint16 _timeModifier;
-    uint16 _battleWindow;
-    uint16 _battleSizeRestriction;
-    uint16 _scrapPercentage;
-    uint16 _battleCounter;
+    uint _baseMaxFleetSize;
+    uint _baseFleetSize; //size of capital ship
+    uint _timeModifier;
+    uint _battleWindow;
+    uint _battleSizeRestriction;
+    uint _scrapPercentage;
+    uint _battleCounter;
     uint _startFee;
 
     event NewShipyard(uint _x, uint _y);
@@ -160,19 +160,19 @@ contract Fleet is Editor {
         Map.setFleetLocation(msg.sender, 0, 0, 0, 0);
     }
 
-    function getPlayers() external view returns (Player[] memory) {
+/*    function getPlayers() external view returns (Player[] memory) {
         return _players;
-    }
+    }*/
 
     function createShipClass(
         string memory _name,
-        uint16 _size,
-        uint16 _attackPower,
-        uint16 _shield,
+        uint _size,
+        uint _attackPower,
+        uint _shield,
         uint _mineralCapacity,
         uint _miningCapacity,
-        uint16 _hangarSize,
-        uint16 _buildTime,
+        uint _hangarSize,
+        uint _buildTime,
         uint _cost) public onlyOwner {
 
         _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost));
@@ -191,7 +191,7 @@ contract Fleet is Editor {
     }
 
     // Ship building Function
-    function buildShips(uint _x, uint _y, uint16 _shipClassId, uint16 _amount) external {
+    function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount) external {
         address sender = msg.sender;
         require(getSpaceDocks(sender, _x, _y).length == 0, 'FLEET: no dock available');
         require((_shipClasses[_shipClassId].size * _amount) < _getMaxFleetSize(sender), 'FLEET: order too large');
@@ -219,7 +219,7 @@ contract Fleet is Editor {
         2) amount requested must be less than or equal to amount in dry dock
         3) dry dock build must be completed (completion time must be past block timestamp)
         4) claim size must not put fleet over max fleet size */
-    function claimShips(uint spaceDockId, uint16 _amount) external {
+    function claimShips(uint spaceDockId, uint _amount) external {
         address sender = msg.sender;
         require(playerExists[sender] == true, 'FLEET: no player');
         Player storage player = _players[addressToPlayer[sender]];
@@ -234,7 +234,7 @@ contract Fleet is Editor {
 
         require(getFleetSize(sender) + (_amount * dockClass.size) < _getMaxFleetSize(sender), 'Claim size too large');
 
-        player.ships[dock.shipClassId] += _amount; //add ships to fleet
+        player.ships[dock.shipClassId] += uint16(_amount); //add ships to fleet
         dock.amount -= _amount; //remove ships from drydock
 
         if(dock.amount <= 0) {
@@ -244,7 +244,7 @@ contract Fleet is Editor {
     }
 
     //destroy ships
-    function _destroyShips(address _player, uint16 _shipClassId, uint16 _amount) internal {
+    function _destroyShips(address _player, uint _shipClassId, uint _amount) internal {
         _players[addressToPlayer[_player]].ships[_shipClassId] -= uint16(Helper.getMin(_amount, _players[addressToPlayer[_player]].ships[_shipClassId]));
     }
 
@@ -324,7 +324,7 @@ contract Fleet is Editor {
                     memberMineralCapacityLost += (actualShipsLost * _shipClasses[k].mineralCapacity);
 
                     //destroy ships lost
-                    _destroyShips(member, k, uint16(actualShipsLost));
+                    _destroyShips(member, k, uint(actualShipsLost));
                 }
                 //member's final lost mineral is the percentage of filled mineral capacity
                 if(memberMineralCapacityLost > 0) {
