@@ -49,11 +49,11 @@ contract Fleet is Editor {
     struct Player {
         string name;
         uint experience;
-        uint16[16] ships;
+        uint[32] ships;
         uint battleId;
         uint mineral;
         BattleStatus battleStatus;
-        SpaceDock[] spaceDocks;
+        SpaceDock[16] spaceDocks;
     }
     Player[] _players;
     mapping (address => bool) playerExists;
@@ -211,7 +211,8 @@ contract Fleet is Editor {
 
         uint completionTime = block.timestamp + getBuildTime(_shipClassId, _amount);
         Player storage player = _players[addressToPlayer[sender]];
-        player.spaceDocks.push(SpaceDock(_shipClassId, _amount, completionTime, _x, _y));
+        uint dockLength = _players[addressToPlayer[sender]].spaceDocks.length;
+        player.spaceDocks[dockLength] = SpaceDock(_shipClassId, _amount, completionTime, _x, _y);
     }
 
     /* move ships to fleet, call must fit the following criteria:
@@ -234,18 +235,18 @@ contract Fleet is Editor {
 
         require(getFleetSize(sender) + (_amount * dockClass.size) < _getMaxFleetSize(sender), 'Claim size too large');
 
-        player.ships[dock.shipClassId] += uint16(_amount); //add ships to fleet
+        player.ships[dock.shipClassId] += _amount; //add ships to fleet
         dock.amount -= _amount; //remove ships from drydock
 
         if(dock.amount <= 0) {
-            dock = player.spaceDocks[player.spaceDocks.length-1];
-            player.spaceDocks.pop();
+            player.spaceDocks[spaceDockId] = player.spaceDocks[player.spaceDocks.length-1];
+            delete player.spaceDocks[player.spaceDocks.length-1];
         }
     }
 
     //destroy ships
     function _destroyShips(address _player, uint _shipClassId, uint _amount) internal {
-        _players[addressToPlayer[_player]].ships[_shipClassId] -= uint16(Helper.getMin(_amount, _players[addressToPlayer[_player]].ships[_shipClassId]));
+        _players[addressToPlayer[_player]].ships[_shipClassId] -= uint(Helper.getMin(_amount, _players[addressToPlayer[_player]].ships[_shipClassId]));
     }
 
     //can player participate in this battle
@@ -308,7 +309,7 @@ contract Fleet is Editor {
             for(uint j=0; j<teams[i].members.length; j++) {
                 address member = teams[i].members[j];
                 uint memberMineralCapacityLost = 0;
-                for(uint16 k=0; k<_shipClasses.length; k++) {
+                for(uint k=0; k<_shipClasses.length; k++) {
                     uint numClassShips = _players[addressToPlayer[member]].ships[k]; //number of ships that team member has of this class
 
                     //calculate opposing team's damage to this member
@@ -365,7 +366,7 @@ contract Fleet is Editor {
         }
     }
 
-    function getShips(address _player) external view returns (uint16[16] memory) {
+    function getShips(address _player) external view returns (uint[32] memory) {
         require(playerExists[_player] == true, 'FLEET: no player');
         return _players[addressToPlayer[_player]].ships;
     }
@@ -397,11 +398,11 @@ contract Fleet is Editor {
     function getBuildTime(uint _shipClassId, uint _amount) public view returns(uint) {
         return (_amount * _shipClasses[_shipClassId].buildTime) / _timeModifier;
     }
-    function getSpaceDocks(address _player, uint _x, uint _y) public view returns (SpaceDock[] memory) {
+    function getSpaceDocks(address _player, uint _x, uint _y) public view returns (SpaceDock[16] memory) {
         require(playerExists[_player] == true, 'FLEET: no player');
-        SpaceDock[] memory foundDocks;
+        SpaceDock[16] memory foundDocks;
         uint foundDockCount;
-        SpaceDock[] memory playerDocks = _players[addressToPlayer[_player]].spaceDocks;
+        SpaceDock[16] memory playerDocks = _players[addressToPlayer[_player]].spaceDocks;
         for(uint i=0; i<playerDocks.length; i++) {
             if(playerDocks[i].coordX == _x  && playerDocks[i].coordY == _y) {
                 foundDocks[foundDockCount++];
@@ -410,7 +411,7 @@ contract Fleet is Editor {
         return foundDocks;
     }
 
-    function getPlayerSpaceDocks(address _player) external view returns (SpaceDock[] memory) {
+    function getPlayerSpaceDocks(address _player) external view returns (SpaceDock[16] memory) {
         require(playerExists[_player] == true, 'FLEET: no player');
         return _players[addressToPlayer[_player]].spaceDocks;
     }
@@ -545,8 +546,8 @@ contract Fleet is Editor {
         return playerExists[_player];
     }
 
-    function getPlayer(address _player) external view returns (Player memory) {
+    function getPlayerBattleInfo(address _player) external view returns (BattleStatus, uint) {
         require(playerExists[_player] == true, 'FLEET: no player');
-        return _players[addressToPlayer[_player]];
+        return (_players[addressToPlayer[_player]].battleStatus, _players[addressToPlayer[_player]].battleId);
     }
 }
