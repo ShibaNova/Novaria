@@ -146,23 +146,14 @@ contract Map is Editor {
         _coordinatePlaces[_x][_y] = placeId;
     }
 
-    function addEmpty(uint _x, uint _y) external onlyOwner {
-        _addEmpty(_x, _y);
-    }
     function _addEmpty(uint _x, uint _y) internal {
         _addPlace('empty', 0, _x, _y, '');
     }
 
-    function addHostile(uint _x, uint _y) external onlyOwner {
-        _addEmpty(_x, _y);
-    }
     function _addHostile(uint _x, uint _y) internal {
         _addPlace('hostile', 0, _x, _y, '');
     }
 
-    function addAsteroid(uint _x, uint _y) external onlyOwner {
-        _addAsteroid(_x, _y);
-    }
     function _addAsteroid(uint _x, uint _y) internal {
         uint asteroidId = _asteroids.length;
         _asteroids.push(Asteroid(asteroidId, _places.length, 1000));
@@ -176,9 +167,6 @@ contract Map is Editor {
 
         _addPlace('star', starId, _x, _y, _name);
         emit NewStar(_x, _y);
-    }
-    function addStar(uint _x, uint _y, string memory _name, uint _luminosity) external onlyOwner {
-        _addStar(_x, _y, _name, _luminosity);
     }
 
     function _addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) internal {
@@ -197,9 +185,6 @@ contract Map is Editor {
 
         _addPlace('planet', planetId, _x, _y, _name);
         emit NewPlanet(_starId, _x, _y);
-    }
-    function addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) external onlyOwner{
-        _addPlanet(_starId, _x, _y, _name, _isMiningPlanet, _hasRefinery, _hasShipyard);
     }
 
 /*    function explore(uint _x, uint _y) external {
