@@ -187,10 +187,20 @@ contract Map is Editor {
         emit NewPlanet(_starId, _x, _y);
     }
 
-/*    function explore(uint _x, uint _y) external {
+    function explore(uint _x, uint _y) external {
         address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
-    }*/
+        string memory randPlaceType = _getRandomPlaceType();
+        if(Helper.isEqual(randPlaceType, 'empty')) {
+           _addEmpty(_x, _y); 
+        }
+        else if(Helper.isEqual(randPlaceType, 'hostile')) {
+           _addHostile(_x, _y); 
+        }
+        else if(Helper.isEqual(randPlaceType, 'star')) {
+            _addStar(_x, _y, 'Star', Helper.createRandomNumber(9) + 1);
+        }
+    }
 
     function _getRandomPlaceType() internal view returns (string memory) {
         uint rand = Helper.createRandomNumber(100);
