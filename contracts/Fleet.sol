@@ -283,7 +283,7 @@ contract Fleet is Editor {
                 _battleCountToId[_battleCounter] = _battles.length-1;
                 _joinTeam(_target, _battles.length-1, _battles[_battles.length-1].defendTeam, BattleStatus.DEFEND);
             }
-            _joinTeam(_target, targetBattleId, _battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
+            _joinTeam(msg.sender, targetBattleId, _battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
         }
         else if(mission == BattleStatus.DEFEND) {
             _joinTeam(_target, targetBattleId, _battles[targetBattleId].defendTeam, BattleStatus.DEFEND);

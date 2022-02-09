@@ -154,9 +154,9 @@ contract Map is Editor {
         _addPlace('hostile', 0, _x, _y, '');
     }
 
-    function _addAsteroid(uint _x, uint _y) internal {
+    function _addAsteroid(uint _x, uint _y, uint _amount) internal {
         uint asteroidId = _asteroids.length;
-        _asteroids.push(Asteroid(asteroidId, _places.length, 1000));
+        _asteroids.push(Asteroid(asteroidId, _places.length, _amount));
         _addPlace('asteroid', 0, _x, _y, '');
     }
 
@@ -187,29 +187,50 @@ contract Map is Editor {
         emit NewPlanet(_starId, _x, _y);
     }
 
+    //player explore function
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
-        string memory randPlaceType = _getRandomPlaceType();
-        if(Helper.isEqual(randPlaceType, 'empty')) {
+        Treasury.pay(sender, Helper.getDistance(0, 0, _x, _y) * 10**20 / Treasury.getCostMod());
+        _createRandomPlaceAt(_x, _y);
+        //a^2 + b^2 = c^2
+        //4,4; distance = 4 AU = 400 nova = $200 (50 cent NOVA)
+        //6,10; distance = 11.6 AU = 1160 nova = $580 (50 cent NOVA)
+        //8,8; distance = 11.3 AU = 1130 nova = $615 (50 cent NOVA)
+        //0, 10; distance = 10 * 10 = 1000 nova
+        //10, 10; distance = sqrt(200) = 1400 nova (50 cent NOVA) = $700
+        //0, 100; distance = 1000 nova
+        //80, 80; distance = sqrt(12800) = 1,130 = 
+
+    }
+
+    function _createRandomPlaceAt(uint _x, uint _y) internal {
+        uint rand = Helper.createRandomNumber(100);
+        if(rand < 70) {
            _addEmpty(_x, _y); 
         }
-        else if(Helper.isEqual(randPlaceType, 'hostile')) {
+        else if(rand >= 70 && rand <= 79) {
            _addHostile(_x, _y); 
         }
-        else if(Helper.isEqual(randPlaceType, 'star')) {
-            _addStar(_x, _y, 'Star', Helper.createRandomNumber(9) + 1);
+        else if(rand <= 88) {
+            _addAsteroid(_x, _y, 1000);
+        }
+        else if(rand <= 91) {
+            _addPlanet(_getNearestStar(_x, _y), _x, _y, 'Planet', true, false, false);
+         //   return 'planet'; }
+        }
+        else if(rand == 99) {
+          //  return 'star'; }
         }
     }
 
-    function _getRandomPlaceType() internal view returns (string memory) {
-        uint rand = Helper.createRandomNumber(100);
+    function _getNearestStar(uint _x, uint _y) internal returns(uint) {
+        uint nearestStarId;
+        uint nearestStarDistance;
+        for(uint i=0; i<_stars.length; i++) {
 
-        if(rand >= 70 && rand <= 79) { return 'hostile'; }
-        if(rand <= 88) { return 'asteroid'; }
-        if(rand <= 91) { return 'planet'; }
-        if(rand == 99) { return 'star'; }
-        return 'empty';
+        }
+        return nearestStarId;
     }
 
     /* get coordinatePlaces cannot handle a map box larger than 255 */
