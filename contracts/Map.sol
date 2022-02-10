@@ -47,10 +47,6 @@ contract Map is Editor {
         _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
         _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
         _addPlanet(0, 5, 5, 'BestValueShips', false, true, true); // BestValueShips
-        _addEmpty(1, 2);
-        _addEmpty(1, 1);
-        _addEmpty(0, 4);
-        _addHostile(2, 1);
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -189,48 +185,70 @@ contract Map is Editor {
 
     //player explore function
     function explore(uint _x, uint _y) external {
-        address sender = msg.sender;
+/*        address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
-        Treasury.pay(sender, Helper.getDistance(0, 0, _x, _y) * 10**20 / Treasury.getCostMod());
+        Treasury.pay(sender, Helper.getDistance(0, 0, _x, _y) * 5 * 10**19 / Treasury.getCostMod());*/
         _createRandomPlaceAt(_x, _y);
-        //a^2 + b^2 = c^2
-        //4,4; distance = 4 AU = 400 nova = $200 (50 cent NOVA)
-        //6,10; distance = 11.6 AU = 1160 nova = $580 (50 cent NOVA)
-        //8,8; distance = 11.3 AU = 1130 nova = $615 (50 cent NOVA)
-        //0, 10; distance = 10 * 10 = 1000 nova
-        //10, 10; distance = sqrt(200) = 1400 nova (50 cent NOVA) = $700
-        //0, 100; distance = 1000 nova
-        //80, 80; distance = sqrt(12800) = 1,130 = 
-
+        //8, 6; distance = sqrt(100) = 10AU = 500 NOVA
     }
 
+    //create a random place at given coordinates
     function _createRandomPlaceAt(uint _x, uint _y) internal {
-        uint rand = Helper.createRandomNumber(100);
-        if(rand < 70) {
-           _addEmpty(_x, _y); 
-        }
-        else if(rand >= 70 && rand <= 79) {
+        require(_placeExists[_x][_y] == false, 'Place already exists');
+        uint rand = Helper.getRandomNumber(100, Helper.getRandomNumber(100, 0));
+        if(rand >= 70 && rand <= 79) {
            _addHostile(_x, _y); 
         }
-        else if(rand <= 88) {
+        else if(rand >= 80 && rand <= 88) {
+            //TODO: replace 1000 with percentage from Treasury
             _addAsteroid(_x, _y, 1000);
         }
-        else if(rand <= 91) {
-            _addPlanet(_getNearestStar(_x, _y), _x, _y, 'Planet', true, false, false);
-         //   return 'planet'; }
+        else if(rand >= 89 && rand <= 99) {
+            uint nearestStar = _getNearestStar(_x, _y);
+            uint nearestStarX = _places[_stars[nearestStar].placeId].coordX;
+            uint nearestStarY = _places[_stars[nearestStar].placeId].coordY;
+            //new planet must be within 5 AU off nearest star
+            if(rand != 99 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 5) {
+                bool isMiningPlanet = false;
+                bool hasShipyard = false;
+                bool hasRefinery = false;
+                uint planetAttributeSelector = Helper.getRandomNumber(10, rand);
+                if(planetAttributeSelector <= 5) {
+                    isMiningPlanet = true;
+                }
+                else if(planetAttributeSelector == 6) {
+                    hasRefinery = true;
+                }
+                else if(planetAttributeSelector >= 7 && planetAttributeSelector <= 8) {
+                    hasShipyard = true;
+                }
+                else { hasShipyard = true; hasRefinery = true; }
+                _addPlanet(nearestStar, _x, _y, 'Planet', isMiningPlanet, hasRefinery, hasShipyard);
+            }
+            //new star must be more than 10 AU away from nearest star
+            else if(rand == 99 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 10) {
+                _addStar(_x, _y, 'Star', Helper.getRandomNumber(9, rand) + 1);
+            }
+            else {
+                _addEmpty(_x, _y);
+            }
         }
-        else if(rand == 99) {
-          //  return 'star'; }
+        else {
+           _addEmpty(_x, _y);
         }
     }
 
-    function _getNearestStar(uint _x, uint _y) internal returns(uint) {
-        uint nearestStarId;
+    function _getNearestStar(uint _x, uint _y) internal view returns(uint) {
+        uint nearestStar;
         uint nearestStarDistance;
         for(uint i=0; i<_stars.length; i++) {
-
+            uint starDistance = Helper.getDistance(_x, _y, _places[_stars[i].placeId].coordX, _places[_stars[i].placeId].coordY);
+            if(nearestStarDistance == 0 || starDistance < nearestStarDistance) {
+                nearestStar = i;
+                nearestStarDistance = starDistance;
+            }
         }
-        return nearestStarId;
+        return nearestStar;
     }
 
     /* get coordinatePlaces cannot handle a map box larger than 255 */
