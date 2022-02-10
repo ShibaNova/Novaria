@@ -22,9 +22,9 @@ contract Fleet is Editor {
        // ITreasury _treasury, 
        // ShibaBEP20 _Token
         ) {
-        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-        Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
+        Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
+        Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
+        Map = IMap(0x37a8Df0ddfAEBc79b6B89f5a73944AbF4FaAC050);
         _baseMaxFleetSize = 5000;
         _timeModifier = 100;
         _battleWindow = 3600; //60 minutes
@@ -38,7 +38,7 @@ contract Fleet is Editor {
         createShipClass("Mole", 2, 0, 5, 10**17, 10**16, 0, 30, 2 * 10**18);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
-        loadPlayers();
+       // loadPlayers();
     }
 
     enum BattleStatus{ PEACE, ATTACK, DEFEND }
@@ -52,7 +52,7 @@ contract Fleet is Editor {
         uint battleId;
         uint mineral;
         BattleStatus battleStatus;
-        SpaceDock[16] spaceDocks;
+        SpaceDock[] spaceDocks;
     }
     Player[] _players;
     mapping (address => bool) _playerExists;
@@ -70,7 +70,7 @@ contract Fleet is Editor {
         uint buildTime;
         uint cost;
     }
-    ShipClass[32] _shipClasses;
+    ShipClass[] _shipClasses;
 
     //shipyard data
     struct Shipyard {
@@ -127,11 +127,11 @@ contract Fleet is Editor {
 
     //BEGIN*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
     function loadPlayers() public {
-        _createPlayer('Koray', 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4);
+        _createPlayer('Nate', 0x729F3cA74A55F2aB7B584340DDefC29813fb21dF);
         _players[0].ships[0] = 100;
         _players[0].ships[1] = 19;
 
-        _createPlayer('Nate', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
+        _createPlayer('Sam', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
         _players[1].ships[0] = 43;
         _players[1].ships[1] = 4;
     }
@@ -150,12 +150,12 @@ contract Fleet is Editor {
         _names[_name] = _player; //add to name map
         addressToPlayer[_player] = _players.length-1;
         _playerExists[_player] = true;
+        Map.setFleetLocation(msg.sender, 0, 0, 0, 0);
     }
 
     function insertCoinHere(string memory _name) external {
         Treasury.pay(msg.sender, _startFee / Treasury.getCostMod());
         _createPlayer(_name, msg.sender);
-        Map.setFleetLocation(msg.sender, 0, 0, 0, 0);
     }
 
     function createShipClass(
@@ -169,7 +169,7 @@ contract Fleet is Editor {
         uint _buildTime,
         uint _cost) public onlyOwner {
 
-        _shipClasses[_shipClasses.length-1] = ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost);
+        _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost));
     }
 
     function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) public onlyOwner {
@@ -205,8 +205,8 @@ contract Fleet is Editor {
 
         uint completionTime = block.timestamp + getBuildTime(_shipClassId, _amount);
         Player storage player = _players[addressToPlayer[sender]];
-        uint dockLength = _players[addressToPlayer[sender]].spaceDocks.length;
-        player.spaceDocks[dockLength] = SpaceDock(_shipClassId, _amount, completionTime, _x, _y);
+        // uint dockLength = _players[addressToPlayer[sender]].spaceDocks.length;
+        player.spaceDocks.push(SpaceDock(_shipClassId, _amount, completionTime, _x, _y));
     }
 
     /* move ships to fleet, call must fit the following criteria:
@@ -234,7 +234,7 @@ contract Fleet is Editor {
 
         if(dock.amount <= 0) {
             player.spaceDocks[spaceDockId] = player.spaceDocks[player.spaceDocks.length-1];
-            delete player.spaceDocks[player.spaceDocks.length-1];
+            player.spaceDocks.pop();
         }
     }
 
@@ -376,7 +376,7 @@ contract Fleet is Editor {
         return _shipyards;
     }
 
-    function getShipClasses() external view returns (ShipClass[32] memory) {
+    function getShipClasses() external view returns (ShipClass[] memory) {
         return _shipClasses;
     }
 
@@ -387,10 +387,10 @@ contract Fleet is Editor {
     function getBuildTime(uint _shipClassId, uint _amount) public view returns(uint) {
         return (_amount * _shipClasses[_shipClassId].buildTime) / _timeModifier;
     }
-    function getSpaceDocks(address _player, uint _x, uint _y) public view isPlayer(_player) returns (SpaceDock[16] memory) {
-        SpaceDock[16] memory foundDocks;
+    function getSpaceDocks(address _player, uint _x, uint _y) public view isPlayer(_player) returns (SpaceDock[] memory) {
+        SpaceDock[] memory foundDocks;
         uint foundDockCount;
-        SpaceDock[16] memory playerDocks = _players[addressToPlayer[_player]].spaceDocks;
+        SpaceDock[] memory playerDocks = _players[addressToPlayer[_player]].spaceDocks;
         for(uint i=0; i<playerDocks.length; i++) {
             if(playerDocks[i].coordX == _x  && playerDocks[i].coordY == _y) {
                 foundDocks[foundDockCount++];
@@ -399,7 +399,7 @@ contract Fleet is Editor {
         return foundDocks;
     }
 
-    function getPlayerSpaceDocks(address _player) external view isPlayer(_player) returns (SpaceDock[16] memory) {
+    function getPlayerSpaceDocks(address _player) external view isPlayer(_player) returns (SpaceDock[] memory) {
         return _players[addressToPlayer[_player]].spaceDocks;
     }
  

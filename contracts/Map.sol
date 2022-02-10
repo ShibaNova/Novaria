@@ -21,7 +21,7 @@ contract Map is Editor {
     ) {
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-        Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
+       // Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
 
         previousBalance = 0;
@@ -103,6 +103,17 @@ contract Map is Editor {
         bool hasShipyard;
     }
     Planet[] _planets;
+
+    struct PlaceGetter {
+        string name;
+        string placeType;
+        uint salvage;
+        uint fleetCount;
+        bool hasRefinery;
+        bool hasShipyard;
+        uint availableMineral;
+    }
+
 
     struct Star {
         uint id; //native key
@@ -252,22 +263,43 @@ contract Map is Editor {
     }
 
     /* get coordinatePlaces cannot handle a map box larger than 255 */
-    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(Place[] memory) {
+    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(PlaceGetter[] memory) {
         uint xDistance = (_rx - _lx) + 1;
         uint yDistance = (_ry - _ly) + 1;
         uint numCoordinates = xDistance * yDistance;
         require(xDistance * yDistance < 256, 'MAP: Too much data in loop');
 
-        Place[] memory foundCoordinatePlaces = new Place[]((numCoordinates));
+        PlaceGetter[] memory foundCoordinatePlaces = new PlaceGetter[]((numCoordinates));
 
         uint counter = 0;
         for(uint i=_lx; i<=_rx;i++) {
             for(uint j=_ly; j<=_ry;j++) {
+
                 if(_placeExists[i][j] == true) {
-                    foundCoordinatePlaces[counter] = _places[_coordinatePlaces[i][j]];
+                    if(Helper.isEqual(_places[_coordinatePlaces[i][j]].placeType, 'planet')) {
+                        foundCoordinatePlaces[counter] = PlaceGetter(
+                        {  name: _places[_coordinatePlaces[i][j]].name, 
+                            placeType: _places[_coordinatePlaces[i][j]].placeType, 
+                            salvage: _places[_coordinatePlaces[i][j]].salvage, 
+                            fleetCount: fleetsAtLocation[i][j].length,
+                            hasRefinery: _planets[_places[_coordinatePlaces[i][j]].childId].hasRefinery, 
+                            hasShipyard: _planets[_places[_coordinatePlaces[i][j]].childId].hasShipyard, 
+                            availableMineral: _planets[_places[_coordinatePlaces[i][j]].childId].availableMineral}
+                            );
+                    } else {
+                    foundCoordinatePlaces[counter] = PlaceGetter(
+                      {  name: _places[_coordinatePlaces[i][j]].name, 
+                        placeType: _places[_coordinatePlaces[i][j]].placeType, 
+                        salvage: _places[_coordinatePlaces[i][j]].salvage, 
+                        fleetCount: fleetsAtLocation[i][j].length,
+                        hasRefinery: false, 
+                        hasShipyard: false, 
+                        availableMineral: 0}
+                        );
+                    }
                 }
                 else {
-                    Place memory emptyPlace;
+                    PlaceGetter memory emptyPlace;
                     foundCoordinatePlaces[counter] = emptyPlace;
                 }
                 counter++;
@@ -281,16 +313,18 @@ contract Map is Editor {
     }
 
     //three different return statements to avoid stack too deep error
-    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint) {
+    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint, uint) {
+        
         if(_placeExists[_x][_y] == true) {
             Place memory place  = _places[_coordinatePlaces[_x][_y]];
+            uint fleetCount = fleetsAtLocation[_x][_y].length;
             if(Helper.isEqual(place.placeType, 'planet')) {
                 return(place.name, place.placeType, place.salvage,
-                _planets[place.childId].hasShipyard, _planets[place.childId].hasRefinery, _planets[place.childId].availableMineral);
+                _planets[place.childId].hasShipyard, _planets[place.childId].hasRefinery, _planets[place.childId].availableMineral, fleetCount);
             }
-            return(place.name, place.placeType, place.salvage, false, false, 0);
+            return(place.name, place.placeType, place.salvage, false, false, 0, fleetCount);
         }
-        return ("", "", 0, false, false, 0);
+        return ("", "", 0, false, false, 0, 0);
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
