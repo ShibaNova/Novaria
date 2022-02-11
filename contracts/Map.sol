@@ -21,6 +21,8 @@ contract Map is Editor {
     ) {
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        //Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
        // Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
 
@@ -87,10 +89,21 @@ contract Map is Editor {
         uint coordY;
         string name;
         uint salvage;
+        address discoverer;
     }
     Place[] _places;
     mapping (uint => mapping(uint => bool)) _placeExists;
     mapping (uint => mapping(uint => uint)) _coordinatePlaces;
+
+    struct PlaceGetter {
+        string name;
+        string placeType;
+        uint salvage;
+        uint fleetCount;
+        bool hasRefinery;
+        bool hasShipyard;
+        uint availableMineral;
+    }
 
     struct Planet {
         uint id; //native key
@@ -103,17 +116,6 @@ contract Map is Editor {
         bool hasShipyard;
     }
     Planet[] _planets;
-
-    struct PlaceGetter {
-        string name;
-        string placeType;
-        uint salvage;
-        uint fleetCount;
-        bool hasRefinery;
-        bool hasShipyard;
-        uint availableMineral;
-    }
-
 
     struct Star {
         uint id; //native key
@@ -146,7 +148,7 @@ contract Map is Editor {
     function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint placeId = _places.length;
-        _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0));
+        _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, 0xd9145CCE52D386f254917e481eB44e9943F39138));
 
         //set place in coordinate mapping
         _placeExists[_x][_y] = true;
@@ -206,39 +208,40 @@ contract Map is Editor {
     //create a random place at given coordinates
     function _createRandomPlaceAt(uint _x, uint _y) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
-        uint rand = Helper.getRandomNumber(100, Helper.getRandomNumber(100, 0));
-        if(rand >= 70 && rand <= 79) {
+        uint rand = Helper.getRandomNumber(100, _x + _y);
+        if(rand >= 50 && rand <= 69) {
            _addHostile(_x, _y); 
         }
-        else if(rand >= 80 && rand <= 88) {
+        else if(rand >= 70 && rand <= 78) {
             //TODO: replace 1000 with percentage from Treasury
             _addAsteroid(_x, _y, 1000);
         }
-        else if(rand >= 89 && rand <= 99) {
+        else if(rand >= 79 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = _places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = _places[_stars[nearestStar].placeId].coordY;
+
             //new planet must be within 5 AU off nearest star
-            if(rand != 99 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 5) {
+            if(rand >= 79 && rand <= 94 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 4) {
                 bool isMiningPlanet = false;
                 bool hasShipyard = false;
                 bool hasRefinery = false;
-                uint planetAttributeSelector = Helper.getRandomNumber(10, rand);
-                if(planetAttributeSelector <= 5) {
+                uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
+                if(planetAttributeSelector <= 11) {
                     isMiningPlanet = true;
                 }
-                else if(planetAttributeSelector == 6) {
+                else if(planetAttributeSelector >= 12 && planetAttributeSelector <=14) {
                     hasRefinery = true;
                 }
-                else if(planetAttributeSelector >= 7 && planetAttributeSelector <= 8) {
+                else if(planetAttributeSelector >= 15 && planetAttributeSelector <= 18) {
                     hasShipyard = true;
                 }
                 else { hasShipyard = true; hasRefinery = true; }
-                _addPlanet(nearestStar, _x, _y, 'Planet', isMiningPlanet, hasRefinery, hasShipyard);
+                _addPlanet(nearestStar, _x, _y, 'planet', isMiningPlanet, hasRefinery, hasShipyard);
             }
             //new star must be more than 10 AU away from nearest star
-            else if(rand == 99 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 10) {
-                _addStar(_x, _y, 'Star', Helper.getRandomNumber(9, rand) + 1);
+            else if(rand >= 95 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+                _addStar(_x, _y, 'star', Helper.getRandomNumber(9, rand) + 1);
             }
             else {
                 _addEmpty(_x, _y);
@@ -247,6 +250,13 @@ contract Map is Editor {
         else {
            _addEmpty(_x, _y);
         }
+    }
+
+    function changeName(uint _x, uint _y, string memory _name) external {
+        Place storage namePlace = _places[_coordinatePlaces[_x][_y]];
+        require(msg.sender == namePlace.discoverer, 'MAP: not discoverer');
+        require(Helper.isEqual(namePlace.name, namePlace.placeType), 'MAP: already named');
+        namePlace.name = _name;
     }
 
     function _getNearestStar(uint _x, uint _y) internal view returns(uint) {

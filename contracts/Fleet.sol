@@ -25,6 +25,9 @@ contract Fleet is Editor {
         Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
         Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
         Map = IMap(0x37a8Df0ddfAEBc79b6B89f5a73944AbF4FaAC050);
+        //Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        //Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
         _baseMaxFleetSize = 5000;
         _timeModifier = 100;
         _battleWindow = 3600; //60 minutes
