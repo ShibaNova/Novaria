@@ -26,7 +26,7 @@ contract Map is Editor {
        // Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
 
-        previousBalance = 0;
+        _previousBalance = 0;
         _baseTravelCost = 10**15;
         _baseTravelCooldown = 2700; //45 minutes
         _travelCooldownPerDistance = 900; //15 minutes
@@ -36,6 +36,7 @@ contract Map is Editor {
         _miningCooldown = 1800; //30 minutes
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
+        _asteroidCooldownReduction = 3;
 
         _placeTypes.push('empty');
         _placeTypes.push('hostile');
@@ -56,7 +57,7 @@ contract Map is Editor {
     IShadowPool public ShadowPool; //Contract that collects Token emissions
     IFleet public Fleet; // Fleet Contract
 
-    uint public previousBalance; // helper for allocating Token
+    uint public _previousBalance; // helper for allocating Token
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
     uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
@@ -65,6 +66,7 @@ contract Map is Editor {
     uint _miningCooldown; // how long before 
     uint _minTravelSize; //min. fleet size required to travel
     uint _collectCooldownReduction;
+    uint _asteroidCooldownReduction;
 
     // Fleet Info and helpers
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
@@ -196,11 +198,15 @@ contract Map is Editor {
         emit NewPlanet(_starId, _x, _y);
     }
 
+    function getExploreCost(uint _x, uint _y) public view returns(uint) {
+        return Helper.getDistance(0, 0, _x, _y) * 5 * 10**19 / Treasury.getCostMod();
+    }
+
     //player explore function
     function explore(uint _x, uint _y) external {
-/*        address sender = msg.sender;
+        address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
-        Treasury.pay(sender, Helper.getDistance(0, 0, _x, _y) * 5 * 10**19 / Treasury.getCostMod());*/
+        Treasury.pay(sender, getExploreCost(_x, _y));
         _createRandomPlaceAt(_x, _y);
         //8, 6; distance = sqrt(100) = 10AU = 500 NOVA
     }
@@ -213,15 +219,18 @@ contract Map is Editor {
            _addHostile(_x, _y); 
         }
         else if(rand >= 70 && rand <= 78) {
-            //TODO: replace 1000 with percentage from Treasury
-            _addAsteroid(_x, _y, 1000);
+            uint asteroidPercent = Helper.getRandomNumber(8, _x + _y) + 2;
+            uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
+            _previousBalance += asteroidAmount;
+            Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
+            _addAsteroid(_x, _y, 98 * asteroidAmount / 100);
         }
         else if(rand >= 79 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = _places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = _places[_stars[nearestStar].placeId].coordY;
 
-            //new planet must be within 5 AU off nearest star
+            //new planet must be within 4 AU off nearest star
             if(rand >= 79 && rand <= 94 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 4) {
                 bool isMiningPlanet = false;
                 bool hasShipyard = false;
@@ -378,12 +387,12 @@ contract Map is Editor {
 
     // When Token allocated for salvage gets added to contract, call this function
     function increasePreviousBalance(uint _amount) external onlyEditor {
-        previousBalance += _amount * 98 / 100;
+        _previousBalance += _amount * 98 / 100;
     }
 
     // Function to mine, refine, transfer unrefined Token
     function allocateToken() public {
-        uint newAmount = Token.balanceOf(address(this)) - previousBalance;
+        uint newAmount = Token.balanceOf(address(this)) - _previousBalance;
         if (newAmount > 0) {
 
             uint totalStarLuminosity = getTotalLuminosity();
@@ -406,7 +415,7 @@ contract Map is Editor {
                     _planets[i].availableMineral += newMineral;
                 }
             }
-            previousBalance = Token.balanceOf(address(this));
+            _previousBalance = Token.balanceOf(address(this));
         }
     }
 
@@ -456,11 +465,24 @@ contract Map is Editor {
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
     function mine() external {
-        Planet memory planet = getPlanetAtFleetLocation(msg.sender);
-        require(isPaused[planet.placeId] != true, "MAP: mineral is paused");
+        (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
+        require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
+        Place memory miningPlace = _places[_coordinatePlaces[fleetX][fleetY]];
 
-        _planets[planet.id].availableMineral -= 
-            _gather(msg.sender, planet.availableMineral, _miningCooldown);
+        //if mining a planet
+        if(Helper.isEqual(miningPlace.placeType, "planet")) {
+            Planet memory miningPlanet = _planets[miningPlace.childId];
+            require(isPaused[miningPlanet.placeId] != true, "MAP: mineral is paused");
+            _planets[miningPlanet.id].availableMineral -=
+                _gather(msg.sender, miningPlanet.availableMineral, _miningCooldown);
+        }
+
+        //if mining an asteroid
+        else if(Helper.isEqual(miningPlace.placeType, "asteroid")) {
+            Asteroid memory miningAsteroid = _asteroids[miningPlace.childId];
+            _asteroids[miningAsteroid.id].availableMineral -=
+                _gather(msg.sender, miningAsteroid.availableMineral, _miningCooldown / _asteroidCooldownReduction);
+        }
     }
     
     function refine() external {
@@ -472,7 +494,7 @@ contract Map is Editor {
         Fleet.setMineral(player, 0);
 
         Token.safeTransfer(player, playerMineral);
-        previousBalance -= playerMineral;
+        _previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
         //requestToken();
     }

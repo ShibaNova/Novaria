@@ -32,7 +32,7 @@ contract Fleet is Editor {
         _timeModifier = 100;
         _battleWindow = 3600; //60 minutes
         _battleSizeRestriction = 4;
-        _startFee = 10**18;
+        _startFee = 10**20;
         _scrapPercentage = 25;
         _battleCounter = 0;
 
