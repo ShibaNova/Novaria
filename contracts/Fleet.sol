@@ -84,6 +84,10 @@ contract Fleet is Editor {
         uint coordX;
         uint coordY;
         uint8 feePercent;
+        uint lastTakeoverTime;
+        uint takeoverDeadline;
+        address takeoverAddress;
+        BattleStatus status;
     }
 
     Shipyard[] _shipyards;
@@ -185,10 +189,26 @@ contract Fleet is Editor {
 
         string memory name = Map.getPlaceName(_x, _y);
 
-        _shipyards.push(Shipyard(name, _owner, _x, _y, _feePercent));
+        _shipyards.push(Shipyard(name, _owner, _x, _y, _feePercent, block.timestamp, 0, _owner, BattleStatus.PEACE));
         _shipyardExists[_x][_y] = true;
         _coordinatesToShipyard[_x][_y] = _shipyards.length-1;
         emit NewShipyard(_x, _y);
+    }
+
+    function initiateShipyardTakeover(uint _x, uint _y) external {
+        require(_shipyardExists[_x][_y] == true, 'FLEET: no shipyard');
+        (uint fleetX, uint fleetY) = Map.getFleetLocation(msg.sender);
+        require(fleetX == _x && fleetY == _y, 'FLEET: not at shipyard');
+
+        Shipyard storage shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
+        require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 7) / _timeModifier), 'FLEET: shipyard protected');
+
+        //takeover begins if either shipyard is at peace or new takeover address has a larger fleet than current takeover address
+        if(shipyard.status == BattleStatus.PEACE || getFleetSize(msg.sender) > getFleetSize(shipyard.takeoverAddress)) {
+            shipyard.status = BattleStatus.ATTACK;
+            shipyard.takeoverAddress = msg.sender;
+            shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24) / _timeModifier);
+        }
     }
 
     function setShipyardName(uint _x, uint _y, string memory _name) external {
@@ -235,9 +255,8 @@ contract Fleet is Editor {
         2) amount requested must be less than or equal to amount in dry dock
         3) dry dock build must be completed (completion time must be past block timestamp)
         4) claim size must not put fleet over max fleet size */
-    function claimShips(uint spaceDockId, uint _amount) external {
+    function claimShips(uint spaceDockId, uint _amount) isPlayer(msg.sender) external {
         address sender = msg.sender;
-        require(_playerExists[sender] == true, 'FLEET: no player');
         Player storage player = _players[addressToPlayer[sender]];
         SpaceDock storage dock = player.spaceDocks[spaceDockId];
         (uint fleetX, uint fleetY) = Map.getFleetLocation(sender);
