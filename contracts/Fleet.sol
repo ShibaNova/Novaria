@@ -35,10 +35,11 @@ contract Fleet is Editor {
         _startFee = 10**20;
         _scrapPercentage = 25;
         _battleCounter = 0;
+        _maxShipyardFeePercent = 25;
 
         //load start data
-        createShipClass("Viper", 1, 1, 3, 0, 0, 0, 60, 10**18);
-        createShipClass("Mole", 2, 0, 5, 10**17, 10**16, 0, 30, 2 * 10**18);
+        createShipClass("Viper", 1, 1, 3, 0, 0, 0, 60, 10**18, 0);
+        createShipClass("Mole", 2, 0, 5, 10**17, 10**16, 0, 30, 2 * 10**18, 0);
         addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
         addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
        // loadPlayers();
@@ -72,6 +73,7 @@ contract Fleet is Editor {
         uint hangarSize;
         uint buildTime;
         uint cost;
+        uint experienceRequired;
     }
     ShipClass[] _shipClasses;
 
@@ -121,9 +123,10 @@ contract Fleet is Editor {
     uint _timeModifier;
     uint _battleWindow;
     uint _battleSizeRestriction;
+    uint _startFee;
     uint _scrapPercentage;
     uint _battleCounter;
-    uint _startFee;
+    uint _maxShipyardFeePercent;
 
     event NewShipyard(uint _x, uint _y);
     event NewMap(address _address);
@@ -170,12 +173,13 @@ contract Fleet is Editor {
         uint _miningCapacity,
         uint _hangarSize,
         uint _buildTime,
-        uint _cost) public onlyOwner {
+        uint _cost,
+        uint _experienceRequired) public onlyOwner {
 
-        _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost));
+        _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _buildTime, _cost, _experienceRequired));
     }
 
-    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) public onlyOwner {
+    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) public onlyEditor {
         require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
         require(Map.isShipyardLocation(_x, _y) == true, 'FLEET: shipyard unavailable');
 
@@ -185,6 +189,20 @@ contract Fleet is Editor {
         _shipyardExists[_x][_y] = true;
         _coordinatesToShipyard[_x][_y] = _shipyards.length-1;
         emit NewShipyard(_x, _y);
+    }
+
+    function setShipyardName(uint _x, uint _y, string memory _name) external {
+        require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
+        require(bytes(_name).length < 16, 'FLEET: shipyard name too long');
+        require(_shipyards[_coordinatesToShipyard[_x][_y]].owner == msg.sender);
+        _shipyards[_coordinatesToShipyard[_x][_y]].name = _name;
+    }
+
+    function setShipyardFeePercent(uint _x, uint _y, uint8 _feePercent) external {
+        require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
+        require(_feePercent <= _maxShipyardFeePercent, 'FLEET: fee percent too high');
+        require(_shipyards[_coordinatesToShipyard[_x][_y]].owner == msg.sender);
+        _shipyards[_coordinatesToShipyard[_x][_y]].feePercent = _feePercent;
     }
 
     // Ship building Function

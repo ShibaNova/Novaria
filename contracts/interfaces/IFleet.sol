@@ -11,4 +11,5 @@ interface IFleet {
     function isInBattle(address _player) external view returns(bool);
     function getMineral(address _player) external view returns(uint);
     function setMineral(address _player, uint _amount) external;
+    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) external;
 }

@@ -49,7 +49,7 @@ contract Map is Editor {
         _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
         _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
         _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
-        _addPlanet(0, 5, 5, 'BestValueShips', false, true, true); // BestValueShips
+        _addPlanet(0, 5, 5, 'BestValueShips', false, false, true); // BestValueShips
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -207,48 +207,60 @@ contract Map is Editor {
         address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
         Treasury.pay(sender, getExploreCost(_x, _y));
-        _createRandomPlaceAt(_x, _y);
+        _createRandomPlaceAt(_x, _y, sender);
         //8, 6; distance = sqrt(100) = 10AU = 500 NOVA
     }
 
     //create a random place at given coordinates
-    function _createRandomPlaceAt(uint _x, uint _y) internal {
+    function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100, _x + _y);
         if(rand >= 50 && rand <= 69) {
            _addHostile(_x, _y); 
         }
-        else if(rand >= 70 && rand <= 78) {
+        else if(rand >= 70 && rand <= 79) {
             uint asteroidPercent = Helper.getRandomNumber(8, _x + _y) + 2;
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
             Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
             _addAsteroid(_x, _y, 98 * asteroidAmount / 100);
         }
-        else if(rand >= 79 && rand <= 99) {
+        else if(rand >= 80 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = _places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = _places[_stars[nearestStar].placeId].coordY;
 
-            //new planet must be within 4 AU off nearest star
-            if(rand >= 79 && rand <= 94 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 4) {
+            //new planet must be within 3 AU off nearest star
+            if(rand >= 79 && rand <= 94 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet = false;
                 bool hasShipyard = false;
                 bool hasRefinery = false;
                 uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
-                if(planetAttributeSelector <= 11) {
+                if(planetAttributeSelector <= 10) {
                     isMiningPlanet = true;
                 }
-                else if(planetAttributeSelector >= 12 && planetAttributeSelector <=14) {
+                else if(planetAttributeSelector >= 11 && planetAttributeSelector <=13) {
                     hasRefinery = true;
                 }
-                else if(planetAttributeSelector >= 15 && planetAttributeSelector <= 18) {
+                else if(planetAttributeSelector >= 14 && planetAttributeSelector <= 18) {
                     hasShipyard = true;
                 }
                 else { hasShipyard = true; hasRefinery = true; }
                 _addPlanet(nearestStar, _x, _y, 'planet', isMiningPlanet, hasRefinery, hasShipyard);
+
+                //if planet has a shipyard, add shipyard to Fleet contract
+                if(hasShipyard == true) {
+                    uint8 feePercent;
+                    address owner;
+                    if(hasRefinery != true) {
+                        feePercent = 5;
+                        owner = _creator;
+                    }
+                    Fleet.addShipyard(owner, _x, _y, feePercent);
+                }
+
             }
-            //new star must be more than 10 AU away from nearest star
+            //new star must be more than 7 AU away from nearest star
             else if(rand >= 95 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, 'star', Helper.getRandomNumber(9, rand) + 1);
             }
