@@ -569,6 +569,11 @@ contract Map is Editor {
        return _baseTravelCooldown + (distance*_travelCooldownPerDistance);
     }
 
+    function getCurrentTravelCooldown (address _fleet) external view returns(uint) {
+        return _travelCooldown[_fleet];
+    }
+
+
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
