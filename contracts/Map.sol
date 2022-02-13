@@ -581,7 +581,7 @@ contract Map is Editor {
         require(block.timestamp >= _travelCooldown[sender], "MAPS: jump drive recharging");
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
-        require(Fleet.isInBattle(sender) == false, "MAPS: in battle");
+        require(Fleet.isInBattle(sender) == false, "MAPS: in battle or takeover");
 
         Treasury.pay(sender, getFleetTravelCost(sender, _x, _y));
 

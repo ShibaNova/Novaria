@@ -394,9 +394,10 @@ contract Fleet is Editor {
         _;
     }
 
-    //if player battle status is NOT PEACE, player is in a battle
+    //if player battle status is NOT PEACE or player is taking over shipyard, player is in a battle
     function isInBattle(address _player) external view isPlayer(_player) returns(bool) {
-        if(_players[addressToPlayer[_player]].battleStatus != BattleStatus.PEACE) {
+        (uint fleetX, uint fleetY) = Map.getFleetLocation(_player);
+        if(_players[addressToPlayer[_player]].battleStatus != BattleStatus.PEACE || _shipyards[_coordinatesToShipyard[fleetX][fleetY]].takeoverAddress == _player) {
             return true;
         }
         else {
