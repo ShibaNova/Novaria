@@ -19,10 +19,10 @@ contract Map is Editor {
         //IShadowPool _shadowPool,
         //IFleet _fleet
     ) {
+        // Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        // Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-        //Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
        // Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
 
@@ -46,7 +46,7 @@ contract Map is Editor {
         _placeTypes.push('jumpgate');
 
         _addStar(2, 2, 'Solar', 9); // first star
-        _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
+        _addPlanet(0, 0, 0, 'Haven', false, false, true); //Haven
         _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
         _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
         _addPlanet(0, 5, 5, 'BestValueShips', false, false, true); // BestValueShips
@@ -251,12 +251,12 @@ contract Map is Editor {
                 //if planet has a shipyard, add shipyard to Fleet contract
                 if(hasShipyard == true) {
                     uint8 feePercent;
-                    address owner;
+                    address placeOwner;
                     if(hasRefinery != true) {
                         feePercent = 5;
-                        owner = _creator;
+                        placeOwner = _creator;
                     }
-                    Fleet.addShipyard(owner, _x, _y, feePercent);
+                    Fleet.addShipyard(placeOwner, _x, _y, feePercent);
                 }
 
             }
@@ -344,18 +344,18 @@ contract Map is Editor {
     }
 
     //three different return statements to avoid stack too deep error
-    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint, uint) {
+    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint, uint, bool) {
         
         if(_placeExists[_x][_y] == true) {
             Place memory place  = _places[_coordinatePlaces[_x][_y]];
             uint fleetCount = fleetsAtLocation[_x][_y].length;
             if(Helper.isEqual(place.placeType, 'planet')) {
                 return(place.name, place.placeType, place.salvage,
-                _planets[place.childId].hasShipyard, _planets[place.childId].hasRefinery, _planets[place.childId].availableMineral, fleetCount);
+                _planets[place.childId].hasShipyard, _planets[place.childId].hasRefinery, _planets[place.childId].availableMineral, fleetCount, _planets[place.childId].isMiningPlanet);
             }
-            return(place.name, place.placeType, place.salvage, false, false, 0, fleetCount);
+            return(place.name, place.placeType, place.salvage, false, false, 0, fleetCount, false);
         }
-        return ("", "", 0, false, false, 0, 0);
+        return ("", "", 0, false, false, 0, 0, false);
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
