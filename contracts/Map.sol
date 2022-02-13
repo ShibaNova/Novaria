@@ -432,9 +432,12 @@ contract Map is Editor {
     }
 
     function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
+        Planet memory planet;
         Place memory place = _places[_coordinatePlaces[_x][_y]];
-        require(Helper.isEqual(place.placeType, 'planet'), 'No planet found at this location.');
-        return _planets[place.childId];
+        if(Helper.isEqual(place.placeType, 'planet')) {
+            planet = _planets[place.childId];
+        }
+        return planet;
     }
 
     function getPlanetAtFleetLocation(address _sender) internal view returns (Planet memory) {
