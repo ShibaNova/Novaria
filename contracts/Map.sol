@@ -206,7 +206,9 @@ contract Map is Editor {
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
-        Treasury.pay(sender, getExploreCost(_x, _y));
+        uint exploreCost = getExploreCost(_x, _y);
+        Treasury.pay(sender, exploreCost);
+        Fleet.addExperience(sender, exploreCost);
         _createRandomPlaceAt(_x, _y, sender);
         //8, 6; distance = sqrt(100) = 10AU = 500 NOVA
     }
@@ -564,7 +566,10 @@ contract Map is Editor {
     function getFleetTravelCost(address _fleet, uint _x, uint _y) public view returns (uint) {
        uint fleetSize = Fleet.getFleetSize(_fleet);
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
-       return (distance**2 * _baseTravelCost * fleetSize) / Treasury.getCostMod();
+
+       //Every 1000 experience, travel is reduced by 1% up to 50%
+       uint travelDiscount = Helper.getMin(50, Fleet.getExperience(_fleet) / 1000);
+       return ((distance**2 * _baseTravelCost * fleetSize) * ((100-travelDiscount) / 100)) / Treasury.getCostMod();
     }
 
     function getFleetTravelCooldown(address _fleet, uint _x, uint _y) public view returns (uint) {
@@ -576,7 +581,6 @@ contract Map is Editor {
         return _travelCooldown[_fleet];
     }
 
-
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
@@ -586,7 +590,9 @@ contract Map is Editor {
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
         require(Fleet.isInBattle(sender) == false, "MAPS: in battle or takeover");
 
-        Treasury.pay(sender, getFleetTravelCost(sender, _x, _y));
+        uint travelCost = getFleetTravelCost(sender, _x, _y);
+        Treasury.pay(sender, travelCost);
+        Fleet.addExperience(sender, travelCost);
 
         _addTravelCooldown(sender, getFleetTravelCooldown(sender, _x, _y));
 
