@@ -500,8 +500,7 @@ contract Fleet is Editor {
     function _getMaxFleetSize(address _player) internal view isPlayer(_player) returns (uint) {
         uint maxFleetSize = _baseMaxFleetSize; 
         for(uint i=0; i<_shipClasses.length; i++) {
-            uint shipClassAmount = _players[_addressToPlayer[_player]].ships[i]; //get number of player's ships in this ship class
-            maxFleetSize += (shipClassAmount * _shipClasses[i].hangarSize);
+            maxFleetSize += (_players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].hangarSize);
         }
         return maxFleetSize;
     }
@@ -509,8 +508,7 @@ contract Fleet is Editor {
     function getFleetSize(address _player) public view isPlayer(_player) returns(uint) {
         uint fleetSize = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
-            uint shipClassAmount = _players[_addressToPlayer[_player]].ships[i]; //get number of player's ships in this ship class
-            fleetSize += (shipClassAmount * _shipClasses[i].size);
+            fleetSize += (_players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].size);
         }
         return fleetSize;
     }
