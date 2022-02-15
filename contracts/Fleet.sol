@@ -105,7 +105,7 @@ contract Fleet is Editor {
         Team attackTeam;
         Team defendTeam;
     }
-    Battle[] public _battles;
+    Battle[] public battles;
 
     struct Team {
         address[] members;
@@ -326,19 +326,19 @@ contract Fleet is Editor {
         if(mission == BattleStatus.ATTACK) {
             if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
                 Team memory attackTeam; Team memory defendTeam;
-                _battles.push(Battle(block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
-                _joinTeam(_target, _battles.length-1, _battles[_battles.length-1].defendTeam, BattleStatus.DEFEND);
+                battles.push(Battle(block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
+                _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
             }
-            _joinTeam(msg.sender, targetBattleId, _battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
+            _joinTeam(msg.sender, targetBattleId, battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
         }
         else if(mission == BattleStatus.DEFEND) {
-            _joinTeam(_target, targetBattleId, _battles[targetBattleId].defendTeam, BattleStatus.DEFEND);
+            _joinTeam(_target, targetBattleId, battles[targetBattleId].defendTeam, BattleStatus.DEFEND);
         }
     }
 
     //calc battle, only works for two teams
     function goBattle(uint battleId) public {
-        Battle memory battle = _battles[battleId];
+        Battle memory battle = battles[battleId];
         require(block.timestamp > battle.battleDeadline, 'FLEET: battle prepping');
 
         Team[2] memory teams = [battle.attackTeam, battle.defendTeam];
@@ -382,7 +382,7 @@ contract Fleet is Editor {
     //after battle is complete
     function _endBattle(uint _battleId) internal {
         //put attackers and denders into peace status
-        Battle memory battleToEnd = _battles[_battleId];
+        Battle memory battleToEnd = battles[_battleId];
         for(uint i=0; i<battleToEnd.attackTeam.members.length; i++) {
             _players[_addressToPlayer[battleToEnd.attackTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
@@ -391,8 +391,8 @@ contract Fleet is Editor {
         }
 
         //remove battle from battles list
-        _battles[_battleId] = _battles[_battles.length-1];
-        _battles.pop();
+        battles[_battleId] = battles[battles.length-1];
+        battles.pop();
     }
 
     //add experience to player based on in game purchases
@@ -460,8 +460,8 @@ contract Fleet is Editor {
     function getBattlesAtLocation(uint _x, uint _y) external view returns(uint[] memory) {
         uint[] memory foundBattles;
         uint foundBattleCount;
-        for(uint i=0; i<_battles.length; i++) {
-            if(_battles[i].coordX == _x && _battles[i].coordY == _y) {
+        for(uint i=0; i<battles.length; i++) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y) {
                 foundBattles[foundBattleCount++] = i;
             }
         }
