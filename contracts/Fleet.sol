@@ -54,7 +54,7 @@ contract Fleet is Editor {
         BattleStatus battleStatus;
         SpaceDock[] spaceDocks;
     }
-    Player[] _players;
+    Player[] public players;
     mapping (address => bool) public _playerExists;
     mapping (address => uint) public _addressToPlayer;
 
@@ -127,12 +127,12 @@ contract Fleet is Editor {
     //BEGIN*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
 /*    function loadPlayers() public {
         _createPlayer('Nate', 0x729F3cA74A55F2aB7B584340DDefC29813fb21dF);
-        _players[0].ships[0] = 100;
-        _players[0].ships[1] = 19;
+        players[0].ships[0] = 100;
+        players[0].ships[1] = 19;
 
         _createPlayer('Sam', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
-        _players[1].ships[0] = 43;
-        _players[1].ships[1] = 4;
+        players[1].ships[0] = 43;
+        players[1].ships[1] = 4;
     }*/
 
 /*    function battleTest() public {
@@ -144,10 +144,10 @@ contract Fleet is Editor {
         require(bytes(_name).length < 16, 'FLEET: name too long');
         require(_names[_name] == address(0), 'FLEET: duplicate name');
         require(_playerExists[_player] == false, 'FLEET: player exists');
-        _players.push();
-        _players[_players.length-1].name = _name;
+        players.push();
+        players[players.length-1].name = _name;
         _names[_name] = _player; //add to name map
-        _addressToPlayer[_player] = _players.length-1;
+        _addressToPlayer[_player] = players.length-1;
         _playerExists[_player] = true;
         Map.setFleetLocation(msg.sender, 0, 0, 0, 0);
     }
@@ -248,7 +248,7 @@ contract Fleet is Editor {
         Token.safeTransferFrom(sender, address(Map), scrap); //send scrap to Map contract
         Map.increasePreviousBalance(scrap);
 
-        Player storage player = _players[_addressToPlayer[sender]];
+        Player storage player = players[_addressToPlayer[sender]];
         player.spaceDocks.push(SpaceDock(_shipClassId, _amount, block.timestamp + getBuildTime(_shipClassId, _amount), _x, _y));
         _addExperience(sender, totalCost + ownerFee);
     }
@@ -260,7 +260,7 @@ contract Fleet is Editor {
         4) claim size must not put fleet over max fleet size */
     function claimShips(uint spaceDockId, uint _amount) isPlayer(msg.sender) external {
         address sender = msg.sender;
-        Player storage player = _players[_addressToPlayer[sender]];
+        Player storage player = players[_addressToPlayer[sender]];
         SpaceDock storage dock = player.spaceDocks[spaceDockId];
         (uint fleetX, uint fleetY) = Map.getFleetLocation(sender);
         require(fleetX == dock.coordX && fleetY == dock.coordY, 'FLEET: not at shipyard');
@@ -282,7 +282,7 @@ contract Fleet is Editor {
 
     //destroy ships
     function _destroyShips(address _player, uint _shipClassId, uint _amount) internal {
-        _players[_addressToPlayer[_player]].ships[_shipClassId] -= uint(Helper.getMin(_amount, _players[_addressToPlayer[_player]].ships[_shipClassId]));
+        players[_addressToPlayer[_player]].ships[_shipClassId] -= uint(Helper.getMin(_amount, players[_addressToPlayer[_player]].ships[_shipClassId]));
     }
 
     modifier doesShipyardExist(uint _x, uint _y) {
@@ -304,13 +304,13 @@ contract Fleet is Editor {
 
         require(getFleetSize(_player) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
         require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(_player), 'FLEET: target too small');
-        require(_players[_addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FLEET: in battle');
+        require(players[_addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FLEET: in battle');
         _;
     }
 
     function _joinTeam(address _hero, uint _battleId, Team storage _team, BattleStatus _mission) internal {
-            _players[_addressToPlayer[_hero]].battleId = _battleId;
-            _players[_addressToPlayer[_hero]].battleStatus = _mission;
+            players[_addressToPlayer[_hero]].battleId = _battleId;
+            players[_addressToPlayer[_hero]].battleStatus = _mission;
             _team.members.push(_hero);
             _team.attackPower += getAttackPower(_hero);
             _team.fleetSize += getFleetSize(_hero);
@@ -319,7 +319,7 @@ contract Fleet is Editor {
     //battleWindow is 1 hour
     function enterBattle(address _target, BattleStatus mission) public canJoinBattle(msg.sender, _target) {
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
-        Player storage targetPlayer = _players[_addressToPlayer[_target]];
+        Player storage targetPlayer = players[_addressToPlayer[_target]];
         require(mission != BattleStatus.PEACE, 'FLEET: no peace');
         require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: defend,no attack');
 
@@ -351,7 +351,7 @@ contract Fleet is Editor {
                 address member = teams[i].members[j];
                 uint memberMineralCapacityLost = 0;
                 for(uint k=0; k<_shipClasses.length; k++) {
-                    uint numClassShips = _players[_addressToPlayer[member]].ships[k]; //number of ships that team member has of this class
+                    uint numClassShips = players[_addressToPlayer[member]].ships[k]; //number of ships that team member has of this class
 
                     //calculate opposing team's damage to this member
                     uint damageTaken = (otherTeamAttackPower * numClassShips * _shipClasses[k].size) / teams[i].fleetSize;
@@ -370,8 +370,8 @@ contract Fleet is Editor {
                 }
                 //member's final lost mineral is the percentage of filled mineral capacity
                 if(memberMineralCapacityLost > 0) {
-                    totalMineralLost += (memberMineralCapacityLost * _players[_addressToPlayer[member]].mineral) / getMineralCapacity(member);
-                    _players[_addressToPlayer[member]].mineral -= (memberMineralCapacityLost * _players[_addressToPlayer[member]].mineral) / getMineralCapacity(member);
+                    totalMineralLost += (memberMineralCapacityLost * players[_addressToPlayer[member]].mineral) / getMineralCapacity(member);
+                    players[_addressToPlayer[member]].mineral -= (memberMineralCapacityLost * players[_addressToPlayer[member]].mineral) / getMineralCapacity(member);
                 }
             }
         }
@@ -386,10 +386,10 @@ contract Fleet is Editor {
         //put attackers and denders into peace status
         Battle memory battleToEnd = battles[_battleId];
         for(uint i=0; i<battleToEnd.attackTeam.members.length; i++) {
-            _players[_addressToPlayer[battleToEnd.attackTeam.members[i]]].battleStatus = BattleStatus.PEACE;
+            players[_addressToPlayer[battleToEnd.attackTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
         for(uint i=0; i<battleToEnd.defendTeam.members.length; i++) {
-            _players[_addressToPlayer[battleToEnd.defendTeam.members[i]]].battleStatus = BattleStatus.PEACE;
+            players[_addressToPlayer[battleToEnd.defendTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
 
         //remove battle from battles list
@@ -404,12 +404,12 @@ contract Fleet is Editor {
     }
      function _addExperience(address _player, uint _paid) internal isPlayer(_player) {
         //each nova paid in game, gets player 1/10 experience point
-        _players[_addressToPlayer[_player]].experience += ((_paid * Treasury.getCostMod()) / 10**19);
+        players[_addressToPlayer[_player]].experience += ((_paid * Treasury.getCostMod()) / 10**19);
     }
 
     //get players experience
     function getExperience(address _player) external view isPlayer(_player) returns (uint) {
-        return _players[_addressToPlayer[_player]].experience;
+        return players[_addressToPlayer[_player]].experience;
     }
 
     modifier isPlayer(address _player) {
@@ -420,7 +420,7 @@ contract Fleet is Editor {
     //if player battle status is NOT PEACE or player is taking over shipyard, player is in a battle
     function isInBattle(address _player) public view isPlayer(_player) returns(bool) {
         (uint fleetX, uint fleetY) = Map.getFleetLocation(_player);
-        if(_players[_addressToPlayer[_player]].battleStatus != BattleStatus.PEACE || _shipyards[_coordinatesToShipyard[fleetX][fleetY]].takeoverAddress == _player) {
+        if(players[_addressToPlayer[_player]].battleStatus != BattleStatus.PEACE || _shipyards[_coordinatesToShipyard[fleetX][fleetY]].takeoverAddress == _player) {
             return true;
         }
         else {
@@ -429,7 +429,7 @@ contract Fleet is Editor {
     }
 
     function getShips(address _player) external view isPlayer(_player) returns (uint[32] memory) {
-        return _players[_addressToPlayer[_player]].ships;
+        return players[_addressToPlayer[_player]].ships;
     }
 
     function getShipyards() external view returns (Shipyard[] memory) {
@@ -450,7 +450,7 @@ contract Fleet is Editor {
     }
 
     function _hasSpaceDock(address _player, uint _x, uint _y) public view isPlayer(_player) returns(bool) {
-        SpaceDock[] memory playerDocks = _players[_addressToPlayer[_player]].spaceDocks;
+        SpaceDock[] memory playerDocks = players[_addressToPlayer[_player]].spaceDocks;
         for(uint i=0; i<playerDocks.length; i++) {
             if(playerDocks[i].coordX == _x  && playerDocks[i].coordY == _y) {
                 return true;
@@ -460,7 +460,7 @@ contract Fleet is Editor {
     }
 
     function getPlayerSpaceDocks(address _player) external view isPlayer(_player) returns (SpaceDock[] memory) {
-        return _players[_addressToPlayer[_player]].spaceDocks;
+        return players[_addressToPlayer[_player]].spaceDocks;
     }
  
     function getBattlesAtLocation(uint _x, uint _y) external view returns(uint[] memory) {
@@ -478,7 +478,7 @@ contract Fleet is Editor {
     function getAttackPower(address _player) public view isPlayer(_player) returns (uint) {
         uint totalAttack = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
-            totalAttack += _players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].attackPower;
+            totalAttack += players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].attackPower;
         }
         return totalAttack;
     }
@@ -486,7 +486,7 @@ contract Fleet is Editor {
     function getMaxFleetSize(address _player) public view isPlayer(_player) returns (uint) {
         uint maxFleetSize = _baseMaxFleetSize; 
         for(uint i=0; i<_shipClasses.length; i++) {
-            maxFleetSize += (_players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].hangarSize);
+            maxFleetSize += (players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].hangarSize);
         }
         return maxFleetSize;
     }
@@ -494,24 +494,24 @@ contract Fleet is Editor {
     function getFleetSize(address _player) public view isPlayer(_player) returns(uint) {
         uint fleetSize = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
-            fleetSize += (_players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].size);
+            fleetSize += (players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].size);
         }
         return fleetSize;
     }
 
     function getMineral(address _player) external view isPlayer(_player) returns(uint) {
-        return _players[_addressToPlayer[_player]].mineral;
+        return players[_addressToPlayer[_player]].mineral;
     }
 
     function setMineral(address _player, uint _amount) external onlyEditor isPlayer(_player) {
-        _players[_addressToPlayer[_player]].mineral = _amount;
+        players[_addressToPlayer[_player]].mineral = _amount;
     }
 
     // how much mineral can a player currently hold
     function getMineralCapacity(address _player) public view isPlayer(_player) returns (uint){
         uint mineralCapacity = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
-            mineralCapacity += (_players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].mineralCapacity);
+            mineralCapacity += (players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].mineralCapacity);
         }
         return mineralCapacity;
     }
@@ -520,7 +520,7 @@ contract Fleet is Editor {
     function getMiningCapacity(address _player) public view isPlayer(_player) returns (uint){
         uint miningCapacity = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
-            miningCapacity += (_players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].miningCapacity);
+            miningCapacity += (players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].miningCapacity);
         }
         return miningCapacity;
     }
@@ -539,6 +539,6 @@ contract Fleet is Editor {
     }
 
     function getPlayerBattleInfo(address _player) external view isPlayer(_player) returns (BattleStatus, uint) {
-        return (_players[_addressToPlayer[_player]].battleStatus, _players[_addressToPlayer[_player]].battleId);
+        return (players[_addressToPlayer[_player]].battleStatus, players[_addressToPlayer[_player]].battleId);
     }
 }
