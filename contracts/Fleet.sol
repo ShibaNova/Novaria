@@ -477,14 +477,6 @@ contract Fleet is Editor {
         return foundBattles;
     }
 
-    function getAttackers(uint _battleId) external view returns (address[] memory) {
-        return _battles[_battleId].attackTeam.members;
-    }
-
-    function getDefenders(uint _battleId) external view returns (address[] memory) {
-        return _battles[_battleId].defendTeam.members;
-    }
-
     function getAttackPower(address _player) public view isPlayer(_player) returns (uint) {
         uint totalAttack = 0;
         for(uint i=0; i<_shipClasses.length; i++) {
