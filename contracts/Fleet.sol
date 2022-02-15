@@ -345,7 +345,7 @@ contract Fleet is Editor {
         Team[2] memory teams = [battle.attackTeam, battle.defendTeam];
         uint totalMineralLost;
         uint totalScrap;
-        for(uint i=0; i<teams.length-1; i++) {
+        for(uint i=0; i<teams.length; i++) {
             uint otherTeamAttackPower = (i==0? teams[1].attackPower: teams[0].attackPower);//if 1st team, get 2nd team attack power, else get 1st
             for(uint j=0; j<teams[i].members.length; j++) {
                 address member = teams[i].members[j];
