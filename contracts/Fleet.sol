@@ -209,7 +209,7 @@ contract Fleet is Editor {
             shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24) / _timeModifier);
         }
 
-        uint takeOverFee = 25;
+        uint takeOverFee = 25 / Treasury.getCostMod();
         Treasury.pay(msg.sender, takeOverFee);
         addExperience(msg.sender, takeOverFee);
     }
