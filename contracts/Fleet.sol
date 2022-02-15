@@ -32,7 +32,6 @@ contract Fleet is Editor {
         _battleSizeRestriction = 4;
         _startFee = 10**20;
         _scrapPercentage = 25;
-        _battleCounter = 0;
 
         //load start data
         createShipClass("Viper", 1, 1, 3, 0, 0, 0, 10**18, 0);
@@ -100,7 +99,6 @@ contract Fleet is Editor {
 
     //battle data
     struct Battle {
-        uint battleCount;
         uint battleDeadline;
         uint coordX;
         uint coordY;
@@ -108,7 +106,6 @@ contract Fleet is Editor {
         Team defendTeam;
     }
     Battle[] public _battles;
-    mapping(uint => uint) _battleCountToId;
 
     struct Team {
         address[] members;
@@ -123,7 +120,6 @@ contract Fleet is Editor {
     uint _battleSizeRestriction;
     uint _startFee;
     uint _scrapPercentage;
-    uint _battleCounter;
 
     event NewShipyard(uint _x, uint _y);
     event NewMap(address _address);
@@ -330,8 +326,7 @@ contract Fleet is Editor {
         if(mission == BattleStatus.ATTACK) {
             if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
                 Team memory attackTeam; Team memory defendTeam;
-                _battles.push(Battle(_battleCounter++, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
-                _battleCountToId[_battleCounter] = _battles.length-1;
+                _battles.push(Battle(block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
                 _joinTeam(_target, _battles.length-1, _battles[_battles.length-1].defendTeam, BattleStatus.DEFEND);
             }
             _joinTeam(msg.sender, targetBattleId, _battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
@@ -431,10 +426,6 @@ contract Fleet is Editor {
         return _players[_addressToPlayer[_player]].ships;
     }
 
-    function getBattleByCount(uint _battleCount) external view returns (Battle memory) {
-        return _battles[_battleCountToId[_battleCount]];
-    }
-    
     function getShipyards() external view returns (Shipyard[] memory) {
         return _shipyards;
     }
