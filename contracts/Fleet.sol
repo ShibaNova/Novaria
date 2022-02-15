@@ -404,7 +404,7 @@ contract Fleet is Editor {
     }
      function _addExperience(address _player, uint _paid) internal isPlayer(_player) {
         //each nova paid in game, gets player 1/10 experience point
-        _players[_addressToPlayer[_player]].experience += (_paid / 10**19);
+        _players[_addressToPlayer[_player]].experience += ((_paid * Treasury.getCostMod()) / 10**19);
     }
 
     //get players experience
