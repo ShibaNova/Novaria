@@ -210,10 +210,10 @@ contract Fleet is Editor {
         require(block.timestamp > shipyard.takeoverDeadline, 'FLEET: takeover deadline');
 
         if(getFleetSize(shipyard.takeoverAddress) >= 200) {
-            shipyard.owner = msg.sender;
-            shipyard.status = BattleStatus.PEACE;
+            shipyard.owner = shipyard.takeoverAddress;
             shipyard.lastTakeoverTime = block.timestamp;
         }
+        shipyard.status = BattleStatus.PEACE;
     }
 
     function setShipyardName(uint _x, uint _y, string memory _name) external doesShipyardExist(_x, _y) {
