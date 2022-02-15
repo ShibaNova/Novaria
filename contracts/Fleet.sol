@@ -463,11 +463,12 @@ contract Fleet is Editor {
     }
  
     function getBattlesAtLocation(uint _x, uint _y) external view returns(uint[] memory) {
-        uint[] memory foundBattles;
+        uint[] memory foundBattles = new uint[](battles.length);
         uint foundBattleCount;
         for(uint i=0; i<battles.length; i++) {
             if(battles[i].coordX == _x && battles[i].coordY == _y) {
-                foundBattles[foundBattleCount++] = i;
+                foundBattles[foundBattleCount]=i;
+                foundBattleCount++;
             }
         }
         return foundBattles;
