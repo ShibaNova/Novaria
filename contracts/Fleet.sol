@@ -476,10 +476,6 @@ contract Fleet is Editor {
         return totalAttack;
     }
 
-    // function getMaxFleetSize(address _player) external view isPlayer(_player) returns (uint) {
-    //     return getMaxFleetSize(_player);
-    // }
-
     function getMaxFleetSize(address _player) public view isPlayer(_player) returns (uint) {
         uint maxFleetSize = _baseMaxFleetSize; 
         for(uint i=0; i<_shipClasses.length; i++) {
