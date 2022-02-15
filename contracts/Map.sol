@@ -19,11 +19,11 @@ contract Map is Editor {
         //IShadowPool _shadowPool,
         //IFleet _fleet
     ) {
-        // Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        // Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-       // Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
+         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+       // Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
+       // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
+        Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
 
         _previousBalance = 0;
@@ -62,7 +62,7 @@ contract Map is Editor {
     uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
     mapping (uint => bool) isPaused; // can pause token mining for mining planets
-    uint public _timeModifier; //allow all times to be changed
+    uint  _timeModifier; //allow all times to be changed
     uint _miningCooldown; // how long before 
     uint _minTravelSize; //min. fleet size required to travel
     uint _collectCooldownReduction;
@@ -705,5 +705,9 @@ contract Map is Editor {
     // setting to 0 removes base travel cooldown
     function setTimeModifier(uint _new) external onlyOwner {
         _timeModifier = _new;
+    }
+
+    function getTimeModifier() external view returns(uint) {
+        return _timeModifier;
     }
 }

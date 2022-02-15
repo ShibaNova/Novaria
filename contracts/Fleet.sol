@@ -22,12 +22,12 @@ contract Fleet is Editor {
        // ITreasury _treasury, 
        // ShibaBEP20 _Token
         ) {
-        Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
-        Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
-        Map = IMap(0x37a8Df0ddfAEBc79b6B89f5a73944AbF4FaAC050);
-        //Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-        //Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
+       // Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
+        // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
+       //  Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
+        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        Map = IMap(0xaE036c65C649172b43ef7156b009c6221B596B8b);
         _baseMaxFleetSize = 5000;
         _battleSizeRestriction = 4;
         _startFee = 10**20;
@@ -177,7 +177,7 @@ contract Fleet is Editor {
 
         string memory name = Map.getPlaceName(_x, _y);
 
-        _shipyards.push(Shipyard(name, _owner, _x, _y, _feePercent, block.timestamp, 0, _owner, BattleStatus.PEACE));
+        _shipyards.push(Shipyard(name, _owner, _x, _y, _feePercent, block.timestamp, 0, address(0), BattleStatus.PEACE));
         _shipyardExists[_x][_y] = true;
         _coordinatesToShipyard[_x][_y] = _shipyards.length-1;
         emit NewShipyard(_x, _y);
@@ -200,7 +200,7 @@ contract Fleet is Editor {
 
         uint takeOverFee = 25 / Treasury.getCostMod();
         Treasury.pay(msg.sender, takeOverFee);
-        addExperience(msg.sender, takeOverFee);
+        _addExperience(msg.sender, takeOverFee);
     }
 
     //complete shipyard takeover
@@ -229,7 +229,7 @@ contract Fleet is Editor {
     // Ship building function
     function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount, uint _cost) external {
         address sender = msg.sender;
-        require(_hasSpaceDock(sender, _x, _y), 'FLEET: no dock available');
+        require(_hasSpaceDock(sender, _x, _y) == false, 'FLEET: no dock available');
         require((_shipClasses[_shipClassId].size * _amount) < getMaxFleetSize(sender), 'FLEET: order too large');
 
         //total build cost
@@ -249,7 +249,7 @@ contract Fleet is Editor {
 
         Player storage player = _players[_addressToPlayer[sender]];
         player.spaceDocks.push(SpaceDock(_shipClassId, _amount, block.timestamp + getBuildTime(_shipClassId, _amount), _x, _y));
-        addExperience(sender, totalCost + ownerFee);
+        _addExperience(sender, totalCost + ownerFee);
     }
 
     /* move ships to fleet, call must fit the following criteria:
@@ -396,7 +396,11 @@ contract Fleet is Editor {
     }
 
     //add experience to player based on in game purchases
-    function addExperience(address _player, uint _paid) public onlyEditor isPlayer(_player) {
+    function addExperience(address _player, uint _paid) external onlyEditor isPlayer(_player) {
+        //each nova paid in game, gets player 1/10 experience point
+        _addExperience(_player, _paid);
+    }
+     function _addExperience(address _player, uint _paid) internal isPlayer(_player) {
         //each nova paid in game, gets player 1/10 experience point
         _players[_addressToPlayer[_player]].experience += (_paid / 10**19);
     }
@@ -443,7 +447,7 @@ contract Fleet is Editor {
         return (_amount * _shipClasses[_shipClassId].size * 300) / Map.getTimeModifier();
     }
 
-    function _hasSpaceDock(address _player, uint _x, uint _y) internal view isPlayer(_player) returns(bool) {
+    function _hasSpaceDock(address _player, uint _x, uint _y) public view isPlayer(_player) returns(bool) {
         SpaceDock[] memory playerDocks = _players[_addressToPlayer[_player]].spaceDocks;
         for(uint i=0; i<playerDocks.length; i++) {
             if(playerDocks[i].coordX == _x  && playerDocks[i].coordY == _y) {
