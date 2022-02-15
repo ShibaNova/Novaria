@@ -62,7 +62,7 @@ contract Map is Editor {
     uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
     mapping (uint => bool) isPaused; // can pause token mining for mining planets
-    uint _timeModifier; //allow all times to be changed
+    uint public _timeModifier; //allow all times to be changed
     uint _miningCooldown; // how long before 
     uint _minTravelSize; //min. fleet size required to travel
     uint _collectCooldownReduction;
@@ -707,4 +707,3 @@ contract Map is Editor {
         _timeModifier = _new;
     }
 }
-
