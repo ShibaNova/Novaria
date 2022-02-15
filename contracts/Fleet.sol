@@ -236,7 +236,7 @@ contract Fleet is Editor {
     // Ship building function
     function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount, uint _cost) external {
         address sender = msg.sender;
-        require(_getSpaceDocks(sender, _x, _y).length == 0, 'FLEET: no dock available');
+        require(_hasSpaceDock(sender, _x, _y), 'FLEET: no dock available');
         require((_shipClasses[_shipClassId].size * _amount) < _getMaxFleetSize(sender), 'FLEET: order too large');
 
         //total build cost
@@ -453,20 +453,19 @@ contract Fleet is Editor {
         return (_amount * _shipClasses[shipClassId].cost) / Treasury.getCostMod();
     }
 
+    //5 minutes per size
     function getBuildTime(uint _shipClassId, uint _amount) public view returns(uint) {
-        //5 minutes per size
         return (_amount * _shipClasses[_shipClassId].size * 300) / Map.getTimeModifier();
     }
-    function _getSpaceDocks(address _player, uint _x, uint _y) internal view isPlayer(_player) returns (SpaceDock[] memory) {
-        SpaceDock[] memory foundDocks;
-        uint foundDockCount;
+
+    function _hasSpaceDock(address _player, uint _x, uint _y) internal view isPlayer(_player) returns(bool) {
         SpaceDock[] memory playerDocks = _players[_addressToPlayer[_player]].spaceDocks;
         for(uint i=0; i<playerDocks.length; i++) {
             if(playerDocks[i].coordX == _x  && playerDocks[i].coordY == _y) {
-                foundDocks[foundDockCount++];
+                return true;
             }
         }
-        return foundDocks;
+        return false;
     }
 
     function getPlayerSpaceDocks(address _player) external view isPlayer(_player) returns (SpaceDock[] memory) {
