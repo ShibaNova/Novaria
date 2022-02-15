@@ -188,6 +188,7 @@ contract Fleet is Editor {
         require(fleetX == _x && fleetY == _y, 'FLEET: not at shipyard');
 
         Shipyard storage shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
+        require(msg.sender != shipyard.takeoverAddress, 'FLEET: own shipyard');
         require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 7) / Map.getTimeModifier()), 'FLEET: shipyard protected');
 
         //takeover begins if either shipyard is at peace or new takeover address has a larger fleet than current takeover address
