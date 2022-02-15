@@ -239,9 +239,11 @@ contract Fleet is Editor {
         //send fee to shipyard owner
         Shipyard memory shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
         uint ownerFee = (totalCost * shipyard.feePercent) / 100;
-
         require(_cost == totalCost + ownerFee, 'FLEET: cost mismatch');
-        Token.safeTransferFrom(sender, shipyard.owner, ownerFee);
+
+        if(ownerFee > 0) {
+            Token.safeTransferFrom(sender, shipyard.owner, ownerFee);
+        }
 
         Treasury.pay(sender, (totalCost * (100-_scrapPercentage)) / 100);
         uint scrap = (totalCost * _scrapPercentage) / 100;
