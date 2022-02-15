@@ -33,7 +33,6 @@ contract Fleet is Editor {
         _startFee = 10**20;
         _scrapPercentage = 25;
         _battleCounter = 0;
-        _maxShipyardFeePercent = 50;
 
         //load start data
         createShipClass("Viper", 1, 1, 3, 0, 0, 0, 10**18, 0);
@@ -125,7 +124,6 @@ contract Fleet is Editor {
     uint _startFee;
     uint _scrapPercentage;
     uint _battleCounter;
-    uint _maxShipyardFeePercent;
 
     event NewShipyard(uint _x, uint _y);
     event NewMap(address _address);
@@ -228,7 +226,6 @@ contract Fleet is Editor {
     }
 
     function setShipyardFeePercent(uint _x, uint _y, uint8 _feePercent) external doesShipyardExist(_x, _y) {
-        require(_feePercent <= _maxShipyardFeePercent, 'FLEET: fee percent too high');
         require(_shipyards[_coordinatesToShipyard[_x][_y]].owner == msg.sender);
         _shipyards[_coordinatesToShipyard[_x][_y]].feePercent = _feePercent;
     }
@@ -254,9 +251,8 @@ contract Fleet is Editor {
         Token.safeTransferFrom(sender, address(Map), scrap); //send scrap to Map contract
         Map.increasePreviousBalance(scrap);
 
-        uint completionTime = block.timestamp + getBuildTime(_shipClassId, _amount);
         Player storage player = _players[_addressToPlayer[sender]];
-        player.spaceDocks.push(SpaceDock(_shipClassId, _amount, completionTime, _x, _y));
+        player.spaceDocks.push(SpaceDock(_shipClassId, _amount, block.timestamp + getBuildTime(_shipClassId, _amount), _x, _y));
         addExperience(sender, totalCost + ownerFee);
     }
 
@@ -276,9 +272,7 @@ contract Fleet is Editor {
         require(_amount <= dock.amount, 'Dry Dock: not that many');
         require(block.timestamp > dock.completionTime, 'Dry Dock: ships not built, yet');
 
-        ShipClass memory dockClass = _shipClasses[dock.shipClassId];
-
-        require(getFleetSize(sender) + (_amount * dockClass.size) < _getMaxFleetSize(sender), 'Claim size too large');
+        require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) < _getMaxFleetSize(sender), 'Claim size too large');
 
         player.ships[dock.shipClassId] += _amount; //add ships to fleet
         dock.amount -= _amount; //remove ships from drydock

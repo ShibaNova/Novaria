@@ -21,16 +21,6 @@ library Helper {
         }
     }
 
-    function indexOf(address[] memory A, address a) internal pure returns (uint256, bool) {
-        uint256 length = A.length;
-        for (uint256 i = 0; i < length; i++) {
-            if (A[i] == a) {
-                return (i, true);
-            }
-        }
-        return (0, false);
-    }
-
     // Create random number <= _mod
     function getRandomNumber(uint _mod, uint _extra) internal view returns(uint){
         return uint(keccak256(abi.encodePacked(block.timestamp + _extra, blockhash(20)))) % _mod;
@@ -45,16 +35,6 @@ library Helper {
     //get minimum between 2 numbers
     function getMin(uint num1, uint num2) internal pure returns(uint) {
         if(num1 < num2) {
-            return num1;
-        }
-        else {
-            return num2;
-        }
-    }
-
-    //get maximum between 2 numbers
-    function getMax(uint num1, uint num2) internal pure returns(uint) {
-        if(num1 > num2) {
             return num1;
         }
         else {
