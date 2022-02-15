@@ -457,12 +457,12 @@ contract Fleet is Editor {
         return _players[_addressToPlayer[_player]].spaceDocks;
     }
  
-    function getBattlesAtLocation(uint _x, uint _y) external view returns(Battle[] memory) {
-        Battle[] memory foundBattles;
+    function getBattlesAtLocation(uint _x, uint _y) external view returns(uint[] memory) {
+        uint[] memory foundBattles;
         uint foundBattleCount;
         for(uint i=0; i<_battles.length; i++) {
             if(_battles[i].coordX == _x && _battles[i].coordY == _y) {
-                foundBattles[foundBattleCount++] = _battles[i];
+                foundBattles[foundBattleCount++] = i;
             }
         }
         return foundBattles;
