@@ -44,7 +44,7 @@ contract Fleet is Editor {
 
     enum BattleStatus{ PEACE, ATTACK, DEFEND }
     //complete mapping of all names to avoid duplicates
-    mapping (string => address) _names;
+    mapping (string => address) public _names;
 
     struct Player {
         string name;
@@ -56,8 +56,8 @@ contract Fleet is Editor {
         SpaceDock[] spaceDocks;
     }
     Player[] _players;
-    mapping (address => bool) _playerExists;
-    mapping (address => uint) _addressToPlayer;
+    mapping (address => bool) public _playerExists;
+    mapping (address => uint) public _addressToPlayer;
 
     //ship class data
     struct ShipClass {
@@ -107,7 +107,7 @@ contract Fleet is Editor {
         Team attackTeam;
         Team defendTeam;
     }
-    Battle[] _battles;
+    Battle[] public _battles;
     mapping(uint => uint) _battleCountToId;
 
     struct Team {
@@ -234,7 +234,7 @@ contract Fleet is Editor {
     function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount, uint _cost) external {
         address sender = msg.sender;
         require(_hasSpaceDock(sender, _x, _y), 'FLEET: no dock available');
-        require((_shipClasses[_shipClassId].size * _amount) < _getMaxFleetSize(sender), 'FLEET: order too large');
+        require((_shipClasses[_shipClassId].size * _amount) < getMaxFleetSize(sender), 'FLEET: order too large');
 
         //total build cost
         uint totalCost = getDockCost(_shipClassId, _amount);
@@ -272,7 +272,7 @@ contract Fleet is Editor {
         require(_amount <= dock.amount, 'Dry Dock: not that many');
         require(block.timestamp > dock.completionTime, 'Dry Dock: ships not built, yet');
 
-        require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) < _getMaxFleetSize(sender), 'Claim size too large');
+        require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) < getMaxFleetSize(sender), 'Claim size too large');
 
         player.ships[dock.shipClassId] += _amount; //add ships to fleet
         dock.amount -= _amount; //remove ships from drydock
@@ -485,11 +485,11 @@ contract Fleet is Editor {
         return totalAttack;
     }
 
-    function getMaxFleetSize(address _player) external view isPlayer(_player) returns (uint) {
-        return _getMaxFleetSize(_player);
-    }
+    // function getMaxFleetSize(address _player) external view isPlayer(_player) returns (uint) {
+    //     return getMaxFleetSize(_player);
+    // }
 
-    function _getMaxFleetSize(address _player) internal view isPlayer(_player) returns (uint) {
+    function getMaxFleetSize(address _player) public view isPlayer(_player) returns (uint) {
         uint maxFleetSize = _baseMaxFleetSize; 
         for(uint i=0; i<_shipClasses.length; i++) {
             maxFleetSize += (_players[_addressToPlayer[_player]].ships[i] * _shipClasses[i].hangarSize);
@@ -542,18 +542,6 @@ contract Fleet is Editor {
 
     function editCost(uint shipClassId, uint _newCost) public onlyOwner {
         _shipClasses[shipClassId].cost = _newCost;
-    }
-
-    function getAddressByName(string memory _name) external view returns (address) {
-        return _names[_name];
-    }
-
-    function getNameByAddress(address _address) external view isPlayer(_address) returns (string memory) {
-        return _players[_addressToPlayer[_address]].name;
-    }
-
-    function getPlayerExists(address _player) external view returns (bool) {
-        return _playerExists[_player];
     }
 
     function getPlayerBattleInfo(address _player) external view isPlayer(_player) returns (BattleStatus, uint) {
