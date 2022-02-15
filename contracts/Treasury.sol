@@ -18,7 +18,7 @@ contract Treasury is Editor {
         dev1 = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
         dev2 = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
         team = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
-        costModifier = 10;
+        costModifier = 100;
         moneyPotRate = 80;
         coderRoyaltiesRate = 4;
         teamRate = 6;
