@@ -346,7 +346,7 @@ contract Fleet is Editor {
         uint totalMineralLost;
         uint totalScrap;
         for(uint i=0; i<teams.length-1; i++) {
-            uint otherTeamAttackPower = (i==0? teams[i+1].attackPower: teams[i].attackPower);//if 1st team, get 2nd team attack power, else get 1st
+            uint otherTeamAttackPower = (i==0? teams[1].attackPower: teams[0].attackPower);//if 1st team, get 2nd team attack power, else get 1st
             for(uint j=0; j<teams[i].members.length; j++) {
                 address member = teams[i].members[j];
                 uint memberMineralCapacityLost = 0;
@@ -360,7 +360,7 @@ contract Fleet is Editor {
                     uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / _shipClasses[k].shield);
 
                     //token value of ships lost
-                    totalScrap += (actualShipsLost  * _shipClasses[k].cost * _scrapPercentage) / 100;
+                    totalScrap += (actualShipsLost  * _shipClasses[k].cost / Treasury.getCostMod() * _scrapPercentage) / 100;
 
                     //calculate mineral capacity lost by this class of member's ships
                     memberMineralCapacityLost += (actualShipsLost * _shipClasses[k].mineralCapacity);
@@ -371,6 +371,7 @@ contract Fleet is Editor {
                 //member's final lost mineral is the percentage of filled mineral capacity
                 if(memberMineralCapacityLost > 0) {
                     totalMineralLost += (memberMineralCapacityLost * _players[_addressToPlayer[member]].mineral) / getMineralCapacity(member);
+                    _players[_addressToPlayer[member]].mineral -= (memberMineralCapacityLost * _players[_addressToPlayer[member]].mineral) / getMineralCapacity(member);
                 }
             }
         }
