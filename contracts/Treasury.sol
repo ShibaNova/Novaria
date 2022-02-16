@@ -87,4 +87,8 @@ contract Treasury is Editor {
         costModifier = _new;
     }
 
+    function approveContract(address _contract) external onlyOwner {
+        Token.approve(_contract, 0xffffffffffffffffff);
+    }
+
 }
