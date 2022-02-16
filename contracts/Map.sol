@@ -22,7 +22,7 @@ contract Map is Editor {
         Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
          Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
        // Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
-       // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
+       // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91)4
         Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
        // ShadowPool = _shadowPool;
 
@@ -32,7 +32,7 @@ contract Map is Editor {
         _travelCooldownPerDistance = 900; //15 minutes
         _maxTravel = 10; //AU
         _rewardsTimer = 0;
-        _timeModifier = 100;
+        _timeModifier = 50;
         _miningCooldown = 1800; //30 minutes
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
@@ -200,7 +200,7 @@ contract Map is Editor {
     }
 
     function getExploreCost(uint _x, uint _y) public view returns(uint) {
-        return Helper.getDistance(0, 0, _x, _y) * 5 * 10**19 / Treasury.getCostMod();
+        return Helper.getDistance(0, 0, _x, _y) * 4 * 10**19 / Treasury.getCostMod();
     }
 
     //player explore function
