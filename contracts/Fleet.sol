@@ -186,6 +186,7 @@ contract Fleet is Editor {
     function initiateShipyardTakeover(uint _x, uint _y) external doesShipyardExist(_x, _y) {
         (uint fleetX, uint fleetY) = Map.getFleetLocation(msg.sender);
         require(fleetX == _x && fleetY == _y, 'FLEET: not at shipyard');
+        require(Map.isRefineryLocation(_x, _y) != true, 'FLEET: DMZ');
 
         Shipyard storage shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
         require(msg.sender != shipyard.owner, 'FLEET: own shipyard');
@@ -302,7 +303,7 @@ contract Fleet is Editor {
         (uint attackX, uint attackY) = Map.getFleetLocation(_player);
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         require(attackX == targetX && attackY == targetY, 'FLEET: dif. location');
-        require(Map.isRefineryLocation(targetX, targetY) != true, 'FLEET: refinery is DMZ');
+        require(Map.isRefineryLocation(targetX, targetY) != true, 'FLEET: DMZ');
 
         require(getFleetSize(_player) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
         require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(_player), 'FLEET: target too small');
