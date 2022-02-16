@@ -593,8 +593,8 @@ contract Map is Editor {
         (uint fleetX, uint fleetY) =  getFleetLocation(sender);
         _setFleetLocation(sender, fleetX, fleetY, _x, _y);
 
-        //if player traveled to a shipyard planet, set this planet as player's recall spot
-        if(isShipyardLocation(_x, _y)) {
+        //if player travels from a shipyard planet, set this planet as player's recall spot
+        if(isShipyardLocation(fleetX, fleetY)) {
             _fleetLastShipyardPlace[sender] = _coordinatePlaces[_x][_y];
         }
     }
@@ -610,11 +610,23 @@ contract Map is Editor {
         }
     }
 
-    function recall() external {
-        require(Fleet.getFleetSize(msg.sender) < _minTravelSize, "FLEET: fleet too large for recall");
+    //recall player to last shipyard visited
+    function recall(bool _goToHaven) external {
+        require(Fleet.getFleetSize(msg.sender) < _minTravelSize, "FLEET: too large for recall");
         (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
-        _setFleetLocation(msg.sender, fleetX, fleetY,
-            _places[_fleetLastShipyardPlace[msg.sender]].coordX, _places[_fleetLastShipyardPlace[msg.sender]].coordY);
+
+        uint recallX;
+        uint recallY;
+        if(_goToHaven != true) {
+            uint shipyardX = _places[_fleetLastShipyardPlace[msg.sender]].coordX;
+            uint shipyardY = _places[_fleetLastShipyardPlace[msg.sender]].coordY;
+            if(isShipyardLocation(shipyardX, shipyardY)) {
+                recallX = shipyardX;
+                recallY = shipyardY;
+            }
+        }
+
+        _setFleetLocation(msg.sender, fleetX, fleetY, recallX, recallY);
     }
 
     function setFleetLocation(address _player, uint _xFrom, uint _yFrom, uint _xTo, uint _yTo) external onlyEditor {
