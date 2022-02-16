@@ -43,13 +43,11 @@ contract Map is Editor {
         _placeTypes.push('star');
         _placeTypes.push('planet');
         _placeTypes.push('asteroid');
-        _placeTypes.push('jumpgate');
 
         _addStar(2, 2, 'Solar', 9); // first star
-        _addPlanet(0, 0, 0, 'Haven', false, false, true); //Haven
+        _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
         _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
         _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
-        _addPlanet(0, 5, 5, 'BestValueShips', false, false, true); // BestValueShips
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -92,6 +90,7 @@ contract Map is Editor {
         string name;
         uint salvage;
         address discoverer;
+        bool canTravel;
     }
     Place[] _places;
     mapping (uint => mapping(uint => bool)) _placeExists;
@@ -105,6 +104,8 @@ contract Map is Editor {
         bool hasRefinery;
         bool hasShipyard;
         uint availableMineral;
+        bool canTravel;
+        uint luminosity;
     }
 
     struct Planet {
@@ -147,10 +148,10 @@ contract Map is Editor {
     event NewPlanet(uint _star, uint _x, uint _y);
     event NewStar(uint _x, uint _y);
 
-    function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name) internal {
+    function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint placeId = _places.length;
-        _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, 0xd9145CCE52D386f254917e481eB44e9943F39138));
+        _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, 0xd9145CCE52D386f254917e481eB44e9943F39138, _canTravel));
 
         //set place in coordinate mapping
         _placeExists[_x][_y] = true;
@@ -158,17 +159,17 @@ contract Map is Editor {
     }
 
     function _addEmpty(uint _x, uint _y) internal {
-        _addPlace('empty', 0, _x, _y, '');
+        _addPlace('empty', 0, _x, _y, '', true);
     }
 
     function _addHostile(uint _x, uint _y) internal {
-        _addPlace('hostile', 0, _x, _y, '');
+        _addPlace('hostile', 0, _x, _y, '', false);
     }
 
     function _addAsteroid(uint _x, uint _y, uint _amount) internal {
         uint asteroidId = _asteroids.length;
         _asteroids.push(Asteroid(asteroidId, _places.length, _amount));
-        _addPlace('asteroid', 0, _x, _y, '');
+        _addPlace('asteroid', 0, _x, _y, '', true);
     }
 
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
@@ -176,7 +177,7 @@ contract Map is Editor {
         uint starId = _stars.length;
         _stars.push(Star(starId, _places.length, _luminosity, 0, 0));
 
-        _addPlace('star', starId, _x, _y, _name);
+        _addPlace('star', starId, _x, _y, _name, false);
         emit NewStar(_x, _y);
     }
 
@@ -194,7 +195,7 @@ contract Map is Editor {
         uint planetId = _planets.length;
         _planets.push(Planet(planetId, _places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
 
-        _addPlace('planet', planetId, _x, _y, _name);
+        _addPlace('planet', planetId, _x, _y, _name, true);
         emit NewPlanet(_starId, _x, _y);
     }
 
@@ -307,34 +308,26 @@ contract Map is Editor {
         uint counter = 0;
         for(uint i=_lx; i<=_rx;i++) {
             for(uint j=_ly; j<=_ry;j++) {
+                PlaceGetter memory placeGetter;
 
                 if(_placeExists[i][j] == true) {
-                    if(Helper.isEqual(_places[_coordinatePlaces[i][j]].placeType, 'planet')) {
-                        foundCoordinatePlaces[counter] = PlaceGetter(
-                        {  name: _places[_coordinatePlaces[i][j]].name, 
-                            placeType: _places[_coordinatePlaces[i][j]].placeType, 
-                            salvage: _places[_coordinatePlaces[i][j]].salvage, 
-                            fleetCount: fleetsAtLocation[i][j].length,
-                            hasRefinery: _planets[_places[_coordinatePlaces[i][j]].childId].hasRefinery, 
-                            hasShipyard: _planets[_places[_coordinatePlaces[i][j]].childId].hasShipyard, 
-                            availableMineral: _planets[_places[_coordinatePlaces[i][j]].childId].availableMineral}
-                            );
-                    } else {
-                    foundCoordinatePlaces[counter] = PlaceGetter(
-                      {  name: _places[_coordinatePlaces[i][j]].name, 
-                        placeType: _places[_coordinatePlaces[i][j]].placeType, 
-                        salvage: _places[_coordinatePlaces[i][j]].salvage, 
-                        fleetCount: fleetsAtLocation[i][j].length,
-                        hasRefinery: false, 
-                        hasShipyard: false, 
-                        availableMineral: 0}
-                        );
+                    Place memory place = _places[_coordinatePlaces[i][j]];
+                    placeGetter.canTravel = place.canTravel;
+                    placeGetter.name = place.name; 
+                    placeGetter.placeType = place.placeType;
+                    placeGetter.salvage = place.salvage;
+                    placeGetter.fleetCount = fleetsAtLocation[i][j].length;
+
+                    if(Helper.isEqual(place.placeType, 'planet')) {
+                        placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
+                        placeGetter.hasShipyard = _planets[place.childId].hasShipyard;
+                        placeGetter.availableMineral = _planets[place.childId].availableMineral;
+                    }
+                    if(Helper.isEqual(place.placeType, 'star')) {
+                        placeGetter.luminosity = _stars[place.childId].luminosity;
                     }
                 }
-                else {
-                    PlaceGetter memory emptyPlace;
-                    foundCoordinatePlaces[counter] = emptyPlace;
-                }
+                foundCoordinatePlaces[counter] = placeGetter;
                 counter++;
             }
         }
@@ -584,6 +577,7 @@ contract Map is Editor {
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
+        require(_places[_coordinatePlaces[_x][_y]].canTravel == true, 'MAPS: no travel');
         address sender = msg.sender;
         require(block.timestamp >= _travelCooldown[sender], "MAPS: jump drive recharging");
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
