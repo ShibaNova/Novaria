@@ -70,9 +70,9 @@ contract Map is Editor {
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
     mapping(uint => mapping (uint => address[])) fleetsAtLocation; //reverse index to see what fleets are at what location
 
-    mapping (address => uint) _travelCooldown; // limits how often fleets can travel
-    mapping (address => uint) _fleetMiningCooldown; // limits how often a fleet can mine mineral
-    mapping (address => uint) _fleetLastShipyardPlace; // last shipyard place that fleet visited
+    mapping (address => uint) public travelCooldown; // limits how often fleets can travel
+    mapping (address => uint) public fleetMiningCooldown; // limits how often a fleet can mine mineral
+    mapping (address => uint) public fleetLastShipyardPlace; // last shipyard place that fleet visited
     
     uint _baseTravelCooldown; 
     uint _travelCooldownPerDistance; 
@@ -451,7 +451,7 @@ contract Map is Editor {
     //shared core implementation for any kind of mineral/salvage collection
     function _gather(address _player, uint _locationAmount, uint _coolDown) internal returns(uint) {
         require(_locationAmount > 0, 'MAP: nothing to gather');
-        require(_fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
+        require(fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
 
         uint availableCapacity = Fleet.getMineralCapacity(_player) - Fleet.getMineral(_player); //max amount of mineral fleet can carry minus what fleet already is carrying
         require(availableCapacity > 0, 'MAP: fleet max capacity');
@@ -460,7 +460,7 @@ contract Map is Editor {
         uint gatheredAmount = Helper.getMin(_locationAmount, maxGather); //the less of fleet maxGather and how much amount place has
 
         _mineralGained(_player, int(gatheredAmount));
-        _fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
+        fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
 
         //requestToken();
         emit MineralGathered(_player, gatheredAmount);
@@ -571,7 +571,7 @@ contract Map is Editor {
     }
 
     function getCurrentTravelCooldown (address _fleet) external view returns(uint) {
-        return _travelCooldown[_fleet];
+        return travelCooldown[_fleet];
     }
 
     // ship travel to _x and _y
@@ -579,7 +579,7 @@ contract Map is Editor {
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
         require(_places[_coordinatePlaces[_x][_y]].canTravel == true, 'MAPS: no travel');
         address sender = msg.sender;
-        require(block.timestamp >= _travelCooldown[sender], "MAPS: jump drive recharging");
+        require(block.timestamp >= travelCooldown[sender], "MAPS: jump drive recharging");
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
         require(Fleet.isInBattle(sender) == false, "MAPS: in battle or takeover");
@@ -595,18 +595,18 @@ contract Map is Editor {
 
         //if player travels from a shipyard planet, set this planet as player's recall spot
         if(isShipyardLocation(fleetX, fleetY)) {
-            _fleetLastShipyardPlace[sender] = _coordinatePlaces[_x][_y];
+            fleetLastShipyardPlace[sender] = _coordinatePlaces[_x][_y];
         }
     }
 
     //set travel cooldown or increase it
     function _addTravelCooldown(address _fleet, uint _seconds) internal {
         uint cooldownTime = _seconds / _timeModifier;
-        if(_travelCooldown[_fleet] > block.timestamp) {
-            _travelCooldown[_fleet] += cooldownTime;
+        if(travelCooldown[_fleet] > block.timestamp) {
+            travelCooldown[_fleet] += cooldownTime;
         }
         else {
-            _travelCooldown[_fleet] = block.timestamp + cooldownTime;
+            travelCooldown[_fleet] = block.timestamp + cooldownTime;
         }
     }
 
@@ -618,8 +618,8 @@ contract Map is Editor {
         uint recallX;
         uint recallY;
         if(_goToHaven != true) {
-            uint shipyardX = _places[_fleetLastShipyardPlace[msg.sender]].coordX;
-            uint shipyardY = _places[_fleetLastShipyardPlace[msg.sender]].coordY;
+            uint shipyardX = _places[fleetLastShipyardPlace[msg.sender]].coordX;
+            uint shipyardY = _places[fleetLastShipyardPlace[msg.sender]].coordY;
             if(isShipyardLocation(shipyardX, shipyardY)) {
                 recallX = shipyardX;
                 recallY = shipyardY;
