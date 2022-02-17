@@ -215,10 +215,13 @@ contract Fleet is Editor {
     }
 
     // Ship building function
-    function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount, uint _cost) external {
+    function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount, uint _cost) isPlayer(msg.sender) external {
         address sender = msg.sender;
         require(_hasSpaceDock(sender, _x, _y) == false, 'FLEET: no dock available');
         require((_shipClasses[_shipClassId].size * _amount) < getMaxFleetSize(sender), 'FLEET: order too large');
+
+        Player storage player = players[_addressToPlayer[sender]];
+        require(player.experience >= _shipClasses[_shipClassId].experienceRequired, 'FLEET: experience');
 
         //total build cost
         uint totalCost = getDockCost(_shipClassId, _amount);
@@ -237,7 +240,6 @@ contract Fleet is Editor {
         Token.safeTransferFrom(sender, address(Map), scrap); //send scrap to Map contract
         Map.increasePreviousBalance(scrap);
 
-        Player storage player = players[_addressToPlayer[sender]];
         player.spaceDocks.push(SpaceDock(_shipClassId, _amount, block.timestamp + getBuildTime(_shipClassId, _amount), _x, _y));
         _addExperience(sender, totalCost + ownerFee);
     }
@@ -247,7 +249,7 @@ contract Fleet is Editor {
         2) amount requested must be less than or equal to amount in dry dock
         3) dry dock build must be completed (completion time must be past block timestamp)
         4) claim size must not put fleet over max fleet size */
-    function claimShips(uint spaceDockId, uint _amount) isPlayer(msg.sender) external {
+    function claimShips(uint spaceDockId, uint _amount) external isPlayer(msg.sender) {
         address sender = msg.sender;
         Player storage player = players[_addressToPlayer[sender]];
         SpaceDock storage dock = player.spaceDocks[spaceDockId];
@@ -310,14 +312,16 @@ contract Fleet is Editor {
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         Player storage targetPlayer = players[_addressToPlayer[_target]];
         require(mission != BattleStatus.PEACE, 'FLEET: no peace');
-        require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: defend,no attack');
+        require((mission == BattleStatus.DEFEND? targetPlayer.battleStatus != BattleStatus.PEACE : true), 'FLEET: target at peace');
 
         uint targetBattleId = targetPlayer.battleId;
         if(mission == BattleStatus.ATTACK) {
-            if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
+            //if new battle
+            if(targetPlayer.battleStatus == BattleStatus.PEACE) {
                 Team memory attackTeam; Team memory defendTeam;
                 battles.push(Battle(false, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
+                targetBattleId = battles.length-1;
             }
             _joinTeam(msg.sender, targetBattleId, battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
         }
