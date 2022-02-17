@@ -464,7 +464,7 @@ contract Fleet is Editor {
         uint foundBattlesCount;
         for(uint i=0; i<battles.length; i++) {
             if(battles[i].coordX == _x && battles[i].coordY == _y) {
-                foundBattles[foundBattlesCount];
+                foundBattles[foundBattlesCount] = i;
                 foundBattlesCount++;
             }
         }
