@@ -38,12 +38,6 @@ contract Map is Editor {
         _collectCooldownReduction = 5;
         _asteroidCooldownReduction = 3;
 
-        _placeTypes.push('empty');
-        _placeTypes.push('hostile');
-        _placeTypes.push('star');
-        _placeTypes.push('planet');
-        _placeTypes.push('asteroid');
-
         _addStar(2, 2, 'Solar', 9); // first star
         _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
         _addPlanet(0, 3, 4, 'Cetrus 22A', true, false, false); //unrefined planet
@@ -79,11 +73,11 @@ contract Map is Editor {
     uint _baseTravelCost; // Token cost to travel 1 AU
     uint _maxTravel; // max distance a fleet can travel in 1 jump
 
-    string[] _placeTypes; // list of placeTypes
+    enum PlaceType{ EMPTY, HOSTILE, STAR, PLANET, ASTEROID }
 
     struct Place {
         uint id; //native key 
-        string placeType;
+        PlaceType placeType;
         uint childId;
         uint coordX;
         uint coordY;
@@ -98,7 +92,7 @@ contract Map is Editor {
 
     struct PlaceGetter {
         string name;
-        string placeType;
+        PlaceType placeType;
         uint salvage;
         uint fleetCount;
         bool hasRefinery;
@@ -149,7 +143,7 @@ contract Map is Editor {
     event NewPlanet(uint _star, uint _x, uint _y);
     event NewStar(uint _x, uint _y);
 
-    function _addPlace(string memory _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
+    function _addPlace(PlaceType _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint placeId = _places.length;
         _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, 0xd9145CCE52D386f254917e481eB44e9943F39138, _canTravel));
@@ -160,17 +154,17 @@ contract Map is Editor {
     }
 
     function _addEmpty(uint _x, uint _y) internal {
-        _addPlace('empty', 0, _x, _y, '', true);
+        _addPlace(PlaceType.EMPTY, 0, _x, _y, '', true);
     }
 
     function _addHostile(uint _x, uint _y) internal {
-        _addPlace('hostile', 0, _x, _y, '', false);
+        _addPlace(PlaceType.HOSTILE, 0, _x, _y, '', false);
     }
 
     function _addAsteroid(uint _x, uint _y, uint _amount) internal {
         uint asteroidId = _asteroids.length;
         _asteroids.push(Asteroid(asteroidId, _places.length, _amount));
-        _addPlace('asteroid', 0, _x, _y, '', true);
+        _addPlace(PlaceType.ASTEROID, 0, _x, _y, '', true);
     }
 
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
@@ -178,7 +172,7 @@ contract Map is Editor {
         uint starId = _stars.length;
         _stars.push(Star(starId, _places.length, _luminosity, 0, 0));
 
-        _addPlace('star', starId, _x, _y, _name, false);
+        _addPlace(PlaceType.STAR, starId, _x, _y, _name, false);
         emit NewStar(_x, _y);
     }
 
@@ -196,7 +190,7 @@ contract Map is Editor {
         uint planetId = _planets.length;
         _planets.push(Planet(planetId, _places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
 
-        _addPlace('planet', planetId, _x, _y, _name, true);
+        _addPlace(PlaceType.PLANET, planetId, _x, _y, _name, true);
         emit NewPlanet(_starId, _x, _y);
     }
 
@@ -250,7 +244,7 @@ contract Map is Editor {
                     hasShipyard = true;
                 }
                 else { hasShipyard = true; hasRefinery = true; }
-                _addPlanet(nearestStar, _x, _y, 'planet', isMiningPlanet, hasRefinery, hasShipyard);
+                _addPlanet(nearestStar, _x, _y, '', isMiningPlanet, hasRefinery, hasShipyard);
 
                 //if planet has a shipyard, add shipyard to Fleet contract
                 if(hasShipyard == true) {
@@ -266,7 +260,7 @@ contract Map is Editor {
             }
             //new star must be more than 7 AU away from nearest star
             else if(rand >= 95 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
-                _addStar(_x, _y, 'star', Helper.getRandomNumber(9, rand) + 1);
+                _addStar(_x, _y, '', Helper.getRandomNumber(9, rand) + 1);
             }
             else {
                 _addEmpty(_x, _y);
@@ -280,7 +274,7 @@ contract Map is Editor {
     function changeName(uint _x, uint _y, string memory _name) external {
         Place storage namePlace = _places[_coordinatePlaces[_x][_y]];
         require(msg.sender == namePlace.discoverer, 'MAP: not discoverer');
-        require(Helper.isEqual(namePlace.name, namePlace.placeType), 'MAP: already named');
+        require(Helper.isEqual(namePlace.name, ""), 'MAP: already named');
         namePlace.name = _name;
     }
 
@@ -319,16 +313,16 @@ contract Map is Editor {
                     placeGetter.salvage = place.salvage;
                     placeGetter.fleetCount = fleetsAtLocation[i][j].length;
 
-                    if(Helper.isEqual(place.placeType, 'planet')) {
+                    if(place.placeType == PlaceType.PLANET) {
                         placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
                         placeGetter.hasShipyard = _planets[place.childId].hasShipyard;
                         placeGetter.availableMineral = _planets[place.childId].availableMineral;
                         placeGetter.isMiningPlanet = _planets[place.childId].isMiningPlanet;
                     }
-                    if(Helper.isEqual(place.placeType, 'star')) {
+                    else if(place.placeType == PlaceType.STAR) {
                         placeGetter.luminosity = _stars[place.childId].luminosity;
                     }
-                    if(Helper.isEqual(place.placeType, 'asteroid')) {
+                    else if(place.placeType == PlaceType.ASTEROID) {
                         placeGetter.availableMineral = _asteroids[place.childId].availableMineral;
                     }
                 }
@@ -349,11 +343,6 @@ contract Map is Editor {
 
     function getPlaceName(uint _x, uint _y) external view returns(string memory) {
         return _places[getPlaceId(_x, _y)].name;
-    }
-
-    // currently no check for duplicates
-    function addPlaceType(string memory _name) external onlyOwner {
-        _placeTypes.push(_name);
     }
 
     // get total star luminosity
@@ -419,7 +408,7 @@ contract Map is Editor {
     function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
         Planet memory planet;
         Place memory place = _places[_coordinatePlaces[_x][_y]];
-        if(Helper.isEqual(place.placeType, 'planet')) {
+        if(place.placeType == PlaceType.PLANET) {
             planet = _planets[place.childId];
         }
         return planet;
@@ -470,7 +459,7 @@ contract Map is Editor {
         Place memory miningPlace = _places[_coordinatePlaces[fleetX][fleetY]];
 
         //if mining a planet
-        if(Helper.isEqual(miningPlace.placeType, "planet")) {
+        if(miningPlace.placeType == PlaceType.PLANET) {
             Planet memory miningPlanet = _planets[miningPlace.childId];
             require(isPaused[miningPlanet.placeId] != true, "MAP: mineral is paused");
             _planets[miningPlanet.id].availableMineral -=
@@ -478,7 +467,7 @@ contract Map is Editor {
         }
 
         //if mining an asteroid
-        else if(Helper.isEqual(miningPlace.placeType, "asteroid")) {
+        else if(miningPlace.placeType == PlaceType.ASTEROID) {
             Asteroid memory miningAsteroid = _asteroids[miningPlace.childId];
             _asteroids[miningAsteroid.id].availableMineral -=
                 _gather(msg.sender, miningAsteroid.availableMineral, _miningCooldown / _asteroidCooldownReduction);
