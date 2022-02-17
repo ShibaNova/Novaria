@@ -15,9 +15,9 @@ contract Treasury is Editor {
     ) {
         Token = _Token;
         feeManager = _feeManager;
-        dev1 = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
-        dev2 = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
-        team = 0x078BB52f3FD53Cde7Ab15FE831Da9B55E3c702Fa;
+        dev1 = 0x509CC3b01e4e4BD8CE810AA9C10D89d05E0FB03A;
+        dev2 = 0xa12C28e569a7564420aa437F3d3dA29aED648707;
+        team = 0x729F3cA74A55F2aB7B584340DDefC29813fb21dF;
         costModifier = 100;
         moneyPotRate = 80;
         coderRoyaltiesRate = 4;
