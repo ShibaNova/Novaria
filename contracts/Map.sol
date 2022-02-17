@@ -73,7 +73,7 @@ contract Map is Editor {
     uint _baseTravelCost; // Token cost to travel 1 AU
     uint _maxTravel; // max distance a fleet can travel in 1 jump
 
-    enum PlaceType{ EMPTY, HOSTILE, STAR, PLANET, ASTEROID }
+    enum PlaceType{ EMPTY, HOSTILE, STAR, PLANET, ASTEROID, WORMHOLE }
 
     struct Place {
         uint id; //native key 
