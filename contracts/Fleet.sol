@@ -99,6 +99,7 @@ contract Fleet is Editor {
 
     //battle data
     struct Battle {
+        bool isResolved;
         uint battleDeadline;
         uint coordX;
         uint coordY;
@@ -123,22 +124,6 @@ contract Fleet is Editor {
 
     event NewShipyard(uint _x, uint _y);
     event NewMap(address _address);
-
-    //BEGIN*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
-/*    function loadPlayers() public {
-        _createPlayer('Nate', 0x729F3cA74A55F2aB7B584340DDefC29813fb21dF);
-        players[0].ships[0] = 100;
-        players[0].ships[1] = 19;
-
-        _createPlayer('Sam', 0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2);
-        players[1].ships[0] = 43;
-        players[1].ships[1] = 4;
-    }*/
-
-/*    function battleTest() public {
-        enterBattle(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2, BattleStatus.ATTACK);
-    }*/
-    //END*****************FUNCTIONS FOR TESTING, CAN BE DELETED LATER
 
     function _createPlayer(string memory _name, address _player) internal {
         require(bytes(_name).length < 16, 'FLEET: name too long');
@@ -330,7 +315,7 @@ contract Fleet is Editor {
         if(mission == BattleStatus.ATTACK) {
             if(targetPlayer.battleStatus == BattleStatus.PEACE) { //if new battle
                 Team memory attackTeam; Team memory defendTeam;
-                battles.push(Battle(block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
+                battles.push(Battle(false, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
             }
             _joinTeam(msg.sender, targetBattleId, battles[targetBattleId].attackTeam, BattleStatus.ATTACK);
@@ -396,8 +381,9 @@ contract Fleet is Editor {
         }
 
         //remove battle from battles list
-        battles[_battleId] = battles[battles.length-1];
-        battles.pop();
+        battles[_battleId].isResolved = true;
+ //       battles[_battleId] = battles[battles.length-1];
+//        battles.pop();
     }
 
     //add experience to player based on in game purchases
@@ -467,12 +453,19 @@ contract Fleet is Editor {
     }
  
     function getBattlesAtLocation(uint _x, uint _y) external view returns(uint[] memory) {
-        uint[] memory foundBattles = new uint[](battles.length);
-        uint foundBattleCount;
+        uint totalFoundBattles;
+        for(uint i=0; i<battles.length; i++) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].isResolved != true) {
+                totalFoundBattles++;
+            }
+        }
+
+        uint[] memory foundBattles = new uint[](totalFoundBattles);
+        uint foundBattlesCount;
         for(uint i=0; i<battles.length; i++) {
             if(battles[i].coordX == _x && battles[i].coordY == _y) {
-                foundBattles[foundBattleCount]=i;
-                foundBattleCount++;
+                foundBattles[foundBattlesCount];
+                foundBattlesCount++;
             }
         }
         return foundBattles;
