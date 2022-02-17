@@ -30,9 +30,9 @@ contract Map is Editor {
         _baseTravelCost = 10**15;
         _baseTravelCooldown = 2700; //45 minutes
         _travelCooldownPerDistance = 900; //15 minutes
-        _maxTravel = 10; //AU
+        _maxTravel = 8; //AU
         _rewardsTimer = 0;
-        _timeModifier = 50;
+        _timeModifier = 25;
         _miningCooldown = 1800; //30 minutes
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
@@ -53,7 +53,6 @@ contract Map is Editor {
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
     uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
     uint rewardsDelay;
-    mapping (uint => bool) isPaused; // can pause token mining for mining planets
     uint  _timeModifier; //allow all times to be changed
     uint _miningCooldown; // how long before 
     uint _minTravelSize; //min. fleet size required to travel
@@ -195,7 +194,7 @@ contract Map is Editor {
     }
 
     function getExploreCost(uint _x, uint _y) public view returns(uint) {
-        return Helper.getDistance(0, 0, _x, _y) * 4 * 10**19 / Treasury.getCostMod();
+        return Helper.getDistance(0, 0, _x, _y) * 2 * 10**19 / Treasury.getCostMod();
     }
 
     //player explore function
@@ -206,41 +205,40 @@ contract Map is Editor {
         Treasury.pay(sender, exploreCost);
         Fleet.addExperience(sender, exploreCost);
         _createRandomPlaceAt(_x, _y, sender);
-        //8, 6; distance = sqrt(100) = 10AU = 500 NOVA
     }
 
     //create a random place at given coordinates
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100, _x + _y);
-        if(rand >= 50 && rand <= 69) {
+        if(rand >= 30 && rand <= 60) {
            _addHostile(_x, _y); 
         }
-        else if(rand >= 70 && rand <= 79) {
+        else if(rand >= 61 && rand <= 74) {
             uint asteroidPercent = Helper.getRandomNumber(8, _x + _y) + 2;
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
             Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
             _addAsteroid(_x, _y, 98 * asteroidAmount / 100);
         }
-        else if(rand >= 80 && rand <= 99) {
+        else if(rand >= 75 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = _places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = _places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 79 && rand <= 94 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 75 && rand <= 93 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet = false;
                 bool hasShipyard = false;
                 bool hasRefinery = false;
                 uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
-                if(planetAttributeSelector <= 10) {
+                if(planetAttributeSelector <= 8) {
                     isMiningPlanet = true;
                 }
-                else if(planetAttributeSelector >= 11 && planetAttributeSelector <=13) {
+                else if(planetAttributeSelector >= 9 && planetAttributeSelector <=11) {
                     hasRefinery = true;
                 }
-                else if(planetAttributeSelector >= 14 && planetAttributeSelector <= 18) {
+                else if(planetAttributeSelector >= 12 && planetAttributeSelector <= 18) {
                     hasShipyard = true;
                 }
                 else { hasShipyard = true; hasRefinery = true; }
@@ -259,7 +257,7 @@ contract Map is Editor {
 
             }
             //new star must be more than 7 AU away from nearest star
-            else if(rand >= 95 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+            else if(rand >= 94 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, '', Helper.getRandomNumber(9, rand) + 1);
             }
             else {
@@ -438,7 +436,7 @@ contract Map is Editor {
         uint maxGather = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(_player));
         uint gatheredAmount = Helper.getMin(_locationAmount, maxGather); //the less of fleet maxGather and how much amount place has
 
-        _mineralGained(_player, int(gatheredAmount));
+        Fleet.setMineral(_player, Fleet.getMineral(_player) + gatheredAmount);
         fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
 
         //requestToken();
@@ -447,9 +445,11 @@ contract Map is Editor {
     }
 
     //collect salvage from a coordinate
-    function collect(uint _x, uint _y) external {
-        _places[_coordinatePlaces[_x][_y]].salvage -=
-            _gather(msg.sender, _places[_coordinatePlaces[_x][_y]].salvage, _miningCooldown / _collectCooldownReduction);
+    function collect() external {
+        (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
+        require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
+        _places[_coordinatePlaces[fleetX][fleetY]].salvage -=
+            _gather(msg.sender, _places[_coordinatePlaces[fleetX][fleetY]].salvage, _miningCooldown / _collectCooldownReduction);
     }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
@@ -461,12 +461,10 @@ contract Map is Editor {
         //if mining a planet
         if(miningPlace.placeType == PlaceType.PLANET) {
             Planet memory miningPlanet = _planets[miningPlace.childId];
-            require(isPaused[miningPlanet.placeId] != true, "MAP: mineral is paused");
             _planets[miningPlanet.id].availableMineral -=
                 _gather(msg.sender, miningPlanet.availableMineral, _miningCooldown);
         }
-
-        //if mining an asteroid
+        //else if mining an asteroid
         else if(miningPlace.placeType == PlaceType.ASTEROID) {
             Asteroid memory miningAsteroid = _asteroids[miningPlace.childId];
             _asteroids[miningAsteroid.id].availableMineral -=
@@ -486,38 +484,6 @@ contract Map is Editor {
         _previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
         //requestToken();
-    }
-
-    // mineral gained can also be negative; used for player attacks and mining
-    function _mineralGained(address _player, int _amount) internal {
-        uint startAmount = Fleet.getMineral(_player);
-
-        //add amount gained to current player amount
-        //(this should never be less than 0 because mineral lost calculation should never take more than player has)
-        //add check just in case the calc is wrong so final player amount is not negative and avoids overflow issues with uint
-        //unless there is an error in previous code that calls this function, maxMineralAmount and newAmount should always be the same
-        int maxMineralAmount = int(startAmount) + _amount;
-        uint newAmount = 0;
-        if(maxMineralAmount > 0) {
-            newAmount = uint(maxMineralAmount);
-        }
-
-        //check new amount with max capacity, make sure it's not more than max capacity
-        uint finalMineralAmount = uint(Helper.getMin(Fleet.getMineralCapacity(_player), newAmount));
-
-        //set player's mineral
-        Fleet.setMineral(_player, finalMineralAmount);
-
-        //burn whatever cannot fit into fleet mineral capacity
-        uint burnedAmount = newAmount - finalMineralAmount;
-        if(burnedAmount > 0) {
-            Token.transfer(0x000000000000000000000000000000000000dEaD, burnedAmount);
-        }
-
-        //gained amount is the final amount - start amount (can be negative)
-        int gainedAmount = int(finalMineralAmount) - int(startAmount);
-
-        emit MineralGained(_player, gainedAmount, burnedAmount);
     }
 
     // Returns both x and y coordinates
@@ -672,10 +638,6 @@ contract Map is Editor {
     }
     function setRewardsDelay(uint _new) external onlyOwner {
         rewardsDelay = _new;
-    }
-    // Pause unrefined token mining at a jackpot planet
-    function setPaused(uint _id,bool _isPaused) external onlyOwner{
-        isPaused[_id] = _isPaused;
     }
     function setBaseTravelCost(uint _new) external onlyOwner {
         _baseTravelCost = _new;
