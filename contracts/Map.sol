@@ -326,6 +326,9 @@ contract Map is Editor {
                     if(Helper.isEqual(place.placeType, 'star')) {
                         placeGetter.luminosity = _stars[place.childId].luminosity;
                     }
+                    if(Helper.isEqual(place.placeType, 'asteroid')) {
+                        placeGetter.availableMineral = _asteroids[place.childId].availableMineral;
+                    }
                 }
                 foundCoordinatePlaces[counter] = placeGetter;
                 counter++;
