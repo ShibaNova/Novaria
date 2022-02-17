@@ -341,21 +341,6 @@ contract Map is Editor {
         return _places[_coordinatePlaces[_x][_y]];
     }
 
-    //three different return statements to avoid stack too deep error
-    function getCoordinateInfo(uint _x, uint _y) external view returns (string memory, string memory, uint, bool, bool, uint, uint, bool) {
-        
-        if(_placeExists[_x][_y] == true) {
-            Place memory place  = _places[_coordinatePlaces[_x][_y]];
-            uint fleetCount = fleetsAtLocation[_x][_y].length;
-            if(Helper.isEqual(place.placeType, 'planet')) {
-                return(place.name, place.placeType, place.salvage,
-                _planets[place.childId].hasShipyard, _planets[place.childId].hasRefinery, _planets[place.childId].availableMineral, fleetCount, _planets[place.childId].isMiningPlanet);
-            }
-            return(place.name, place.placeType, place.salvage, false, false, 0, fleetCount, false);
-        }
-        return ("", "", 0, false, false, 0, 0, false);
-    }
-
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
         return (_coordinatePlaces[_x][_y]);
     }
