@@ -549,10 +549,6 @@ contract Map is Editor {
        return _baseTravelCooldown + (distance*_travelCooldownPerDistance);
     }
 
-    function getCurrentTravelCooldown (address _fleet) external view returns(uint) {
-        return travelCooldown[_fleet];
-    }
-
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
@@ -571,11 +567,13 @@ contract Map is Editor {
 
         (uint fleetX, uint fleetY) =  getFleetLocation(sender);
         _setFleetLocation(sender, fleetX, fleetY, _x, _y);
+    }
 
-        //if player travels from a shipyard planet, set this planet as player's recall spot
-        if(isShipyardLocation(fleetX, fleetY)) {
-            fleetLastShipyardPlace[sender] = _coordinatePlaces[_x][_y];
-        }
+    //player can set recall spot if at a shipyard
+    function setRecall(uint _x, uint _y) external {
+        (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
+        require(isShipyardLocation(fleetX, fleetY) == true, 'MAP: no shipyard');
+        fleetLastShipyardPlace[msg.sender] = _coordinatePlaces[_x][_y];
     }
 
     //set travel cooldown or increase it
@@ -592,19 +590,15 @@ contract Map is Editor {
     //recall player to last shipyard visited
     function recall(bool _goToHaven) external {
         require(Fleet.getFleetSize(msg.sender) < _minTravelSize, "FLEET: too large for recall");
-        (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
 
         uint recallX;
         uint recallY;
         if(_goToHaven != true) {
-            uint shipyardX = _places[fleetLastShipyardPlace[msg.sender]].coordX;
-            uint shipyardY = _places[fleetLastShipyardPlace[msg.sender]].coordY;
-            if(isShipyardLocation(shipyardX, shipyardY)) {
-                recallX = shipyardX;
-                recallY = shipyardY;
-            }
+            recallX = _places[fleetLastShipyardPlace[msg.sender]].coordX;
+            recallY = _places[fleetLastShipyardPlace[msg.sender]].coordY;
         }
 
+        (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
         _setFleetLocation(msg.sender, fleetX, fleetY, recallX, recallY);
     }
 
