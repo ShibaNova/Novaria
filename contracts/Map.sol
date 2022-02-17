@@ -106,6 +106,7 @@ contract Map is Editor {
         uint availableMineral;
         bool canTravel;
         uint luminosity;
+        bool isMiningPlanet;
     }
 
     struct Planet {
@@ -322,6 +323,7 @@ contract Map is Editor {
                         placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
                         placeGetter.hasShipyard = _planets[place.childId].hasShipyard;
                         placeGetter.availableMineral = _planets[place.childId].availableMineral;
+                        placeGetter.isMiningPlanet = _planets[place.childId].isMiningPlanet;
                     }
                     if(Helper.isEqual(place.placeType, 'star')) {
                         placeGetter.luminosity = _stars[place.childId].luminosity;
