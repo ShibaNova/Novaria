@@ -124,7 +124,6 @@ contract Fleet is Editor {
     uint _scrapPercentage;
 
     event NewShipyard(uint _x, uint _y);
-    event NewMap(address _address);
 
     function _createPlayer(string memory _name, address _player) internal {
         require(bytes(_name).length < 16, 'FLEET: name too long');
@@ -527,12 +526,11 @@ contract Fleet is Editor {
     }
 
     function setMap(address _new) external onlyOwner {
-        require(address(0) != _new);
         Map = IMap(_new); 
-        emit NewMap(_new);
     }
-    function setTreasury (address _treasury) external onlyOwner {
-        Map = IMap(_treasury);
+
+    function setTreasury(address _new) external onlyOwner{
+        Treasury = ITreasury(_new);
     }
 
     function editCost(uint shipClassId, uint _newCost) public onlyOwner {
