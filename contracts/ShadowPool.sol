@@ -14,13 +14,14 @@ import "./libs/SafeBEP20.sol";
 
 interface IRewardsPool {
     function deposit(uint256 _pid, uint256 _amount) external;
-    function pendingNova(uint256 _pid, address _user) external view returns (uint256);
+    function pendingNova(uint256 _pid, address _user) external view returns (uint256);    
+    function emergencyWithdraw(uint256 _pid) external;
 }
 
 contract ShadowPool is Editor {
     using SafeBEP20 for ShibaBEP20;
 
-    IRewardsPool public Rewards; 
+    IRewardsPool public Rewards;
     ShibaBEP20 public Nova;
 
     uint public pid;
@@ -43,26 +44,29 @@ contract ShadowPool is Editor {
     // after deploying and sending the shadow token to this contract, 
     // use this function to setup the pool deposit
     function initialDeposit() external onlyOwner {
-        uint _amount = IERC20(token).balanceOf(address(this));
-        uint max = 0xffffffffffffffffff;
-        IERC20(token).approve(address(Rewards), max);
-        Rewards.deposit(pid, _amount);
+        uint amount = IERC20(token).balanceOf(address(this));
+        Rewards.deposit(pid, amount);
+    }
+    
+    function unStakePool() external onlyOwner {
+        Rewards.emergencyWithdraw(pid);
     }
 
-    function tokenApproval(address _spender, address _token) external {
+    function tokenApproval(address _spender, address _token) external onlyOwner {
         uint max = 0xffffffffffffffffff;
         IERC20(_token).approve(_spender, max);
     }
- 
+
     // gets the current pending nova from the farm contract awaiting harvest
     function getPendingRewards() public view returns(uint){
         return Rewards.pendingNova(pid, address(this));
     }
-    function replenishPlace(address _jackpot, uint _value) external onlyEditor {
+    function replenishPlace(address _jackpot, uint _value) external onlyEditor returns(uint){
         Rewards.deposit(pid, 0);
         require(_value <= 100, "SHADOWPOOL: value must be less than 100% of the pool balance");
-        uint _amount = IERC20(token).balanceOf(address(this)) * _value / 100;
-        Nova.transferFrom(address(this), _jackpot, _amount);
+        uint _amount = Nova.balanceOf(address(this)) * _value / 100;
+        Nova.safeTransferFrom(address(this), _jackpot, _amount);
+        return _amount;
     }
 
     // transfers the shadow token to the owner, used for maintenance
