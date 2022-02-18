@@ -255,10 +255,10 @@ contract Fleet is Editor {
         SpaceDock storage dock = player.spaceDocks[spaceDockId];
         (uint fleetX, uint fleetY) = Map.getFleetLocation(sender);
         require(fleetX == dock.coordX && fleetY == dock.coordY, 'FLEET: not at shipyard');
-        require(isInBattle(sender) == false, "MAPS: in battle or takeover");
+        require(isInBattle(sender) == false, "FLEET: in battle/takeover");
 
-        require(_amount <= dock.amount, 'Dry Dock: not that many');
-        require(block.timestamp > dock.completionTime, 'Dry Dock: ships not built, yet');
+        require(_amount <= dock.amount, 'FLEET: not that many');
+        require(block.timestamp > dock.completionTime, 'FLEET: ships not done');
 
         require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) < getMaxFleetSize(sender), 'Claim size too large');
 
