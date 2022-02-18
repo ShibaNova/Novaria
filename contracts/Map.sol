@@ -297,13 +297,13 @@ contract Map is Editor {
             for(uint i=_lx; i<=_lx+6; i++) {
                 PlaceGetter memory placeGetter;
 
-                if(_placeExists[i][j] == true) {
-                    Place memory place = _places[_coordinatePlaces[i][j]];
+                if(_placeExists[i][j-1] == true) {
+                    Place memory place = _places[_coordinatePlaces[i][j-1]];
                     placeGetter.canTravel = place.canTravel;
                     placeGetter.name = place.name; 
                     placeGetter.placeType = place.placeType;
                     placeGetter.salvage = place.salvage;
-                    placeGetter.fleetCount = fleetsAtLocation[i][j].length;
+                    placeGetter.fleetCount = fleetsAtLocation[i][j-1].length;
 
                     if(place.placeType == PlaceType.PLANET) {
                         placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
