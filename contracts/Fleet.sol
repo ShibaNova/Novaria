@@ -468,7 +468,7 @@ contract Fleet is Editor {
         uint[] memory foundBattles = new uint[](totalFoundBattles);
         uint foundBattlesCount;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].isResolved != true) {
                 foundBattles[foundBattlesCount] = i;
                 foundBattlesCount++;
             }
