@@ -211,23 +211,23 @@ contract Map is Editor {
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100, _x + _y);
-        if(rand >= 30 && rand <= 60) {
+        if(rand >= 10 && rand <= 30) {
            _addHostile(_x, _y); 
         }
-        else if(rand >= 61 && rand <= 74) {
+        else if(rand >= 31 && rand <= 54) {
             uint asteroidPercent = Helper.getRandomNumber(8, _x + _y) + 2;
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
             Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
             _addAsteroid(_x, _y, 98 * asteroidAmount / 100);
         }
-        else if(rand >= 75 && rand <= 99) {
+        else if(rand >= 55 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = _places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = _places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 75 && rand <= 93 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 55 && rand <= 73 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet = false;
                 bool hasShipyard = false;
                 bool hasRefinery = false;
@@ -257,7 +257,7 @@ contract Map is Editor {
 
             }
             //new star must be more than 7 AU away from nearest star
-            else if(rand >= 94 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+            else if(rand >= 74 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, '', Helper.getRandomNumber(9, rand) + 1);
             }
             else {
@@ -290,15 +290,13 @@ contract Map is Editor {
     }
 
     /* get coordinatePlaces cannot handle a map box larger than 255 */
-    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(PlaceGetter[] memory) {
+    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(PlaceGetter[7][7] memory) {
         uint xDistance = (_rx - _lx) + 1;
         uint yDistance = (_ry - _ly) + 1;
-        uint numCoordinates = xDistance * yDistance;
         require(xDistance * yDistance < 256, 'MAP: Too much data in loop');
 
-        PlaceGetter[] memory foundCoordinatePlaces = new PlaceGetter[]((numCoordinates));
+        PlaceGetter[7][7] memory foundCoordinatePlaces;
 
-        uint counter = 0;
         for(uint i=_lx; i<=_rx;i++) {
             for(uint j=_ly; j<=_ry;j++) {
                 PlaceGetter memory placeGetter;
@@ -324,8 +322,7 @@ contract Map is Editor {
                         placeGetter.availableMineral = _asteroids[place.childId].availableMineral;
                     }
                 }
-                foundCoordinatePlaces[counter] = placeGetter;
-                counter++;
+                foundCoordinatePlaces[i][j] = placeGetter;
             }
         }
         return foundCoordinatePlaces;
