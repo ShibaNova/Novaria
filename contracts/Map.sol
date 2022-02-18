@@ -289,16 +289,12 @@ contract Map is Editor {
         return nearestStar;
     }
 
-    /* get coordinatePlaces cannot handle a map box larger than 255 */
-    function getCoordinatePlaces(uint _lx, uint _ly, uint _rx, uint _ry) external view returns(PlaceGetter[7][7] memory) {
-        uint xDistance = (_rx - _lx) + 1;
-        uint yDistance = (_ry - _ly) + 1;
-        require(xDistance * yDistance < 256, 'MAP: Too much data in loop');
+    function getCoordinatePlaces(uint _lx, uint _ly) external view returns(PlaceGetter[] memory) {
+        PlaceGetter[] memory foundCoordinatePlaces = new PlaceGetter[](49);
 
-        PlaceGetter[7][7] memory foundCoordinatePlaces;
-
-        for(uint i=_lx; i<=_rx;i++) {
-            for(uint j=_ly; j<=_ry;j++) {
+        uint counter = 0;
+        for(uint j=_ly+7; j>=_ly; j--) {
+            for(uint i=_lx; i<=_lx+6; i++) {
                 PlaceGetter memory placeGetter;
 
                 if(_placeExists[i][j] == true) {
@@ -322,7 +318,8 @@ contract Map is Editor {
                         placeGetter.availableMineral = _asteroids[place.childId].availableMineral;
                     }
                 }
-                foundCoordinatePlaces[i][j] = placeGetter;
+                foundCoordinatePlaces[counter] = placeGetter;
+                counter++;
             }
         }
         return foundCoordinatePlaces;
