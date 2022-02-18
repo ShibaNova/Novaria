@@ -530,10 +530,10 @@ contract Map is Editor {
     }
 
     //player can set recall spot if at a shipyard
-    function setRecall(uint _x, uint _y) external {
+    function setRecall() external {
         (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
         require(isShipyardLocation(fleetX, fleetY) == true, 'MAP: no shipyard');
-        fleetLastShipyardPlace[msg.sender] = _coordinatePlaces[_x][_y];
+        fleetLastShipyardPlace[msg.sender] = _coordinatePlaces[fleetX][fleetY];
     }
 
     //set travel cooldown or increase it
