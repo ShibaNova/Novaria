@@ -293,7 +293,7 @@ contract Map is Editor {
         PlaceGetter[] memory foundCoordinatePlaces = new PlaceGetter[](49);
 
         uint counter = 0;
-        for(uint j=_ly+7; j>=_ly; j--) {
+        for(uint j=_ly+7; j>_ly; j--) {
             for(uint i=_lx; i<=_lx+6; i++) {
                 PlaceGetter memory placeGetter;
 
