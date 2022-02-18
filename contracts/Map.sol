@@ -350,7 +350,7 @@ contract Map is Editor {
 
     // Pulls token from the shadow pool, eventually internal function
     //PROBLEM: does not function - review 
-    function requestToken() external onlyOwner{
+    function _requestToken() internal {
         if (block.timestamp >= _rewardsTimer) {
             ShadowPool.replenishPlace(address(this), _rewardsMod);
             _rewardsTimer = block.timestamp + rewardsDelay;
@@ -433,7 +433,6 @@ contract Map is Editor {
         Fleet.setMineral(_player, Fleet.getMineral(_player) + gatheredAmount);
         fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
 
-        //requestToken();
         emit MineralGathered(_player, gatheredAmount);
         return gatheredAmount;
     }
@@ -464,6 +463,7 @@ contract Map is Editor {
             _asteroids[miningAsteroid.id].availableMineral -=
                 _gather(msg.sender, miningAsteroid.availableMineral, _miningCooldown / _asteroidCooldownReduction);
         }
+        _requestToken();
     }
     
     function refine() external {
@@ -477,7 +477,7 @@ contract Map is Editor {
         Token.safeTransfer(player, playerMineral);
         _previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
-        //requestToken();
+        _requestToken();
     }
 
     // Returns both x and y coordinates
