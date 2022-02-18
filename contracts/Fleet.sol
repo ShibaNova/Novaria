@@ -37,9 +37,6 @@ contract Fleet is Editor {
         createShipClass("Viper", 1, 1, 3, 0, 0, 0, 10**18, 0);
         createShipClass("Mole", 2, 0, 5, 10**17, 10**16, 0, 2 * 10**18, 0);
         createShipClass("Firefly", 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
-        //addShipyard(0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2,0,0,7);
-        //addShipyard(0x729F3cA74A55F2aB7B584340DDefC29813fb21dF,5,5,5);
-       // loadPlayers();
     }
 
     enum BattleStatus{ PEACE, ATTACK, DEFEND }
@@ -156,8 +153,7 @@ contract Fleet is Editor {
         _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _cost, _experienceRequired));
     }
 
-    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) public onlyEditor {
-        require(Map.isShipyardLocation(_x, _y) == true, 'FLEET: shipyard unavailable');
+    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) external onlyEditor {
         require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
 
         string memory name = Map.getPlaceName(_x, _y);
