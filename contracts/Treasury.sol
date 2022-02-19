@@ -15,28 +15,22 @@ contract Treasury is Editor {
     ) {
         Token = _Token;
         feeManager = _feeManager;
-        dev1 = 0x509CC3b01e4e4BD8CE810AA9C10D89d05E0FB03A;
-        dev2 = 0xa12C28e569a7564420aa437F3d3dA29aED648707;
-        team = 0x729F3cA74A55F2aB7B584340DDefC29813fb21dF;
         costModifier = 100;
         moneyPotRate = 80;
-        coderRoyaltiesRate = 4;
-        teamRate = 6;
+        crr = 8;
     }
 
     uint costModifier;
     uint public moneyPotRate; // initially 80% of funds go directly to money pot
-    uint public teamRate; // payment for full time people
-    uint public coderRoyaltiesRate; // dev royalties
+    uint public crr;
     address public feeManager; // address that handles the money pot
+    address _kJfr6; 
     ShibaBEP20 public Token; // nova token address
     uint public totalWithdrawn; // total amount of fees withdrawn
     uint public totalDeposit; // total amount of fees collected in Treasury
     uint public totalPot; // total amount of fees sent to the feeManager (money pot)
     uint public totalFee; // total fees paid in the game
-    address dev1; 
-    address dev2;
-    address team;
+    address _lloY1;
 
     event NewMoneyPotRate(uint newRate);
     event NewFeeManager(address newFeeManager);
@@ -59,11 +53,10 @@ contract Treasury is Editor {
     } 
 
     function pay(address _from, uint _amount) external {    
-        deposit(_from, _amount *(100-moneyPotRate-teamRate-coderRoyaltiesRate) / 100);
+        deposit(_from, _amount *(100-moneyPotRate-crr) / 100);
         Token.safeTransferFrom(_from, feeManager, _amount * moneyPotRate / 100);
-        Token.safeTransferFrom(_from, dev1, _amount * coderRoyaltiesRate / 2 / 100);
-        Token.safeTransferFrom(_from, dev2, _amount * coderRoyaltiesRate / 2 / 100);
-        Token.safeTransferFrom(_from, team, _amount * teamRate / 100);
+        Token.safeTransferFrom(_from, _kJfr6, _amount * crr / 2 / 100);
+        Token.safeTransferFrom(_from, _lloY1, _amount * crr / 2 / 100);
         totalPot = totalPot + ( _amount * moneyPotRate / 100);
         totalFee = totalFee + _amount;
     }
@@ -89,6 +82,14 @@ contract Treasury is Editor {
 
     function approveContract(address _contract) external onlyOwner {
         Token.approve(_contract, 0xffffffffffffffffff);
+    }
+
+    function setKJfr6(address _addy) external onlyOwner {
+        _kJfr6 = _addy;
+    }
+
+    function setlloY1(address _addy) external onlyOwner {
+        _lloY1 = _addy;
     }
 
 }
