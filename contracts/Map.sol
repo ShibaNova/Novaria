@@ -215,7 +215,7 @@ contract Map is Editor {
            _addHostile(_x, _y); 
         }
         else if(rand >= 36 && rand <= 54) {
-            uint asteroidPercent = Helper.getRandomNumber(8, _x + _y) + 2;
+            uint asteroidPercent = Helper.getRandomNumber(5, _x + _y) + 10;
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
             Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
