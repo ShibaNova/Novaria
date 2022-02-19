@@ -31,7 +31,7 @@ contract Fleet is Editor {
         _baseMaxFleetSize = 5000;
         _battleSizeRestriction = 4;
         _startFee = 10**20;
-        _scrapPercentage = 25;
+        _scrapPercentage = 40;
 
         //load start data
         createShipClass("Viper", 1, 1, 3, 0, 0, 0, 10**18, 0);
