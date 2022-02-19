@@ -146,7 +146,7 @@ contract Map is Editor {
     function _addPlace(PlaceType _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, 0xd9145CCE52D386f254917e481eB44e9943F39138, _canTravel));
+        places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, tx.origin, _canTravel));
 
         //set place in coordinate mapping
         _placeExists[_x][_y] = true;
