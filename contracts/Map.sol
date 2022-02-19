@@ -85,9 +85,9 @@ contract Map is Editor {
         address discoverer;
         bool canTravel;
     }
-    Place[] _places;
+    Place[] public places;
     mapping (uint => mapping(uint => bool)) _placeExists;
-    mapping (uint => mapping(uint => uint)) _coordinatePlaces;
+    mapping (uint => mapping(uint => uint)) public coordinatePlaces;
 
     struct PlaceGetter {
         string name;
@@ -145,12 +145,12 @@ contract Map is Editor {
 
     function _addPlace(PlaceType _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
-        uint placeId = _places.length;
-        _places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, 0xd9145CCE52D386f254917e481eB44e9943F39138, _canTravel));
+        uint placeId = places.length;
+        places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, 0xd9145CCE52D386f254917e481eB44e9943F39138, _canTravel));
 
         //set place in coordinate mapping
         _placeExists[_x][_y] = true;
-        _coordinatePlaces[_x][_y] = placeId;
+        coordinatePlaces[_x][_y] = placeId;
     }
 
     function _addEmpty(uint _x, uint _y) internal {
@@ -163,22 +163,22 @@ contract Map is Editor {
 
     function _addAsteroid(uint _x, uint _y, uint _amount) internal {
         uint asteroidId = _asteroids.length;
-        _asteroids.push(Asteroid(asteroidId, _places.length, _amount));
+        _asteroids.push(Asteroid(asteroidId, places.length, _amount));
         _addPlace(PlaceType.ASTEROID, 0, _x, _y, '', true);
     }
 
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
         //add star to stars list
         uint starId = _stars.length;
-        _stars.push(Star(starId, _places.length, _luminosity, 0, 0));
+        _stars.push(Star(starId, places.length, _luminosity, 0, 0));
 
         _addPlace(PlaceType.STAR, starId, _x, _y, _name, false);
         emit NewStar(_x, _y);
     }
 
     function _addPlanet(uint _starId, uint _x, uint _y, string memory _name, bool _isMiningPlanet, bool _hasRefinery, bool _hasShipyard) internal {
-        uint starX = _places[_stars[_starId].placeId].coordX;
-        uint starY = _places[_stars[_starId].placeId].coordY;
+        uint starX = places[_stars[_starId].placeId].coordX;
+        uint starY = places[_stars[_starId].placeId].coordY;
         uint starDistance = Helper.getDistance(starX, starY, _x, _y);
 
         //add planet info to star
@@ -188,7 +188,7 @@ contract Map is Editor {
         }
 
         uint planetId = _planets.length;
-        _planets.push(Planet(planetId, _places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
+        _planets.push(Planet(planetId, places.length, _starId, starDistance, _isMiningPlanet, 0, _hasRefinery, _hasShipyard));
 
         _addPlace(PlaceType.PLANET, planetId, _x, _y, _name, true);
         emit NewPlanet(_starId, _x, _y);
@@ -224,8 +224,8 @@ contract Map is Editor {
         }
         else if(rand >= 55 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
-            uint nearestStarX = _places[_stars[nearestStar].placeId].coordX;
-            uint nearestStarY = _places[_stars[nearestStar].placeId].coordY;
+            uint nearestStarX = places[_stars[nearestStar].placeId].coordX;
+            uint nearestStarY = places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
             if(rand >= 55 && rand <= 73 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
@@ -271,7 +271,7 @@ contract Map is Editor {
     }
 
     function changeName(uint _x, uint _y, string memory _name) external {
-        Place storage namePlace = _places[_coordinatePlaces[_x][_y]];
+        Place storage namePlace = places[coordinatePlaces[_x][_y]];
         require(msg.sender == namePlace.discoverer, 'MAP: not discoverer');
         require(Helper.isEqual(namePlace.name, ""), 'MAP: already named');
         namePlace.name = _name;
@@ -281,7 +281,7 @@ contract Map is Editor {
         uint nearestStar;
         uint nearestStarDistance;
         for(uint i=0; i<_stars.length; i++) {
-            uint starDistance = Helper.getDistance(_x, _y, _places[_stars[i].placeId].coordX, _places[_stars[i].placeId].coordY);
+            uint starDistance = Helper.getDistance(_x, _y, places[_stars[i].placeId].coordX, places[_stars[i].placeId].coordY);
             if(nearestStarDistance == 0 || starDistance < nearestStarDistance) {
                 nearestStar = i;
                 nearestStarDistance = starDistance;
@@ -299,7 +299,7 @@ contract Map is Editor {
                 PlaceGetter memory placeGetter;
 
                 if(_placeExists[i][j-1] == true) {
-                    Place memory place = _places[_coordinatePlaces[i][j-1]];
+                    Place memory place = places[coordinatePlaces[i][j-1]];
                     placeGetter.canTravel = place.canTravel;
                     placeGetter.name = place.name; 
                     placeGetter.placeType = place.placeType;
@@ -328,15 +328,15 @@ contract Map is Editor {
     }
 
     function _getCoordinatePlace(uint _x, uint _y) internal view returns (Place memory) {
-        return _places[_coordinatePlaces[_x][_y]];
+        return places[coordinatePlaces[_x][_y]];
     }
 
     function getPlaceId(uint _x, uint _y) public view returns (uint) {
-        return (_coordinatePlaces[_x][_y]);
+        return (coordinatePlaces[_x][_y]);
     }
 
     function getPlaceName(uint _x, uint _y) external view returns(string memory) {
-        return _places[getPlaceId(_x, _y)].name;
+        return places[getPlaceId(_x, _y)].name;
     }
 
     // get total star luminosity
@@ -362,7 +362,7 @@ contract Map is Editor {
     
     function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
         //get place and add it to place
-        _places[_coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
+        places[coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
     }
 
     // When Token allocated for salvage gets added to contract, call this function
@@ -401,7 +401,7 @@ contract Map is Editor {
 
     function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
         Planet memory planet;
-        Place memory place = _places[_coordinatePlaces[_x][_y]];
+        Place memory place = places[coordinatePlaces[_x][_y]];
         if(place.placeType == PlaceType.PLANET) {
             planet = _planets[place.childId];
         }
@@ -443,15 +443,15 @@ contract Map is Editor {
     function collect() external {
         (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
         require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
-        _places[_coordinatePlaces[fleetX][fleetY]].salvage -=
-            _gather(msg.sender, _places[_coordinatePlaces[fleetX][fleetY]].salvage, _miningCooldown / _collectCooldownReduction);
+        places[coordinatePlaces[fleetX][fleetY]].salvage -=
+            _gather(msg.sender, places[coordinatePlaces[fleetX][fleetY]].salvage, _miningCooldown / _collectCooldownReduction);
     }
  
     //Fleet can mine mineral depending their fleet's capacity and planet available
     function mine() external {
         (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
         require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
-        Place memory miningPlace = _places[_coordinatePlaces[fleetX][fleetY]];
+        Place memory miningPlace = places[coordinatePlaces[fleetX][fleetY]];
 
         //if mining a planet
         if(miningPlace.placeType == PlaceType.PLANET) {
@@ -514,7 +514,7 @@ contract Map is Editor {
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
-        require(_places[_coordinatePlaces[_x][_y]].canTravel == true, 'MAPS: no travel');
+        require(places[coordinatePlaces[_x][_y]].canTravel == true, 'MAPS: no travel');
         address sender = msg.sender;
         require(block.timestamp >= travelCooldown[sender], "MAPS: jump drive recharging");
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
@@ -535,7 +535,7 @@ contract Map is Editor {
     function setRecall() external {
         (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
         require(isShipyardLocation(fleetX, fleetY) == true, 'MAP: no shipyard');
-        fleetLastShipyardPlace[msg.sender] = _coordinatePlaces[fleetX][fleetY];
+        fleetLastShipyardPlace[msg.sender] = coordinatePlaces[fleetX][fleetY];
     }
 
     //set travel cooldown or increase it
@@ -556,8 +556,8 @@ contract Map is Editor {
         uint recallX;
         uint recallY;
         if(_goToHaven != true) {
-            recallX = _places[fleetLastShipyardPlace[msg.sender]].coordX;
-            recallY = _places[fleetLastShipyardPlace[msg.sender]].coordY;
+            recallX = places[fleetLastShipyardPlace[msg.sender]].coordX;
+            recallY = places[fleetLastShipyardPlace[msg.sender]].coordY;
         }
 
         (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
