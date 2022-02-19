@@ -100,6 +100,7 @@ contract Map is Editor {
         bool canTravel;
         uint luminosity;
         bool isMiningPlanet;
+        address discoverer;
     }
 
     struct Planet {
@@ -304,6 +305,7 @@ contract Map is Editor {
                     placeGetter.placeType = place.placeType;
                     placeGetter.salvage = place.salvage;
                     placeGetter.fleetCount = fleetsAtLocation[i][j-1].length;
+                    placeGetter.discoverer = place.discoverer;
 
                     if(place.placeType == PlaceType.PLANET) {
                         placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
