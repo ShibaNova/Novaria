@@ -353,7 +353,7 @@ contract Map is Editor {
     // Pulls token from the shadow pool, eventually internal function
     //PROBLEM: does not function - review 
     function _requestToken() internal {
-        if (block.timestamp >= _rewardsTimer) {
+        if (block.timestamp >= _rewardsTimer && _rewardsMod > 0) {
             ShadowPool.replenishPlace(address(this), _rewardsMod);
             _rewardsTimer = block.timestamp + rewardsDelay;
             allocateToken();
