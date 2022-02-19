@@ -211,10 +211,10 @@ contract Map is Editor {
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100, _x + _y);
-        if(rand >= 10 && rand <= 30) {
+        if(rand >= 5 && rand <= 35) {
            _addHostile(_x, _y); 
         }
-        else if(rand >= 31 && rand <= 54) {
+        else if(rand >= 36 && rand <= 54) {
             uint asteroidPercent = Helper.getRandomNumber(8, _x + _y) + 2;
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
