@@ -164,7 +164,7 @@ contract Map is Editor {
     function _addAsteroid(uint _x, uint _y, uint _amount) internal {
         uint asteroidId = _asteroids.length;
         _asteroids.push(Asteroid(asteroidId, places.length, _amount));
-        _addPlace(PlaceType.ASTEROID, 0, _x, _y, '', true);
+        _addPlace(PlaceType.ASTEROID, asteroidId, _x, _y, '', true);
     }
 
     function _addStar(uint _x, uint _y, string memory _name, uint _luminosity) internal {
@@ -220,7 +220,7 @@ contract Map is Editor {
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
             Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
-            _addAsteroid(_x, _y, 98 * asteroidAmount / 100);
+            _addAsteroid(_x, _y, (98 * asteroidAmount) / 100);
         }
         else if(rand >= 55 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
