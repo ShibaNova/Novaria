@@ -329,6 +329,7 @@ contract Fleet is Editor {
     function goBattle(uint battleId) public {
         Battle memory battle = battles[battleId];
         require(block.timestamp > battle.battleDeadline, 'FLEET: battle prepping');
+        require(battle.isResolved != true, 'FLEET: battle over');
 
         Team[2] memory teams = [battle.attackTeam, battle.defendTeam];
         uint totalMineralLost;
@@ -380,7 +381,6 @@ contract Fleet is Editor {
             players[_addressToPlayer[battleToEnd.defendTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
 
-        //remove battle from battles list
         battles[_battleId].isResolved = true;
  //       battles[_battleId] = battles[battles.length-1];
 //        battles.pop();
