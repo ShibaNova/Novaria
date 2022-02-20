@@ -212,23 +212,23 @@ contract Map is Editor {
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100, _x + _y);
-        if(rand >= 5 && rand <= 35) {
+        if(rand >= 0 && rand <= 44) {
            _addHostile(_x, _y); 
         }
-        else if(rand >= 36 && rand <= 54) {
+        else if(rand >= 45 && rand <= 59) {
             uint asteroidPercent = Helper.getRandomNumber(5, _x + _y) + 10;
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
             Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
             _addAsteroid(_x, _y, (98 * asteroidAmount) / 100);
         }
-        else if(rand >= 55 && rand <= 99) {
+        else if(rand >= 60 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 55 && rand <= 73 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 60 && rand <= 75 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet = false;
                 bool hasShipyard = false;
                 bool hasRefinery = false;
@@ -258,7 +258,7 @@ contract Map is Editor {
 
             }
             //new star must be more than 7 AU away from nearest star
-            else if(rand >= 74 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+            else if(rand >= 76 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, '', Helper.getRandomNumber(9, rand) + 1);
             }
             else {
