@@ -504,7 +504,7 @@ contract Map is Editor {
 
        //Every 1000 experience, travel is reduced by 1% up to 50%
        uint travelDiscount = Helper.getMin(50, Fleet.getExperience(_fleet) / 1000);
-       return ((distance**2 * _baseTravelCost * fleetSize) * ((100-travelDiscount) / 100)) / Treasury.getCostMod();
+       return (((distance**2 * _baseTravelCost * fleetSize) * (100-travelDiscount)) / 100) / Treasury.getCostMod();
     }
 
     function getFleetTravelCooldown(address _fleet, uint _x, uint _y) public view returns (uint) {
