@@ -273,6 +273,7 @@ contract Map is Editor {
     function changeName(uint _x, uint _y, string memory _name) external {
         Place storage namePlace = places[coordinatePlaces[_x][_y]];
         require(msg.sender == namePlace.discoverer, 'MAP: not discoverer');
+        require(namePlace.placeType == PlaceType.PLANET || namePlace.placeType == PlaceType.STAR, 'MAP: not named');
         require(Helper.isEqual(namePlace.name, ""), 'MAP: already named');
         namePlace.name = _name;
     }
