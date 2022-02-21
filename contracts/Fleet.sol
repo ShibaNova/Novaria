@@ -288,8 +288,6 @@ contract Fleet is Editor {
         require(attackX == targetX && attackY == targetY, 'FLEET: dif. location');
         require(Map.isRefineryLocation(targetX, targetY) != true, 'FLEET: DMZ');
 
-        require(getFleetSize(_player) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
-        require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(_player), 'FLEET: target too small');
         require(players[_addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FLEET: in battle');
         _;
     }
@@ -311,8 +309,11 @@ contract Fleet is Editor {
 
         uint targetBattleId = targetPlayer.battleId;
         if(mission == BattleStatus.ATTACK) {
-            //if new battle
+
+            //create new battle, but new battle cannot be initated be a fleet to large or too small
             if(targetPlayer.battleStatus == BattleStatus.PEACE) {
+                require(getFleetSize(msg.sender) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
+                require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(msg.sender), 'FLEET: target too small');
                 Team memory attackTeam; Team memory defendTeam;
                 battles.push(Battle(false, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
