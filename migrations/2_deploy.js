@@ -6,10 +6,17 @@ const Treasury = artifacts.require('Treasury')
 //const MasterShiba = artifacts.require('MasterShiba')
 //const BasicToken = artifacts.require('BasicToken')
 
-const _feeManager = '0xBF08a58d52b8bd98616760C6eEF23625329f7b0B'
+const _feeManager = '0x87b62B5d7c729e7C9ed28be460caDF5823228799'
 const _devaddress = '0x729F3cA74A55F2aB7B584340DDefC29813fb21dF'
-const _novaPerBlock = '1000000000000000000'
-const _startBlock = '15802444'
+// const _novaPerBlock = '1000000000000000000'
+// const _startBlock = '15802444'
+const kj = '0x509CC3b01e4e4BD8CE810AA9C10D89d05E0FB03A'
+const ll = '0xa12C28e569a7564420aa437F3d3dA29aED648707'
+// SET PREVIOUS MAP ADDRESS
+const prevMap = ''
+const farmContract = ''
+const shadowPoolToken = ''
+
 
 module.exports = async function (deployer, network, accounts) {
 
@@ -36,5 +43,45 @@ module.exports = async function (deployer, network, accounts) {
     await deployer.deploy(Fleet, map.address, treasury.address, nova.address)
     const fleet = await Fleet.deployed()
 
+    // contract setup map and fleet only, still requires additional treasury and shadowpool setup
     await map.setFleet(fleet.address)
+    await map.setEditor([fleet.address])
+    await map.setRewardsMod(20)
+    await map.setRewardsDelay(3600)
+    await fleet.setEditor([map.address])
+    await fleet.setEditor([accounts[0]])
+    await fleet.addShipyard(accounts[0], 0, 0, 5)
+
+    // Treasury setup
+    await treasury.approveContract(map.address)
+    await treasury.setEditor([map.address])
+    await treasury.setKJfr6(kj)
+    await treasury.setlloY1(ll)
+
+    // ShadowPool
+    // await shadowPool.tokenApproval(map.address, nova.address)
+    // await shadowPool.tokenApproval(farmContract, nova.address)
+    // await shadowPool.tokenApproval(farmContract, shadowPoolToken)
+    // await shadowPool.setEditor(map.address)
+    // await shadowPool.deactivateEditor(prevMap)
+
+    // additional setup for deploy of nova token
+    await nova.approve(treasury.address, '0xffffffffffffffffff')
+    await nova.approve(fleet.address, '0xffffffffffffffffff')
+
+    await nova.mint(accounts[0], '1000000000000000000000')
+    await nova.mint(accounts[1], '1000000000000000000000')
+    await nova.mint(accounts[2], '1000000000000000000000')
+    await nova.mint(accounts[3], '1000000000000000000000')
+    await nova.mint(map.address, '100000000000000000000')
+    await map.requestToken()
+
+    // game startup
+    await fleet.insertCoinHere('fleet1', {from: accounts[0]})
+    await nova.approve(treasury.address, '0xffffffffffffffffff', {from: accounts[1]})
+    await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[1]})
+    await nova.approve(treasury.address, '0xffffffffffffffffff', {from: accounts[2]})
+    await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[2]})
+    await fleet.insertCoinHere('fleet2', {from: accounts[1]})
+    await fleet.insertCoinHere('fleet3', {from: accounts[2]})
 };
