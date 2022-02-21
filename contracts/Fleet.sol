@@ -18,16 +18,16 @@ contract Fleet is Editor {
     using SafeBEP20 for ShibaBEP20;
 
     constructor (
-       // IMap _map, 
-       // ITreasury _treasury, 
-       // ShibaBEP20 _Token
+        IMap _map, 
+        ITreasury _treasury, 
+        ShibaBEP20 _token
         ) {
        // Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
         // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
        //  Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
-        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-        Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-        Map = IMap(0xaE036c65C649172b43ef7156b009c6221B596B8b);
+        Token = _token;
+        Treasury = _treasury;
+        Map = _map;
         _baseMaxFleetSize = 5000;
         _battleSizeRestriction = 4;
         _startFee = 10**20;
@@ -253,7 +253,7 @@ contract Fleet is Editor {
         require(isInBattle(sender) == false, "FLEET: in battle/takeover");
 
         require(_amount <= dock.amount, 'FLEET: not that many');
-        require(block.timestamp > dock.completionTime, 'FLEET: ships not done');
+     //   require(block.timestamp > dock.completionTime, 'FLEET: ships not done');
 
         require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) < getMaxFleetSize(sender), 'Claim size too large');
 
