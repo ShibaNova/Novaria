@@ -14,16 +14,16 @@ contract Map is Editor {
     using SafeBEP20 for ShibaBEP20;
 
     constructor (
-        // ShibaBEP20 _token,
-        // ITreasury _treasury
+         ShibaBEP20 _token,
+         ITreasury _treasury
         //IShadowPool _shadowPool,
         //IFleet _fleet
     ) {
-        Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-         Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-       // Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
-       // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
-        Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
+        //Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
+         //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+         Token = _token;
+         Treasury = _treasury;
+        //Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
 //        ShadowPool = IShadowPool(0x318C38d8140Cb1d4CeF6E40743457c4224d07Fd8);
 
         _previousBalance = 0;
