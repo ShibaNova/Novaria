@@ -233,10 +233,10 @@ contract Map is Editor {
                 bool hasShipyard;
                 bool hasRefinery;
                 uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
-                if(planetAttributeSelector <= 8) {
+                if(planetAttributeSelector <= 9) {
                     isMiningPlanet = true;
                 }
-                else if(planetAttributeSelector >= 9 && planetAttributeSelector <=11) {
+                else if(planetAttributeSelector >= 10 && planetAttributeSelector <=11) {
                     hasRefinery = true;
                 }
                 else if(planetAttributeSelector >= 12 && planetAttributeSelector <= 18) {
