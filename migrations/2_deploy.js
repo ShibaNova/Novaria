@@ -1,3 +1,22 @@
+advanceTime = (time) => {
+  return new Promise((resolve, reject) => {
+    web3.currentProvider.send({
+      jsonrpc: '2.0',
+      method: 'evm_increaseTime',
+      params: [time],
+      id: new Date().getTime()
+    }, (err, result) => {
+      if (err) { return reject(err) }
+      return resolve(result)
+    })
+  })
+}
+
+const deployedNovaToken = false
+const deployedTreasury = false
+const alreadyDeployedNovaToken = '0x56E344bE9A7a7A1d27C854628483Efd67c11214F'
+const alreadyDeployedTreasury = '0xB0e7b04Bee18BF0F2b8667cfd85313Da6b5de8D8'
+
 const Fleet = artifacts.require('Fleet')
 const NovaToken = artifacts.require('NovaToken')
 //const ShadowPool = artifacts.require('ShadowPool')
@@ -23,16 +42,26 @@ module.exports = async function (deployer, network, accounts) {
     // await deployer.deploy(BasicToken, 'ShadowPoolToken', 'SPT')
     // const spt = await BasicToken.deployed()
 
-    await deployer.deploy(NovaToken)
-    const nova = await NovaToken.deployed()
+    if(deployedNovaToken == false) {
+        await deployer.deploy(NovaToken)
+        const nova = await NovaToken.deployed()
+    }
+    else {
+        const nova = alreadyDeployedNovaToken;
+    }
 
     // await deployer.deploy(MasterShiba, nova.address, _devaddress, _feeManager, _novaPerBlock, _startBlock)
     // const masterShiba = await MasterShiba.deployed()
 
     // await masterShiba.add(800, spt.address, 0, false)
 
-    await deployer.deploy(Treasury, nova.address, _feeManager)
-    const treasury = await Treasury.deployed()
+    if(deployedTreasury == false) {
+        await deployer.deploy(Treasury, nova.address, _feeManager)
+        const treasury = await Treasury.deployed()
+    }
+    else {
+        const treasury = alreadyDeployedTreasury;
+    }
 
     // await deployer.deploy(ShadowPool, masterShiba.address, nova.address, 1, spt.address)
     // const shadowPool = await ShadowPool.deployed()
@@ -51,6 +80,7 @@ module.exports = async function (deployer, network, accounts) {
     await fleet.setEditor([map.address])
     await fleet.setEditor([accounts[0]])
     await fleet.addShipyard(accounts[0], 0, 0, 5)
+    await fleet.addShipyard(accounts[0], 1, 3, 5)
 
     // Treasury setup
     await treasury.approveContract(map.address)
@@ -84,4 +114,17 @@ module.exports = async function (deployer, network, accounts) {
     await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[2]})
     await fleet.insertCoinHere('fleet2', {from: accounts[1]})
     await fleet.insertCoinHere('fleet3', {from: accounts[2]})
+
+    //build ships
+    await fleet.buildShips(0, 0, 0, 2500, "52500000000000000000", {from: accounts[1]})
+    await fleet.claimShips(0,2500, {from:accounts[1]})
+    await map.travel(1,3, {from:accounts[1]})
+
+    //86400 seconds in a day
+    await advanceTime(86400 * 10) // 10 Days
 };
+
+/*
+const fleet = await Fleet.deployed();
+await fleet.initiateShipyardTakeover(1, 3, {from:accounts[1]});
+*/
