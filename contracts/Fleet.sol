@@ -253,7 +253,7 @@ contract Fleet is Editor {
         require(isInBattle(sender) == false, "FLEET: in battle/takeover");
 
         require(_amount <= dock.amount, 'FLEET: not that many');
-     //   require(block.timestamp > dock.completionTime, 'FLEET: ships not done');
+        require(block.timestamp > dock.completionTime, 'FLEET: ships not done');
 
         require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) < getMaxFleetSize(sender), 'Claim size too large');
 
