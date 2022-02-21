@@ -32,7 +32,7 @@ contract Map is Editor {
         _travelCooldownPerDistance = 900; //15 minutes
         _maxTravel = 5; //AU
         _rewardsTimer = 0;
-        _timeModifier = 20;
+        _timeModifier = 10;
         _miningCooldown = 1800; //30 minutes
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
@@ -229,9 +229,9 @@ contract Map is Editor {
 
             //new planet must be within 3 AU off nearest star
             if(rand >= 60 && rand <= 75 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
-                bool isMiningPlanet = false;
-                bool hasShipyard = false;
-                bool hasRefinery = false;
+                bool isMiningPlanet;
+                bool hasShipyard;
+                bool hasRefinery;
                 uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
                 if(planetAttributeSelector <= 8) {
                     isMiningPlanet = true;
@@ -269,6 +269,26 @@ contract Map is Editor {
            _addEmpty(_x, _y);
         }
     }
+
+ /*   function createRefineryShipyardPlanet(uint _x, uint _y) external {
+        uint nearestStar = _getNearestStar(_x, _y);
+
+        bool isMiningPlanet = false;
+        bool hasShipyard = true;
+        bool hasRefinery = true;
+        _addPlanet(nearestStar, _x, _y, '', isMiningPlanet, hasRefinery, hasShipyard);
+
+        //if planet has a shipyard, add shipyard to Fleet contract
+        if(hasShipyard == true) {
+            uint8 feePercent;
+            address placeOwner;
+            if(hasRefinery != true) {
+                feePercent = 5;
+                placeOwner = msg.sender;
+            }
+            Fleet.addShipyard(placeOwner, _x, _y, feePercent);
+        }
+    }*/
 
     function changeName(uint _x, uint _y, string memory _name) external {
         Place storage namePlace = places[coordinatePlaces[_x][_y]];
@@ -351,8 +371,10 @@ contract Map is Editor {
         return totalLuminosity;
     }
 
-    // Pulls token from the shadow pool, eventually internal function
-    //PROBLEM: does not function - review 
+    function requestToken() external onlyOwner {
+        _requestToken();
+    }
+
     function _requestToken() internal {
         if (block.timestamp >= _rewardsTimer && _rewardsMod > 0) {
             ShadowPool.replenishPlace(address(this), _rewardsMod);
