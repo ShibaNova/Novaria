@@ -422,7 +422,7 @@ contract Map is Editor {
         }
     }
 
-    function getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
+    function _getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
         Planet memory planet;
         Place memory place = places[coordinatePlaces[_x][_y]];
         if(place.placeType == PlaceType.PLANET) {
@@ -433,15 +433,15 @@ contract Map is Editor {
 
     function getPlanetAtFleetLocation(address _sender) internal view returns (Planet memory) {
         (uint fleetX, uint fleetY) =  getFleetLocation(_sender);
-        return getPlanetAtLocation(fleetX, fleetY);
+        return _getPlanetAtLocation(fleetX, fleetY);
     }
 
     function isRefineryLocation(uint _x, uint _y) external view returns (bool) {
-        return getPlanetAtLocation(_x, _y).hasRefinery;
+        return _getPlanetAtLocation(_x, _y).hasRefinery;
     }
 
     function isShipyardLocation(uint _x, uint _y) public view returns (bool) {
-        return getPlanetAtLocation(_x, _y).hasShipyard;
+        return _getPlanetAtLocation(_x, _y).hasShipyard;
     }
 
     //shared core implementation for any kind of mineral/salvage collection
