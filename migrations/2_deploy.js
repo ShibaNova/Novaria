@@ -42,12 +42,12 @@ module.exports = async function (deployer, network, accounts) {
     // await deployer.deploy(BasicToken, 'ShadowPoolToken', 'SPT')
     // const spt = await BasicToken.deployed()
 
-    if(deployedNovaToken == false) {
-        await deployer.deploy(NovaToken)
-        const nova = await NovaToken.deployed()
+    if(deployedNovaToken) {
+        const nova = await NovaToken.at(noveTokenAddress)
     }
     else {
-        const nova = await NovaToken.at(noveTokenAddress)
+        await deployer.deploy(NovaToken)
+        const nova = await NovaToken.deployed()
     }
 
     // await deployer.deploy(MasterShiba, nova.address, _devaddress, _feeManager, _novaPerBlock, _startBlock)
@@ -55,12 +55,12 @@ module.exports = async function (deployer, network, accounts) {
 
     // await masterShiba.add(800, spt.address, 0, false)
 
-    if(deployedTreasury == false) {
-        await deployer.deploy(Treasury, nova.address, _feeManager)
-        const treasury = await Treasury.deployed()
+    if(deployedTreasury) {
+        const treasury = Treasury.at(treasuryAddress)
     }
     else {
-        const treasury = Treasury.at(treasuryAddress)
+        await deployer.deploy(Treasury, nova.address, _feeManager)
+        const treasury = await Treasury.deployed()
     }
 
     // await deployer.deploy(ShadowPool, masterShiba.address, nova.address, 1, spt.address)
@@ -99,29 +99,31 @@ module.exports = async function (deployer, network, accounts) {
     await nova.approve(treasury.address, '0xffffffffffffffffff')
     await nova.approve(fleet.address, '0xffffffffffffffffff')
 
-    await nova.mint(accounts[0], '1000000000000000000000')
-    await nova.mint(accounts[1], '1000000000000000000000')
-    await nova.mint(accounts[2], '1000000000000000000000')
-    await nova.mint(accounts[3], '1000000000000000000000')
-    await nova.mint(map.address, '100000000000000000000')
-    await map.requestToken()
+    if(!deployedNovaToken) {
+        await nova.mint(accounts[0], '1000000000000000000000')
+        await nova.mint(accounts[1], '1000000000000000000000')
+        await nova.mint(accounts[2], '1000000000000000000000')
+        await nova.mint(accounts[3], '1000000000000000000000')
+        await nova.mint(map.address, '100000000000000000000')
+        await map.requestToken()
+        // game startup
+        await fleet.insertCoinHere('fleet1', {from: accounts[0]})
+        await nova.approve(treasury.address, '0xffffffffffffffffff', {from: accounts[1]})
+        await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[1]})
+        await nova.approve(treasury.address, '0xffffffffffffffffff', {from: accounts[2]})
+        await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[2]})
+        await fleet.insertCoinHere('fleet2', {from: accounts[1]})
+        await fleet.insertCoinHere('fleet3', {from: accounts[2]})
 
-    // game startup
-    await fleet.insertCoinHere('fleet1', {from: accounts[0]})
-    await nova.approve(treasury.address, '0xffffffffffffffffff', {from: accounts[1]})
-    await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[1]})
-    await nova.approve(treasury.address, '0xffffffffffffffffff', {from: accounts[2]})
-    await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[2]})
-    await fleet.insertCoinHere('fleet2', {from: accounts[1]})
-    await fleet.insertCoinHere('fleet3', {from: accounts[2]})
+        //build ships
+        await fleet.buildShips(0, 0, 0, 2500, "52500000000000000000", {from: accounts[1]})
+        await fleet.claimShips(0,2500, {from:accounts[1]})
+        await map.travel(1,3, {from:accounts[1]})
 
-    //build ships
-    await fleet.buildShips(0, 0, 0, 2500, "52500000000000000000", {from: accounts[1]})
-    await fleet.claimShips(0,2500, {from:accounts[1]})
-    await map.travel(1,3, {from:accounts[1]})
+        //86400 seconds in a day
+        await advanceTime(86400 * 10) // 10 Days
+    }
 
-    //86400 seconds in a day
-    await advanceTime(86400 * 10) // 10 Days
 };
 
 /*
