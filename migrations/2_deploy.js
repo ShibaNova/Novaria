@@ -47,7 +47,7 @@ module.exports = async function (deployer, network, accounts) {
         const nova = await NovaToken.deployed()
     }
     else {
-        let nova = await NovaToken.at(noveTokenAddress)
+        const nova = await NovaToken.at(noveTokenAddress)
     }
 
     // await deployer.deploy(MasterShiba, nova.address, _devaddress, _feeManager, _novaPerBlock, _startBlock)
@@ -60,7 +60,7 @@ module.exports = async function (deployer, network, accounts) {
         const treasury = await Treasury.deployed()
     }
     else {
-        let treasury = Treasury.at(treasuryAddress)
+        const treasury = Treasury.at(treasuryAddress)
     }
 
     // await deployer.deploy(ShadowPool, masterShiba.address, nova.address, 1, spt.address)
