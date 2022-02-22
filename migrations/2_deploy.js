@@ -14,8 +14,8 @@ advanceTime = (time) => {
 
 const deployedNovaToken = false
 const deployedTreasury = false
-const alreadyDeployedNovaToken = '0x56E344bE9A7a7A1d27C854628483Efd67c11214F'
-const alreadyDeployedTreasury = '0xB0e7b04Bee18BF0F2b8667cfd85313Da6b5de8D8'
+const noveTokenAddress = '0x56E344bE9A7a7A1d27C854628483Efd67c11214F'
+const treasuryAddress = '0xB0e7b04Bee18BF0F2b8667cfd85313Da6b5de8D8'
 
 const Fleet = artifacts.require('Fleet')
 const NovaToken = artifacts.require('NovaToken')
@@ -47,7 +47,7 @@ module.exports = async function (deployer, network, accounts) {
         const nova = await NovaToken.deployed()
     }
     else {
-        const nova = alreadyDeployedNovaToken;
+        const nova = noveTokenAddress;
     }
 
     // await deployer.deploy(MasterShiba, nova.address, _devaddress, _feeManager, _novaPerBlock, _startBlock)
@@ -60,7 +60,7 @@ module.exports = async function (deployer, network, accounts) {
         const treasury = await Treasury.deployed()
     }
     else {
-        const treasury = alreadyDeployedTreasury;
+        const treasury = treasuryAddress;
     }
 
     // await deployer.deploy(ShadowPool, masterShiba.address, nova.address, 1, spt.address)
