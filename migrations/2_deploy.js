@@ -12,9 +12,9 @@ advanceTime = (time) => {
   })
 }
 
-const deployedNovaToken = false
-const deployedTreasury = false
-const noveTokenAddress = '0x56E344bE9A7a7A1d27C854628483Efd67c11214F'
+const deployedNovaToken = true
+const deployedTreasury = true
+const novaTokenAddress = '0x56E344bE9A7a7A1d27C854628483Efd67c11214F'
 const treasuryAddress = '0xB0e7b04Bee18BF0F2b8667cfd85313Da6b5de8D8'
 
 const Fleet = artifacts.require('Fleet')
@@ -41,26 +41,20 @@ module.exports = async function (deployer, network, accounts) {
 
     // await deployer.deploy(BasicToken, 'ShadowPoolToken', 'SPT')
     // const spt = await BasicToken.deployed()
-
-    if(deployedNovaToken) {
-        const nova = await NovaToken.at(noveTokenAddress)
-    }
-    else {
+    let nova = await NovaToken.at(novaTokenAddress)
+    if(!deployedNovaToken) {
         await deployer.deploy(NovaToken)
-        const nova = await NovaToken.deployed()
+        nova = await NovaToken.deployed()
     }
 
     // await deployer.deploy(MasterShiba, nova.address, _devaddress, _feeManager, _novaPerBlock, _startBlock)
     // const masterShiba = await MasterShiba.deployed()
 
     // await masterShiba.add(800, spt.address, 0, false)
-
-    if(deployedTreasury) {
-        const treasury = Treasury.at(treasuryAddress)
-    }
-    else {
+    let treasury = await Treasury.at(treasuryAddress)
+    if(!deployedTreasury) {
         await deployer.deploy(Treasury, nova.address, _feeManager)
-        const treasury = await Treasury.deployed()
+        treasury = await Treasury.deployed()
     }
 
     // await deployer.deploy(ShadowPool, masterShiba.address, nova.address, 1, spt.address)
