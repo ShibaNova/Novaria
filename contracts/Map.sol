@@ -235,6 +235,7 @@ contract Map is Editor {
                 uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
                 if(planetAttributeSelector <= 9) {
                     isMiningPlanet = true;
+                    _rewardsTimer = 0; // get rewards going to planet right away when new one is discovered
                 }
                 else if(planetAttributeSelector >= 10 && planetAttributeSelector <=11) {
                     hasRefinery = true;
