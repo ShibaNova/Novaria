@@ -205,6 +205,7 @@ contract Fleet is Editor {
     }
 
     function setShipyardFeePercent(uint _x, uint _y, uint8 _feePercent) external doesShipyardExist(_x, _y) {
+        require(_feePercent < 100, 'FLEET: fee too high');
         require(_shipyards[_coordinatesToShipyard[_x][_y]].owner == msg.sender);
         _shipyards[_coordinatesToShipyard[_x][_y]].feePercent = _feePercent;
     }
