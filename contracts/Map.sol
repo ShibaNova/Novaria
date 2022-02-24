@@ -195,7 +195,7 @@ contract Map is Editor {
     }
 
     function getExploreCost(uint _x, uint _y) public view returns(uint) {
-        return Helper.getDistance(0, 0, _x, _y) * 2 * 10**19 / Treasury.getCostMod();
+        return Helper.getDistance(0, 0, _x, _y) * 10**19 / Treasury.getCostMod();
     }
 
     //player explore function
