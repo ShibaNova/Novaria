@@ -15,7 +15,7 @@ contract Treasury is Editor {
     ) {
         Token = _Token;
         feeManager = _feeManager;
-        costModifier = 50;
+        costModifier = 20;
         moneyPotRate = 70;
         crr = 8;
     }
