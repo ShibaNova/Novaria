@@ -513,7 +513,7 @@ contract Map is Editor {
 
     function getFleetTravelCooldown(address _fleet, uint _x, uint _y) public view returns (uint) {
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
-       return _baseTravelCooldown + (distance*_travelCooldownPerDistance);
+       return (_baseTravelCooldown + (distance*_travelCooldownPerDistance)) / _timeModifier;
     }
 
     // ship travel to _x and _y
@@ -530,7 +530,7 @@ contract Map is Editor {
         Treasury.pay(sender, travelCost);
         Fleet.addExperience(sender, travelCost);
 
-        _addTravelCooldown(sender, getFleetTravelCooldown(sender, _x, _y));
+        travelCooldown[sender] = block.timestamp + getFleetTravelCooldown(sender, _x, _y);
 
         (uint fleetX, uint fleetY) =  getFleetLocation(sender);
         _setFleetLocation(sender, fleetX, fleetY, _x, _y);
@@ -541,17 +541,6 @@ contract Map is Editor {
         (uint fleetX, uint fleetY) =  getFleetLocation(msg.sender);
         require(isShipyardLocation(fleetX, fleetY) == true, 'MAP: no shipyard');
         fleetLastShipyardPlace[msg.sender] = coordinatePlaces[fleetX][fleetY];
-    }
-
-    //set travel cooldown or increase it
-    function _addTravelCooldown(address _fleet, uint _seconds) internal {
-        uint cooldownTime = _seconds / _timeModifier;
-        if(travelCooldown[_fleet] > block.timestamp) {
-            travelCooldown[_fleet] += cooldownTime;
-        }
-        else {
-            travelCooldown[_fleet] = block.timestamp + cooldownTime;
-        }
     }
 
     //recall player to last shipyard visited
