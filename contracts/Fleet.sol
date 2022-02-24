@@ -123,7 +123,7 @@ contract Fleet is Editor {
     event NewShipyard(uint _x, uint _y);
 
     function _createPlayer(string memory _name, address _player) internal {
-        require(bytes(_name).length < 16, 'FLEET: name too long');
+        require(bytes(_name).length <= 12, 'FLEET: name too long');
         require(_names[_name] == address(0), 'FLEET: duplicate name');
         require(_playerExists[_player] == false, 'FLEET: player exists');
         players.push();
@@ -199,7 +199,7 @@ contract Fleet is Editor {
     }
 
     function setShipyardName(uint _x, uint _y, string memory _name) external doesShipyardExist(_x, _y) {
-        require(bytes(_name).length < 16, 'FLEET: shipyard name too long');
+        require(bytes(_name).length <= 12, 'FLEET: shipyard name too long');
         require(_shipyards[_coordinatesToShipyard[_x][_y]].owner == msg.sender);
         _shipyards[_coordinatesToShipyard[_x][_y]].name = _name;
     }
