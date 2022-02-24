@@ -254,7 +254,7 @@ contract Map is Editor {
                         feePercent = 5;
                         placeOwner = _creator;
                     }
-                    Fleet.addShipyard(placeOwner, _x, _y, feePercent);
+                    Fleet.addShipyard(placeOwner, _x, _y, '', feePercent);
                 }
 
             }

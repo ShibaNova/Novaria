@@ -153,12 +153,10 @@ contract Fleet is Editor {
         _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _cost, _experienceRequired));
     }
 
-    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent) external onlyEditor {
+    function addShipyard(address _owner, uint _x, uint _y, uint8 _feePercent, string calldata _name) external onlyEditor {
         require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
 
-        string memory name = Map.getPlaceName(_x, _y);
-
-        _shipyards.push(Shipyard(name, _owner, _x, _y, _feePercent, block.timestamp, 0, address(0), BattleStatus.PEACE));
+        _shipyards.push(Shipyard(_name, _owner, _x, _y, _feePercent, block.timestamp, 0, address(0), BattleStatus.PEACE));
         _shipyardExists[_x][_y] = true;
         _coordinatesToShipyard[_x][_y] = _shipyards.length-1;
         emit NewShipyard(_x, _y);
