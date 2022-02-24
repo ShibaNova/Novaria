@@ -389,7 +389,7 @@ contract Map is Editor {
                 if(planet.isMiningPlanet) {
                     Star memory star = _stars[planet.starId];
 
-                    uint newStarSystemToken = newAmount * (star.luminosity / totalStarLuminosity);
+                    uint newStarSystemToken = (newAmount * star.luminosity) / totalStarLuminosity;
 
                     uint newMineral = newStarSystemToken;
                     //if more than one planet in star system
