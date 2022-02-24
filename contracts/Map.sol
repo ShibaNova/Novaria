@@ -270,27 +270,8 @@ contract Map is Editor {
         }
     }
 
- /*   function createRefineryShipyardPlanet(uint _x, uint _y) external {
-        uint nearestStar = _getNearestStar(_x, _y);
-
-        bool isMiningPlanet = false;
-        bool hasShipyard = true;
-        bool hasRefinery = true;
-        _addPlanet(nearestStar, _x, _y, '', isMiningPlanet, hasRefinery, hasShipyard);
-
-        //if planet has a shipyard, add shipyard to Fleet contract
-        if(hasShipyard == true) {
-            uint8 feePercent;
-            address placeOwner;
-            if(hasRefinery != true) {
-                feePercent = 5;
-                placeOwner = msg.sender;
-            }
-            Fleet.addShipyard(placeOwner, _x, _y, feePercent);
-        }
-    }*/
-
     function changeName(uint _x, uint _y, string memory _name) external {
+        require(bytes(_name).length < 10, 'MAP: place name too long');
         Place storage namePlace = places[coordinatePlaces[_x][_y]];
         require(msg.sender == namePlace.discoverer, 'MAP: not discoverer');
         require(namePlace.placeType == PlaceType.PLANET || namePlace.placeType == PlaceType.STAR, 'MAP: not named');
