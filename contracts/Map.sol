@@ -212,6 +212,7 @@ contract Map is Editor {
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100, _x + _y);
+        //uint rand = 47;
         if(rand >= 0 && rand <= 44) {
            _addHostile(_x, _y); 
         }
@@ -233,6 +234,7 @@ contract Map is Editor {
                 bool hasShipyard;
                 bool hasRefinery;
                 uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
+                //uint planetAttributeSelector = 19;
                 if(planetAttributeSelector <= 9) {
                     isMiningPlanet = true;
                     _rewardsTimer = 0; // get rewards going to planet right away when new one is discovered
@@ -254,9 +256,8 @@ contract Map is Editor {
                         feePercent = 5;
                         placeOwner = _creator;
                     }
-                    Fleet.addShipyard(placeOwner, _x, _y, '', feePercent);
+                    Fleet.addShipyard('', placeOwner, _x, _y, feePercent);
                 }
-
             }
             //new star must be more than 7 AU away from nearest star
             else if(rand >= 76 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
@@ -299,47 +300,38 @@ contract Map is Editor {
         uint counter = 0;
         for(uint j=_ly+7; j>_ly; j--) {
             for(uint i=_lx; i<=_lx+6; i++) {
-                PlaceGetter memory placeGetter;
-
-                if(_placeExists[i][j-1] == true) {
-                    Place memory place = places[coordinatePlaces[i][j-1]];
-                    placeGetter.canTravel = place.canTravel;
-                    placeGetter.name = place.name; 
-                    placeGetter.placeType = place.placeType;
-                    placeGetter.salvage = place.salvage;
-                    placeGetter.fleetCount = fleetsAtLocation[i][j-1].length;
-                    placeGetter.discoverer = place.discoverer;
-
-                    if(place.placeType == PlaceType.PLANET) {
-                        placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
-                        placeGetter.hasShipyard = _planets[place.childId].hasShipyard;
-                        placeGetter.availableMineral = _planets[place.childId].availableMineral;
-                        placeGetter.isMiningPlanet = _planets[place.childId].isMiningPlanet;
-                    }
-                    else if(place.placeType == PlaceType.STAR) {
-                        placeGetter.luminosity = _stars[place.childId].luminosity;
-                    }
-                    else if(place.placeType == PlaceType.ASTEROID) {
-                        placeGetter.availableMineral = _asteroids[place.childId].availableMineral;
-                    }
-                }
-                foundCoordinatePlaces[counter] = placeGetter;
-                counter++;
+                foundCoordinatePlaces[counter++] = getPlaceInfo(i, j-1);
             }
         }
         return foundCoordinatePlaces;
     }
 
-    function _getCoordinatePlace(uint _x, uint _y) internal view returns (Place memory) {
-        return places[coordinatePlaces[_x][_y]];
-    }
+    function getPlaceInfo(uint _lx, uint _ly) public view returns(PlaceGetter memory) {
+        PlaceGetter memory placeGetter;
 
-    function getPlaceId(uint _x, uint _y) public view returns (uint) {
-        return (coordinatePlaces[_x][_y]);
-    }
+        if(_placeExists[_lx][_ly] == true) {
+            Place memory place = places[coordinatePlaces[_lx][_ly]];
+            placeGetter.canTravel = place.canTravel;
+            placeGetter.name = place.name; 
+            placeGetter.placeType = place.placeType;
+            placeGetter.salvage = place.salvage;
+            placeGetter.fleetCount = fleetsAtLocation[_lx][_ly].length;
+            placeGetter.discoverer = place.discoverer;
 
-    function getPlaceName(uint _x, uint _y) external view returns(string memory) {
-        return places[getPlaceId(_x, _y)].name;
+            if(place.placeType == PlaceType.PLANET) {
+                placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
+                placeGetter.hasShipyard = _planets[place.childId].hasShipyard;
+                placeGetter.availableMineral = _planets[place.childId].availableMineral;
+                placeGetter.isMiningPlanet = _planets[place.childId].isMiningPlanet;
+            }
+            else if(place.placeType == PlaceType.STAR) {
+                placeGetter.luminosity = _stars[place.childId].luminosity;
+            }
+            else if(place.placeType == PlaceType.ASTEROID) {
+                placeGetter.availableMineral = _asteroids[place.childId].availableMineral;
+            }
+        }
+        return placeGetter;
     }
 
     // get total star luminosity

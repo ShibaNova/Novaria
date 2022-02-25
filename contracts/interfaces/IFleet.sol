@@ -11,7 +11,7 @@ interface IFleet {
     function isInBattle(address _player) external view returns(bool);
     function getMineral(address _player) external view returns(uint);
     function setMineral(address _player, uint _amount) external;
-    function addShipyard(address _owner, uint _x, uint _y, string calldata _name, uint8 _feePercent) external;
+    function addShipyard(string calldata _name, address _owner, uint _x, uint _y, uint8 _feePercent) external;
     function addExperience(address _player, uint _paid) external;
     function getExperience(address _player) external view returns (uint);
 }
