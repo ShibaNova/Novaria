@@ -41,7 +41,7 @@ contract Map is Editor {
         _addStar(2, 2, 'Alpha Centauri', 9); // first star
         _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
         _addPlanet(0, 3, 0, 'Cetrus 22A', true, false, false); //unrefined planet
-        _addPlanet(0, 1, 6, 'Cetrus 22B', true, false, false); //unrefined planet
+        _addPlanet(0, 1, 5, 'Cetrus 22B', true, false, false); //unrefined planet
     }
 
     ShibaBEP20 public Token; // TOKEN Token
