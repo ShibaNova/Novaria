@@ -27,7 +27,6 @@ contract ShadowPool is Editor {
     uint public pid;
     address public token;
 
-    mapping(address => bool) public jackpot;
 
     constructor (
         IRewardsPool _rewards,
@@ -52,21 +51,29 @@ contract ShadowPool is Editor {
         Rewards.emergencyWithdraw(pid);
     }
 
-    function tokenApproval(address _spender, address _token) external onlyOwner {
-        uint max = 0xffffffffffffffffff;
-        IERC20(_token).approve(_spender, max);
+    function tokenApproval(address _spender, address _token, uint _amount) external onlyOwner {
+        IERC20(_token).approve(_spender, _amount);
+    }
+
+    function increaseNovaSpender(address _spender, uint _amount) external onlyOwner {
+        Nova.increaseAllowance(_spender, _amount);
     }
 
     // gets the current pending nova from the farm contract awaiting harvest
     function getPendingRewards() public view returns(uint){
         return Rewards.pendingNova(pid, address(this));
     }
-    function replenishPlace(address _jackpot, uint _value) external onlyEditor returns(uint){
+
+    function getNovaBalance() external view returns(uint){
+        return Nova.balanceOf(address(this));
+    }
+
+    function replenishPlace(address _map) external onlyEditor {
         Rewards.deposit(pid, 0);
-        require(_value <= 100, "SHADOWPOOL: value must be less than 100% of the pool balance");
-        uint _amount = Nova.balanceOf(address(this)) * _value / 100;
-        Nova.safeTransferFrom(address(this), _jackpot, _amount);
-        return _amount;
+        uint amount = Nova.balanceOf(address(this)) / 10;
+        if (amount > 0) {
+            Nova.safeTransfer( _map, amount);
+        }
     }
 
     // transfers the shadow token to the owner, used for maintenance
