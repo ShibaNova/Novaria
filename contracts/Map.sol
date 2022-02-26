@@ -136,8 +136,6 @@ contract Map is Editor {
     event NewToken(address _new);
     event NewTreasury(address _new);
     event NewRewardsMod(uint _new);
-    event MineralGained(address _player, int _amountGained, uint _amountBurned);
-    event MineralTransferred(address _from, address _to, uint _amountSent, uint _amountReceived, uint _amountBurned);
     event MineralRefined(address _fleet, uint _amount);
     event MineralGathered(address _fleet, uint _amount);
     event NewPlanet(uint _star, uint _x, uint _y);
@@ -334,15 +332,26 @@ contract Map is Editor {
         return placeGetter;
     }
 
-    // get total star luminosity
-    function getTotalLuminosity() public view returns(uint) {
-        uint totalLuminosity = 0;
-        for(uint i=0; i<_stars.length; i++) {
-            if(_stars[i].totalMiningPlanets > 0) {
-                totalLuminosity += _stars[i].luminosity;
-            }
+    function _getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
+        Planet memory planet;
+        Place memory place = places[coordinatePlaces[_x][_y]];
+        if(place.placeType == PlaceType.PLANET) {
+            planet = _planets[place.childId];
         }
-        return totalLuminosity;
+        return planet;
+    }
+
+    function getPlanetAtFleetLocation(address _sender) internal view returns (Planet memory) {
+        (uint fleetX, uint fleetY) =  getFleetLocation(_sender);
+        return _getPlanetAtLocation(fleetX, fleetY);
+    }
+
+    function isRefineryLocation(uint _x, uint _y) external view returns (bool) {
+        return _getPlanetAtLocation(_x, _y).hasRefinery;
+    }
+
+    function isShipyardLocation(uint _x, uint _y) public view returns (bool) {
+        return _getPlanetAtLocation(_x, _y).hasShipyard;
     }
 
     function requestToken() external onlyOwner {
@@ -355,16 +364,6 @@ contract Map is Editor {
             _rewardsTimer = block.timestamp + rewardsDelay;
             allocateToken();
         }
-    }
-    
-    function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
-        //get place and add it to place
-        places[coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
-    }
-
-    // When Token allocated for salvage gets added to contract, call this function
-    function increasePreviousBalance(uint _amount) external onlyEditor {
-        _previousBalance += _amount * 98 / 100;
     }
 
     // Function to mine, refine, transfer unrefined Token
@@ -396,28 +395,17 @@ contract Map is Editor {
         }
     }
 
-    function _getPlanetAtLocation(uint _x, uint _y) internal view returns (Planet memory) {
-        Planet memory planet;
-        Place memory place = places[coordinatePlaces[_x][_y]];
-        if(place.placeType == PlaceType.PLANET) {
-            planet = _planets[place.childId];
+    // get total star luminosity
+    function getTotalLuminosity() public view returns(uint) {
+        uint totalLuminosity = 0;
+        for(uint i=0; i<_stars.length; i++) {
+            if(_stars[i].totalMiningPlanets > 0) {
+                totalLuminosity += _stars[i].luminosity;
+            }
         }
-        return planet;
+        return totalLuminosity;
     }
-
-    function getPlanetAtFleetLocation(address _sender) internal view returns (Planet memory) {
-        (uint fleetX, uint fleetY) =  getFleetLocation(_sender);
-        return _getPlanetAtLocation(fleetX, fleetY);
-    }
-
-    function isRefineryLocation(uint _x, uint _y) external view returns (bool) {
-        return _getPlanetAtLocation(_x, _y).hasRefinery;
-    }
-
-    function isShipyardLocation(uint _x, uint _y) public view returns (bool) {
-        return _getPlanetAtLocation(_x, _y).hasShipyard;
-    }
-
+    
     //shared core implementation for any kind of mineral/salvage collection
     function _gather(address _player, uint _locationAmount, uint _coolDown) internal returns(uint) {
         require(_locationAmount > 0, 'MAP: nothing to gather');
@@ -434,6 +422,16 @@ contract Map is Editor {
 
         emit MineralGathered(_player, gatheredAmount);
         return gatheredAmount;
+    }
+
+    function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
+        //get place and add it to place
+        places[coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
+    }
+
+    // When Token allocated for salvage gets added to contract, call this function
+    function increasePreviousBalance(uint _amount) external onlyEditor {
+        _previousBalance += _amount * 98 / 100;
     }
 
     //collect salvage from a coordinate
