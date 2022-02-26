@@ -171,9 +171,11 @@ contract Fleet is Editor {
         require(msg.sender != shipyard.owner, 'FLEET: own shipyard');
         require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 7) / Map.getTimeModifier()), 'FLEET: shipyard protected');
 
-        //takeover begins if either shipyard is at peace or new takeover address has a larger fleet than current takeover address
         uint fleetSize = getFleetSize(msg.sender);
-        if(fleetSize >= 1000 && (shipyard.status == BattleStatus.PEACE || fleetSize > getFleetSize(shipyard.takeoverAddress))) {
+        require(fleetSize >= 1000, 'FLEET: fleet too small');
+
+        //takeover begins if either shipyard is at peace or new takeover address has a larger fleet than current takeover address
+        if(shipyard.status == BattleStatus.PEACE || fleetSize > getFleetSize(shipyard.takeoverAddress)) {
             shipyard.status = BattleStatus.ATTACK;
             shipyard.takeoverAddress = msg.sender;
             shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24) / Map.getTimeModifier());
