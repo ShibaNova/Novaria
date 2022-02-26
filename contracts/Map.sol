@@ -406,77 +406,6 @@ contract Map is Editor {
         return totalLuminosity;
     }
     
-    //shared core implementation for any kind of mineral/salvage collection
-    function _gather(address _player, uint _locationAmount, uint _coolDown) internal returns(uint) {
-        require(_locationAmount > 0, 'MAP: nothing to gather');
-        require(fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
-
-        uint availableCapacity = Fleet.getMineralCapacity(_player) - Fleet.getMineral(_player); //max amount of mineral fleet can carry minus what fleet already is carrying
-        require(availableCapacity > 0, 'MAP: fleet max capacity');
-        
-        uint maxGather = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(_player));
-        uint gatheredAmount = Helper.getMin(_locationAmount, maxGather); //the less of fleet maxGather and how much amount place has
-
-        Fleet.setMineral(_player, Fleet.getMineral(_player) + gatheredAmount);
-        fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
-
-        emit MineralGathered(_player, gatheredAmount);
-        return gatheredAmount;
-    }
-
-    function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
-        //get place and add it to place
-        places[coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
-    }
-
-    // When Token allocated for salvage gets added to contract, call this function
-    function increasePreviousBalance(uint _amount) external onlyEditor {
-        _previousBalance += _amount * 98 / 100;
-    }
-
-    //collect salvage from a coordinate
-    function collect() external {
-        (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
-        require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
-        places[coordinatePlaces[fleetX][fleetY]].salvage -=
-            _gather(msg.sender, places[coordinatePlaces[fleetX][fleetY]].salvage, _miningCooldown / _collectCooldownReduction);
-    }
- 
-    //Fleet can mine mineral depending their fleet's capacity and planet available
-    function mine() external {
-        (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
-        require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
-        Place memory miningPlace = places[coordinatePlaces[fleetX][fleetY]];
-
-        //if mining a planet
-        if(miningPlace.placeType == PlaceType.PLANET) {
-            Planet memory miningPlanet = _planets[miningPlace.childId];
-            _planets[miningPlanet.id].availableMineral -=
-                _gather(msg.sender, miningPlanet.availableMineral, _miningCooldown);
-        }
-        //else if mining an asteroid
-        else if(miningPlace.placeType == PlaceType.ASTEROID) {
-            Asteroid memory miningAsteroid = _asteroids[miningPlace.childId];
-            _asteroids[miningAsteroid.id].availableMineral -=
-                _gather(msg.sender, miningAsteroid.availableMineral, _miningCooldown / _asteroidCooldownReduction);
-        }
-        _requestToken();
-    }
-    
-    function refine() external {
-        address player = msg.sender;
-        require(getPlanetAtFleetLocation(player).hasRefinery == true, "MAP: Fleet not at a refinery");
-
-        uint playerMineral = Fleet.getMineral(player);
-        require(playerMineral > 0, "MAP: Player/Fleet has no mineral");
-        Fleet.setMineral(player, 0);
-
-        Token.safeTransfer(player, playerMineral);
-        _previousBalance -= playerMineral;
-        emit MineralRefined(player, playerMineral);
-        _requestToken();
-    }
-
     // Returns both x and y coordinates
     function getFleetLocation (address _fleet) public view returns(uint x, uint y) {
         return (fleetLocation[_fleet][0], fleetLocation[_fleet][1]);
@@ -569,6 +498,77 @@ contract Map is Editor {
         fleetsAtLocation[_xTo][_yTo].push(_player);
         fleetLocation[_player][0] = _xTo;
         fleetLocation[_player][1] = _yTo;
+    }
+
+    //shared core implementation for any kind of mineral/salvage collection
+    function _gather(address _player, uint _locationAmount, uint _coolDown) internal returns(uint) {
+        require(_locationAmount > 0, 'MAP: nothing to gather');
+        require(fleetMiningCooldown[_player] <= block.timestamp, 'MAP: gather on cooldown');
+
+        uint availableCapacity = Fleet.getMineralCapacity(_player) - Fleet.getMineral(_player); //max amount of mineral fleet can carry minus what fleet already is carrying
+        require(availableCapacity > 0, 'MAP: fleet max capacity');
+        
+        uint maxGather = Helper.getMin(availableCapacity, Fleet.getMiningCapacity(_player));
+        uint gatheredAmount = Helper.getMin(_locationAmount, maxGather); //the less of fleet maxGather and how much amount place has
+
+        Fleet.setMineral(_player, Fleet.getMineral(_player) + gatheredAmount);
+        fleetMiningCooldown[_player] = block.timestamp + (_coolDown / _timeModifier);
+
+        emit MineralGathered(_player, gatheredAmount);
+        return gatheredAmount;
+    }
+
+    function addSalvageToPlace(uint _x, uint _y, uint _amount) external onlyEditor {
+        //get place and add it to place
+        places[coordinatePlaces[_x][_y]].salvage += _amount * 98 / 100;
+    }
+
+    // When Token allocated for salvage gets added to contract, call this function
+    function increasePreviousBalance(uint _amount) external onlyEditor {
+        _previousBalance += _amount * 98 / 100;
+    }
+
+    //collect salvage from a coordinate
+    function collect() external {
+        (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
+        require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
+        places[coordinatePlaces[fleetX][fleetY]].salvage -=
+            _gather(msg.sender, places[coordinatePlaces[fleetX][fleetY]].salvage, _miningCooldown / _collectCooldownReduction);
+    }
+ 
+    //Fleet can mine mineral depending their fleet's capacity and planet available
+    function mine() external {
+        (uint fleetX, uint fleetY) = getFleetLocation(msg.sender);
+        require(_placeExists[fleetX][fleetY] == true, 'MAPS: no place');
+        Place memory miningPlace = places[coordinatePlaces[fleetX][fleetY]];
+
+        //if mining a planet
+        if(miningPlace.placeType == PlaceType.PLANET) {
+            Planet memory miningPlanet = _planets[miningPlace.childId];
+            _planets[miningPlanet.id].availableMineral -=
+                _gather(msg.sender, miningPlanet.availableMineral, _miningCooldown);
+        }
+        //else if mining an asteroid
+        else if(miningPlace.placeType == PlaceType.ASTEROID) {
+            Asteroid memory miningAsteroid = _asteroids[miningPlace.childId];
+            _asteroids[miningAsteroid.id].availableMineral -=
+                _gather(msg.sender, miningAsteroid.availableMineral, _miningCooldown / _asteroidCooldownReduction);
+        }
+        _requestToken();
+    }
+    
+    function refine() external {
+        address player = msg.sender;
+        require(getPlanetAtFleetLocation(player).hasRefinery == true, "MAP: Fleet not at a refinery");
+
+        uint playerMineral = Fleet.getMineral(player);
+        require(playerMineral > 0, "MAP: Player/Fleet has no mineral");
+        Fleet.setMineral(player, 0);
+
+        Token.safeTransfer(player, playerMineral);
+        _previousBalance -= playerMineral;
+        emit MineralRefined(player, playerMineral);
+        _requestToken();
     }
 
     // Setting to 0 disables travel
