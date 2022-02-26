@@ -211,13 +211,13 @@ contract Map is Editor {
     //create a random place at given coordinates
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
-        uint rand = Helper.getRandomNumber(100, _x + _y);
+        uint rand = Helper.getRandomNumber(100);
         //uint rand = 47;
         if(rand >= 0 && rand <= 44) {
            _addHostile(_x, _y); 
         }
         else if(rand >= 45 && rand <= 59) {
-            uint asteroidPercent = Helper.getRandomNumber(10, _x + _y) + 15;
+            uint asteroidPercent = (places.length % 10) + 15;
             uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
             _previousBalance += asteroidAmount;
             Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
@@ -233,16 +233,16 @@ contract Map is Editor {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
-                uint planetAttributeSelector = Helper.getRandomNumber(20, rand);
+                uint planetAttributeSelector = places.length % 20;
                 //uint planetAttributeSelector = 19;
-                if(planetAttributeSelector <= 9) {
+                if(planetAttributeSelector <= 7) {
                     isMiningPlanet = true;
                     _rewardsTimer = 0; // get rewards going to planet right away when new one is discovered
                 }
-                else if(planetAttributeSelector >= 10 && planetAttributeSelector <=11) {
+                else if(planetAttributeSelector >= 8 && planetAttributeSelector <=10) {
                     hasRefinery = true;
                 }
-                else if(planetAttributeSelector >= 12 && planetAttributeSelector <= 18) {
+                else if(planetAttributeSelector >= 11 && planetAttributeSelector <= 18) {
                     hasShipyard = true;
                 }
                 else { hasShipyard = true; hasRefinery = true; }
@@ -261,7 +261,7 @@ contract Map is Editor {
             }
             //new star must be more than 7 AU away from nearest star
             else if(rand >= 76 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
-                _addStar(_x, _y, '', Helper.getRandomNumber(9, rand) + 1);
+                _addStar(_x, _y, '', (places.length % 7) + 2);
             }
             else {
                 _addEmpty(_x, _y);
