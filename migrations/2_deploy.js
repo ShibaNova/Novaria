@@ -12,9 +12,9 @@ advanceTime = (time) => {
   })
 }
 
-const deployedNovaToken = true
-const deployedTreasury = true
-const deployedShadowPool = true
+const deployedNovaToken = false
+const deployedTreasury = false
+const deployedShadowPool = false
 const novaTokenAddress = '0x56E344bE9A7a7A1d27C854628483Efd67c11214F'
 const shadowPoolAddress = '0x318C38d8140Cb1d4CeF6E40743457c4224d07Fd8'
 const treasuryAddress = '0xB0e7b04Bee18BF0F2b8667cfd85313Da6b5de8D8'
@@ -39,7 +39,7 @@ const farmContract = ''
 const shadowPoolToken = ''
 
 
-module.exports = async function (deployer, accounts) {
+module.exports = async function (deployer, network, accounts) {
 
     // await deployer.deploy(BasicToken, 'ShadowPoolToken', 'SPT')
     // const spt = await BasicToken.deployed()
@@ -67,14 +67,14 @@ module.exports = async function (deployer, accounts) {
       await treasury.setlloY1(ll)
     }
 
-    let shadowPool
+    /*let shadowPool
     if(deployedShadowPool) {
       shadowPool = await ShadowPool.at(shadowPoolAddress)
     }
     else {
       await deployer.deploy(ShadowPool, masterShiba.address, nova.address, 1, spt.address)
       shadowPool = await ShadowPool.deployed()
-    }
+    }*/
   
     await deployer.deploy(MapContract, nova.address, treasury.address)
     const map = await MapContract.deployed()
@@ -100,17 +100,17 @@ module.exports = async function (deployer, accounts) {
     await nova.approve(fleet.address, '0xffffffffffffffffff')
 
     // ShadowPool
-    if(!deployedShadowPool) {
+/*    if(!deployedShadowPool) {
       await shadowPool.tokenApproval(farmContract, nova.address)
       await shadowPool.tokenApproval(farmContract, shadowPoolToken)
     }
 
     await shadowPool.tokenApproval(map.address, nova.address)
     await shadowPool.setEditor(map.address)
-    await shadowPool.deactivateEditor(prevMap)
+    await shadowPool.deactivateEditor(prevMap)*/
 
     if(!deployedNovaToken) {
-      await fleet.addShipyard(accounts[0], 1, 3, 5, "Another")
+      await fleet.addShipyard("Another", accounts[0], 1, 3, 5)
         await nova.mint(accounts[0], '1000000000000000000000')
         await nova.mint(accounts[1], '1000000000000000000000')
         await nova.mint(accounts[2], '1000000000000000000000')
@@ -128,12 +128,12 @@ module.exports = async function (deployer, accounts) {
 
         //build ships
         await fleet.buildShips(0, 0, 0, 2500, "131250000000000000000", {from: accounts[1]})
-        await advanceTime(86400 * 2) // 10 Days
+        await advanceTime(86400 * 2)
         await fleet.claimShips(0,2500, {from:accounts[1]})
         await map.explore(1,0, {from:accounts[1]})
         await map.explore(1,1, {from:accounts[1]})
         await map.explore(0,1, {from:accounts[1]})
-        await map.travel(1,1, {from:accounts[1]})
+//        await map.travel(1,1, {from:accounts[1]})
 
         //86400 seconds in a day
         await advanceTime(86400 * 10) // 10 Days
