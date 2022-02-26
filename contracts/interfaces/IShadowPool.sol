@@ -3,5 +3,5 @@
 pragma solidity ^0.8.7;
 
 interface IShadowPool {
-    function replenishPlace(address _jackpot) external;
+    function replenishPlace(address _map, uint _mod) external;
 }
