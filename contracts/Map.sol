@@ -231,7 +231,7 @@ contract Map is Editor {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
-                uint planetAttributeSelector = places.length % 20;
+                uint planetAttributeSelector = ((places.length * 2) + rand) % 20;
                 //uint planetAttributeSelector = 19;
                 if(planetAttributeSelector <= 7) {
                     isMiningPlanet = true;
