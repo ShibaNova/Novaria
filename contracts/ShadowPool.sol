@@ -69,13 +69,8 @@ contract ShadowPool is Editor {
     }
 
     function replenishPlace(address _map, uint _mod) external onlyEditor {
-<<<<<<< HEAD
         // Rewards.deposit(pid, 0);
         uint amount = Nova.balanceOf(address(this)) * _mod / 100;
-=======
-        Rewards.deposit(pid, 0);
-        uint amount = Nova.balanceOf(address(this)) / _mod;
->>>>>>> 8d633f1ba34343e19f79521f74c5c6cbe3934e61
         if (amount > 0) {
             Nova.safeTransfer( _map, amount);
         }
