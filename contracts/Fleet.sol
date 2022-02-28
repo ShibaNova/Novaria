@@ -199,7 +199,7 @@ contract Fleet is Editor {
     }
 
     function setShipyardName(uint _x, uint _y, string memory _name) external doesShipyardExist(_x, _y) {
-        require(bytes(_name).length <= 12, 'FLEET: shipyard name too long');
+        require(bytes(_name).length <= 14, 'FLEET: shipyard name too long');
         require(_shipyards[_coordinatesToShipyard[_x][_y]].owner == msg.sender);
         _shipyards[_coordinatesToShipyard[_x][_y]].name = _name;
     }
