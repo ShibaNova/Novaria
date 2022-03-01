@@ -34,9 +34,13 @@ contract Fleet is Editor {
         _scrapPercentage = 40;
 
         //load start data
-        createShipClass("Viper", 1, 1, 3, 0, 0, 0, 10**18, 0);
-        createShipClass("Mole", 2, 0, 5, 5 * 10**17, 5 * 10**16, 0, 2 * 10**18, 0);
-        createShipClass("Firefly", 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
+        createShipClass('Viper', 1, 1, 3, 0, 0, 0, 10**18, 0);
+        createShipClass('Mole', 2, 0, 5, 5 * 10**17, 5 * 10**16, 0, 2 * 10**18, 0);
+        createShipClass('Firefly', 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
+        createShipClass('Hauler', 20, 2, 40, 0, 0, 200, 50 * 10**18, 1200);
+
+        addShipyard('Haven', tx.origin, 0, 0, 5);
+        addShipyard('BestValueShips', tx.origin, 5, 4, 10);
     }
 
     enum BattleStatus{ PEACE, ATTACK, DEFEND }
@@ -153,7 +157,7 @@ contract Fleet is Editor {
         _shipClasses.push(ShipClass(_name, _size, _attackPower, _shield, _mineralCapacity, _miningCapacity,_hangarSize, _cost, _experienceRequired));
     }
 
-    function addShipyard(string calldata _name, address _owner, uint _x, uint _y, uint8 _feePercent) external onlyEditor {
+    function addShipyard(string memory _name, address _owner, uint _x, uint _y, uint8 _feePercent) public onlyEditor {
         require(_shipyardExists[_x][_y] == false, 'FLEET: shipyard exists');
 
         _shipyards.push(Shipyard(_name, _owner, _x, _y, _feePercent, block.timestamp, 0, address(0), BattleStatus.PEACE));
