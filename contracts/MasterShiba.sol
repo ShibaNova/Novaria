@@ -1056,7 +1056,7 @@ contract MasterShiba is Ownable, IMasterBonus, ReentrancyGuard {
     event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
     event EmissionRateUpdated(address indexed caller, uint256 previousAmount, uint256 newAmount);
 
-    constructor( 
+    constructor(  
         ShibaBEP20 _Nova,
         address _devaddr,
         address _feeAddress,
@@ -1064,6 +1064,7 @@ contract MasterShiba is Ownable, IMasterBonus, ReentrancyGuard {
         uint256 _startBlock
     ) public {
         Nova = _Nova;
+        sNova = _Nova;
         devaddr = _devaddr;
         feeAddress = _feeAddress;
         NovaPerBlock = _NovaPerBlock;
@@ -1098,7 +1099,7 @@ contract MasterShiba is Ownable, IMasterBonus, ReentrancyGuard {
     }
 
     function userBonus(uint256 _pid, address _user) public view returns (uint256){
-        return bonusAggregator.getBonusOnFarmsForUser(_user, _pid);
+        return 1;
     }
 
     // Return reward multiplier over the given _from to _to block.
@@ -1270,12 +1271,12 @@ contract MasterShiba is Ownable, IMasterBonus, ReentrancyGuard {
                 uint256 depositFee = _amount.mul(pool.depositFeeBP).div(10000);
                 pool.lpToken.safeTransfer(feeAddress, depositFee);
                 user.amount = user.amount.add(_amount).sub(depositFee);
-                uint256 _bonusAmount = _amount.sub(depositFee).mul(userBonus(_pid, _user).add(10000)).div(10000);
+                uint256 _bonusAmount = _amount.sub(depositFee).mul(1);
                 user.amountWithBonus = user.amountWithBonus.add(_bonusAmount);
                 pool.lpSupply = pool.lpSupply.add(_bonusAmount);
             } else {
                 user.amount = user.amount.add(_amount);
-                uint256 _bonusAmount = _amount.mul(userBonus(_pid, _user).add(10000)).div(10000);
+                uint256 _bonusAmount = _amount.mul(1);
                 user.amountWithBonus = user.amountWithBonus.add(_bonusAmount);
                 pool.lpSupply = pool.lpSupply.add(_bonusAmount);
             }
@@ -1302,7 +1303,7 @@ contract MasterShiba is Ownable, IMasterBonus, ReentrancyGuard {
         }
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
-            uint256 _bonusAmount = _amount.mul(userBonus(_pid, msg.sender).add(10000)).div(10000);
+            uint256 _bonusAmount = _amount.mul(1);
             user.amountWithBonus = user.amountWithBonus.sub(_bonusAmount);
             pool.lpToken.safeTransfer(address(msg.sender), _amount);
             pool.lpSupply = pool.lpSupply.sub(_bonusAmount);
