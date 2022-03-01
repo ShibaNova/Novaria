@@ -46,7 +46,7 @@ contract Map is Editor {
         _addPlanet(0, 3, 0, 'Cetrus 22A', true, false, false); //mining planet
 
         _addHostile(1, 2);
-        _addAsteroid(1, 4, 50);
+        _addHostile(1, 4);
         _addHostile(2, 1);
         _addEmpty(2, 3);
         _addWormhole(3, 2); // wormhole
