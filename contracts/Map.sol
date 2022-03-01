@@ -483,7 +483,7 @@ contract Map is Editor {
         require(block.timestamp >= travelCooldown[sender], "MAPS: jump drive recharging");
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
-        require(Fleet.isInBattle(sender) == false, "MAPS: in battle or takeover");
+        require(Fleet.isInBattle(sender) != true, "MAPS: in battle or takeover");
 
         uint travelCost = getFleetTravelCost(sender, _x, _y);
         Treasury.pay(sender, travelCost);
@@ -497,20 +497,21 @@ contract Map is Editor {
 
     //wormhole travel
     function tunnel(uint _x, uint _y) external {
-        //confirm valid destination
+        address sender = msg.sender;
+        //confirm valid source and destination
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
-        require(places[coordinatePlaces[_x][_y]].placeType == PlaceType.WORMHOLE, 'MAPS: not wormhole');
+        require(places[coordinatePlaces[_x][_y]].placeType == PlaceType.WORMHOLE, 'MAPS: dest. not wormhole');
+        (uint fleetX, uint fleetY) =  getFleetLocation(sender);
+        require(places[coordinatePlaces[fleetX][fleetY]].placeType == PlaceType.WORMHOLE, 'MAPS: src not wormhole');
 
         //make sure not in battle or shipyard takeover
-        address sender = msg.sender;
-        require(Fleet.isInBattle(sender) == false, "MAPS: in battle or takeover");
+        require(Fleet.isInBattle(sender) != true, "MAPS: in battle or takeover");
 
         //pay cost (10% of normal travel cost for that distance)
         uint travelCost = Helper.getMax(getFleetTravelCost(sender, _x, _y) / 10, 1);
         Treasury.pay(sender, travelCost);
         Fleet.addExperience(sender, travelCost);
 
-        (uint fleetX, uint fleetY) =  getFleetLocation(sender);
         _setFleetLocation(sender, fleetX, fleetY, _x, _y);
     }
 
