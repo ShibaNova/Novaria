@@ -32,7 +32,7 @@ contract Map is Editor {
         _travelCooldownPerDistance = 900; //15 minutes
         _maxTravel = 5; //AU
         _rewardsTimer = 0;
-        _timeModifier = 10;
+        _timeModifier = 5;
         _miningCooldown = 1800; //30 minutes
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
@@ -40,8 +40,23 @@ contract Map is Editor {
 
         _addStar(2, 2, 'Alpha Centauri', 9); // first star
         _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
-        _addPlanet(0, 3, 0, 'Cetrus 22A', true, false, false); //unrefined planet
-        _addPlanet(0, 1, 5, 'Cetrus 22B', true, false, false); //unrefined planet
+        _addHostile(0, 1);
+        _addEmpty(1, 0);
+        _addEmpty(2, 0);
+        _addPlanet(0, 3, 0, 'Cetrus 22A', true, false, false); //mining planet
+
+        _addHostile(1, 2);
+        _addAsteroid(1, 4, 50);
+        _addHostile(2, 1);
+        _addEmpty(2, 3);
+        _addHostile(2, 4);
+        _addHostile(3, 4);
+        _addPlanet(0, 4, 5, 'Cetrus 22B', true, false, false); //mining planet
+        _addPlanet(0, 5, 4, 'Gallifrey', false, false, true); //shipyard planet
+
+        _addStar(14, 14, 'Rigel', 3); // first star
+        _addPlanet(1, 12, 12, 'Caprica', true, false, false); //mining planet
+
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -159,9 +174,14 @@ contract Map is Editor {
         _addPlace(PlaceType.HOSTILE, 0, _x, _y, '', false);
     }
 
-    function _addAsteroid(uint _x, uint _y, uint _amount) internal {
+    function _addAsteroid(uint _x, uint _y, uint _percent) internal {
         uint asteroidId = _asteroids.length;
-        _asteroids.push(Asteroid(asteroidId, places.length, _amount));
+        uint asteroidAmount = (_percent * Token.balanceOf(address(Treasury))) / 100;
+        Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
+
+        uint amountAfterBurn = (98 * asteroidAmount) / 100; //subtract 2% for burn
+        _previousBalance += amountAfterBurn;
+        _asteroids.push(Asteroid(asteroidId, places.length, amountAfterBurn));
         _addPlace(PlaceType.ASTEROID, asteroidId, _x, _y, '', true);
     }
 
@@ -192,15 +212,16 @@ contract Map is Editor {
         emit NewPlanet(_starId, _x, _y);
     }
 
-    function getExploreCost(uint _x, uint _y) public view returns(uint) {
-        return Helper.getDistance(0, 0, _x, _y) * 10**19 / Treasury.getCostMod();
+    function getExploreCost() public view returns(uint) {
+        //return Helper.getDistance(0, 0, _x, _y) * 10**19 / Treasury.getCostMod();
+        return 10**20 / Treasury.getCostMod();
     }
 
     //player explore function
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
-        uint exploreCost = getExploreCost(_x, _y);
+        uint exploreCost = getExploreCost();
         Treasury.pay(sender, exploreCost);
         Fleet.addExperience(sender, exploreCost);
         _createRandomPlaceAt(_x, _y, sender);
@@ -215,11 +236,7 @@ contract Map is Editor {
            _addHostile(_x, _y); 
         }
         else if(rand >= 45 && rand <= 59) {
-            uint asteroidPercent = (places.length % 10) + 15;
-            uint asteroidAmount = (asteroidPercent * Token.balanceOf(address(Treasury))) / 100;
-            _previousBalance += asteroidAmount;
-            Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
-            _addAsteroid(_x, _y, (98 * asteroidAmount) / 100);
+            _addAsteroid(_x, _y, (places.length % 10) + 15);
         }
         else if(rand >= 60 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
