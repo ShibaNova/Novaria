@@ -146,6 +146,12 @@ contract Map is Editor {
     }
     Asteroid[] _asteroids;
 
+    struct Wormhole {
+        uint id;
+        uint placeId;
+    }
+    Wormhole[] _wormholes;
+
     event NewShadowPool(address _new);
     event NewFleet(address _new);
     event NewToken(address _new);
@@ -172,6 +178,16 @@ contract Map is Editor {
 
     function _addHostile(uint _x, uint _y) internal {
         _addPlace(PlaceType.HOSTILE, 0, _x, _y, '', false);
+    }
+
+    function _addWormhole(uint _x, uint _y) internal {
+        uint wormholeId = _wormholes.length;
+        _wormholes.push(Wormhole(wormholeId, places.length));
+        _addPlace(PlaceType.WORMHOLE, wormholeId, _x, _y, '', true);
+    }
+
+    function getWormholes() external view returns(Wormhole[] memory) {
+        return _wormholes;
     }
 
     function _addAsteroid(uint _x, uint _y, uint _percent) internal {
@@ -233,7 +249,12 @@ contract Map is Editor {
         uint rand = Helper.getRandomNumber(100);
         //uint rand = 47;
         if(rand >= 0 && rand <= 44) {
-           _addHostile(_x, _y); 
+            if(rand == 0) {
+                _addWormhole(_x, _y);
+            }
+            else {
+                _addHostile(_x, _y); 
+            }
         }
         else if(rand >= 45 && rand <= 59) {
             _addAsteroid(_x, _y, (places.length % 10) + 15);
@@ -467,6 +488,25 @@ contract Map is Editor {
         Fleet.addExperience(sender, travelCost);
 
         travelCooldown[sender] = block.timestamp + getFleetTravelCooldown(sender, _x, _y);
+
+        (uint fleetX, uint fleetY) =  getFleetLocation(sender);
+        _setFleetLocation(sender, fleetX, fleetY, _x, _y);
+    }
+
+    //wormhole travel
+    function tunnel(uint _x, uint _y) external {
+        //confirm valid destination
+        require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
+        require(places[coordinatePlaces[_x][_y]].placeType == PlaceType.WORMHOLE, 'MAPS: not wormhole');
+
+        //make sure not in battle or shipyard takeover
+        address sender = msg.sender;
+        require(Fleet.isInBattle(sender) == false, "MAPS: in battle or takeover");
+
+        //pay cost (10% of normal travel cost for that distance)
+        uint travelCost = Helper.getMax(getFleetTravelCost(sender, _x, _y) / 10, 1);
+        Treasury.pay(sender, travelCost);
+        Fleet.addExperience(sender, travelCost);
 
         (uint fleetX, uint fleetY) =  getFleetLocation(sender);
         _setFleetLocation(sender, fleetX, fleetY, _x, _y);
