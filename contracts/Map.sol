@@ -49,12 +49,14 @@ contract Map is Editor {
         _addAsteroid(1, 4, 50);
         _addHostile(2, 1);
         _addEmpty(2, 3);
+        _addWormhole(3, 2); // wormhole
         _addHostile(2, 4);
         _addHostile(3, 4);
         _addPlanet(0, 4, 5, 'Cetrus 22B', true, false, false); //mining planet
         _addPlanet(0, 5, 4, 'Gallifrey', false, false, true); //shipyard planet
 
         _addStar(14, 14, 'Rigel', 3); // first star
+        _addWormhole(14, 20); // wormhole
         _addPlanet(1, 12, 12, 'Caprica', true, false, false); //mining planet
 
     }
