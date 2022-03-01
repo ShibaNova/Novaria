@@ -68,12 +68,8 @@ contract ShadowPool is Editor {
         return Nova.balanceOf(address(this));
     }
 
-    function replenishPlace(address _map, uint _mod) external onlyEditor {
+    function replenishPlace() external onlyEditor {
         Rewards.deposit(pid, 0);
-        uint amount = Nova.balanceOf(address(this)) * _mod / 100;
-        if (amount > 0) {
-            Nova.safeTransfer( _map, amount);
-        }
     }
 
     // transfers the shadow token to the owner, used for maintenance

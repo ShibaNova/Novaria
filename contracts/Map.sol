@@ -24,7 +24,7 @@ contract Map is Editor {
          Token = _token;
          Treasury = _treasury;
         //Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
-//        ShadowPool = IShadowPool(0x318C38d8140Cb1d4CeF6E40743457c4224d07Fd8);
+        ShadowPool = IShadowPool(0x318C38d8140Cb1d4CeF6E40743457c4224d07Fd8);
 
         _previousBalance = 0;
         _baseTravelCost = 10**15;
@@ -400,7 +400,12 @@ contract Map is Editor {
 
     function _requestToken() internal {
         if (block.timestamp >= _rewardsTimer && _rewardsMod > 0) {
-            ShadowPool.replenishPlace(address(this), _rewardsMod);
+            ShadowPool.replenishPlace();
+
+            uint amount = (Token.balanceOf(address(ShadowPool)) * _rewardsMod) / 100;
+            if (amount > 0) {
+                Token.safeTransferFrom(address(ShadowPool), address(this), amount);
+            }
             _rewardsTimer = block.timestamp + rewardsDelay;
             allocateToken();
         }
