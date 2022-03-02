@@ -242,7 +242,7 @@ contract Map is Editor {
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
         uint exploreCost = getExploreCost();
         Treasury.pay(sender, exploreCost);
-        Fleet.addExperience(sender, exploreCost);
+        Fleet.addExperience(sender, exploreCost*2); //double experience for exploring
         _createRandomPlaceAt(_x, _y, sender);
     }
 
