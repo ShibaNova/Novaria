@@ -37,28 +37,6 @@ contract Map is Editor {
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
         _asteroidCooldownReduction = 3;
-
-        _addStar(2, 2, 'Alpha Centauri', 9); // first star
-        _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
-        _addHostile(0, 1);
-        _addEmpty(1, 0);
-        _addEmpty(2, 0);
-        _addPlanet(0, 3, 0, 'Cetrus 22A', true, false, false); //mining planet
-
-        // _addHostile(1, 2);
-        // _addHostile(1, 4);
-        // _addHostile(2, 1);
-        // _addEmpty(2, 3);
-        // _addWormhole(3, 2); // wormhole
-        // _addHostile(2, 4);
-        // _addHostile(3, 4);
-        // _addPlanet(0, 4, 5, 'Cetrus 22B', true, false, false); //mining planet
-        // _addPlanet(0, 5, 4, 'Gallifrey', false, false, true); //shipyard planet
-
-        // _addStar(14, 14, 'Rigel', 3); // first star
-        // _addWormhole(14, 20); // wormhole
-        // _addPlanet(1, 12, 12, 'Caprica', true, false, false); //mining planet
-
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -163,6 +141,29 @@ contract Map is Editor {
     event MineralGathered(address _fleet, uint _amount);
     event NewPlanet(uint _star, uint _x, uint _y);
     event NewStar(uint _x, uint _y);
+
+    function startingPlaces() external {
+        _addStar(2, 2, 'Alpha Centauri', 9); // first star
+        _addPlanet(0, 0, 0, 'Haven', false, true, true); //Haven
+        _addHostile(0, 1);
+        _addEmpty(1, 0);
+        _addEmpty(2, 0);
+        _addPlanet(0, 3, 0, 'Cetrus 22A', true, false, false); //mining planet
+
+        _addHostile(1, 2);
+        _addHostile(1, 4);
+        _addHostile(2, 1);
+        _addEmpty(2, 3);
+        _addWormhole(3, 2); // wormhole
+        _addHostile(2, 4);
+        _addHostile(3, 4);
+        _addPlanet(0, 4, 5, 'Cetrus 22B', true, false, false); //mining planet
+        _addPlanet(0, 5, 4, 'Gallifrey', false, false, true); //shipyard planet
+
+        _addStar(14, 14, 'Rigel', 3); // first star
+        _addWormhole(14, 20); // wormhole
+        _addPlanet(1, 12, 12, 'Caprica', true, false, false); //mining planet
+    }
 
     function _addPlace(PlaceType _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
