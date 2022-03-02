@@ -41,15 +41,5 @@ library Helper {
             return num2;
         }
     }
-
-    //get maximum between 2 numbers
-    function getMax(uint num1, uint num2) internal pure returns(uint) {
-        if(num1 > num2) {
-            return num1;
-        }
-        else {
-            return num2;
-        }
-    }
 }
 
