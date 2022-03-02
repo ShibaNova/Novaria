@@ -182,9 +182,13 @@ module.exports = async function (deployer, network, accounts) {
         await fleet.claimShips(0,2500, {from:accounts[2]})
         await map.travel(3,2, {from:accounts[1]})
         await map.travel(2,3, {from:accounts[2]})
+         await advanceTime(86400 * 2)
+        await map.travel(3,2, {from:accounts[2]})
+         await advanceTime(86400 * 2)
+        await map.travel(0,0, {from:accounts[2]})
 
          //86400 seconds in a day
-         await advanceTime(86400 * 10) // 10 Days
+         await advanceTime(86400 * 2) // 10 Days
     }
 
 };
