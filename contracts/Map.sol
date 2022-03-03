@@ -231,18 +231,18 @@ contract Map is Editor {
         emit NewPlanet(_starId, _x, _y);
     }
 
-    function getExploreCost() public view returns(uint) {
-        //return Helper.getDistance(0, 0, _x, _y) * 10**19 / Treasury.getCostMod();
-        return 10**20 / Treasury.getCostMod();
+    function getExploreCost(uint _x, uint _y) public view returns(uint) {
+        return Helper.getDistance(0, 0, _x, _y) * 10**19 / Treasury.getCostMod();
+        //return 10**20 / Treasury.getCostMod();
     }
 
     //player explore function
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
-        uint exploreCost = getExploreCost();
+        uint exploreCost = getExploreCost(_x, _y);
         Treasury.pay(sender, exploreCost);
-        Fleet.addExperience(sender, exploreCost*2); //double experience for exploring
+        Fleet.addExperience(sender, exploreCost*3); //triple experience for exploring
         _createRandomPlaceAt(_x, _y, sender);
     }
 
@@ -250,9 +250,8 @@ contract Map is Editor {
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100);
-        //uint rand = 47;
         if(rand >= 0 && rand <= 44) {
-            if(rand == 0) {
+            if(rand <= 1) {
                 _addWormhole(_x, _y);
             }
             else {
@@ -272,8 +271,7 @@ contract Map is Editor {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
-                uint planetAttributeSelector = ((places.length * 2) + rand) % 20;
-                //uint planetAttributeSelector = 19;
+                uint planetAttributeSelector = places.length % 20;
                 if(planetAttributeSelector <= 7) {
                     isMiningPlanet = true;
                     _rewardsTimer = 0; // get rewards going to planet right away when new one is discovered
@@ -289,7 +287,12 @@ contract Map is Editor {
 
                 //if planet has a shipyard, add shipyard to Fleet contract
                 if(hasShipyard == true) {
-                    Fleet.addShipyard('', _creator, _x, _y, 5);
+                    uint8 feePercent = 5;
+                    address placeOwner = address(this); //map owns shipyards on refinery planets and gets fees which are then disbursed to mining planets
+                    if(hasRefinery != true) {
+                        placeOwner = _creator;
+                    }
+                    Fleet.addShipyard(string(abi.encodePacked('Shipyard', _x, _y)), placeOwner, _x, _y, feePercent);
                 }
             }
             //new star must be more than 7 AU away from nearest star
