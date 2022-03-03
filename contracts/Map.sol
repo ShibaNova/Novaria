@@ -289,13 +289,7 @@ contract Map is Editor {
 
                 //if planet has a shipyard, add shipyard to Fleet contract
                 if(hasShipyard == true) {
-                    uint8 feePercent;
-                    address placeOwner;
-                    if(hasRefinery != true) {
-                        feePercent = 5;
-                        placeOwner = _creator;
-                    }
-                    Fleet.addShipyard('', placeOwner, _x, _y, feePercent);
+                    Fleet.addShipyard('', _creator, _x, _y, 5);
                 }
             }
             //new star must be more than 7 AU away from nearest star
