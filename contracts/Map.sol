@@ -26,7 +26,7 @@ contract Map is Editor {
         //Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
         ShadowPool = IShadowPool(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
 
-        _previousBalance = 0;
+        previousBalance = 0;
         _baseTravelCost = 10**15;
         _baseTravelCooldown = 2700; //45 minutes
         _travelCooldownPerDistance = 900; //15 minutes
@@ -44,10 +44,10 @@ contract Map is Editor {
     IShadowPool public ShadowPool; //Contract that collects Token emissions
     IFleet public Fleet; // Fleet Contract
 
-    uint public _previousBalance; // helper for allocating Token
+    uint public previousBalance; // helper for allocating Token
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
     uint _rewardsTimer; // Rewards can only be pulled from shadow pool every 4 hours?
-    uint rewardsDelay;
+    uint public rewardsDelay;
     uint  _timeModifier; //allow all times to be changed
     uint _miningCooldown; // how long before 
     uint _minTravelSize; //min. fleet size required to travel
@@ -199,7 +199,7 @@ contract Map is Editor {
         Token.safeTransferFrom(address(Treasury), address(this), asteroidAmount); //send asteroid NOVA to Map contract
 
         uint amountAfterBurn = (98 * asteroidAmount) / 100; //subtract 2% for burn
-        _previousBalance += amountAfterBurn;
+        previousBalance += amountAfterBurn;
         _asteroids.push(Asteroid(asteroidId, places.length, amountAfterBurn));
         _addPlace(PlaceType.ASTEROID, asteroidId, _x, _y, '', true);
     }
@@ -408,7 +408,7 @@ contract Map is Editor {
 
     // Function to mine, refine, transfer unrefined Token
     function allocateToken() public {
-        uint newAmount = Token.balanceOf(address(this)) - _previousBalance;
+        uint newAmount = Token.balanceOf(address(this)) - previousBalance;
         if (newAmount > 0) {
 
             uint totalStarLuminosity = getTotalLuminosity();
@@ -431,7 +431,7 @@ contract Map is Editor {
                     _planets[i].availableMineral += newMineral;
                 }
             }
-            _previousBalance = Token.balanceOf(address(this));
+            previousBalance = Token.balanceOf(address(this));
         }
     }
 
@@ -585,7 +585,7 @@ contract Map is Editor {
 
     // When Token allocated for salvage gets added to contract, call this function
     function increasePreviousBalance(uint _amount) external onlyEditor {
-        _previousBalance += _amount * 98 / 100;
+        previousBalance += _amount * 98 / 100;
     }
 
     //collect salvage from a coordinate
@@ -626,7 +626,7 @@ contract Map is Editor {
         Fleet.setMineral(player, 0);
 
         Token.safeTransfer(player, playerMineral);
-        _previousBalance -= playerMineral;
+        previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
         _requestToken();
     }
