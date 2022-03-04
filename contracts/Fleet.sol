@@ -275,11 +275,6 @@ contract Fleet is Editor {
         }
     }
 
-    //destroy ships
-    function _destroyShips(address _player, uint _shipClassId, uint _amount) internal {
-        players[addressToPlayer[_player]].ships[_shipClassId] -= uint(Helper.getMin(_amount, players[addressToPlayer[_player]].ships[_shipClassId]));
-    }
-
     modifier doesShipyardExist(uint _x, uint _y) {
         require(_shipyardExists[_x][_y] == true, 'FLEET: no shipyard');
         _;
@@ -347,10 +342,12 @@ contract Fleet is Editor {
         for(uint i=0; i<teams.length; i++) {
             uint otherTeamAttackPower = (i==0? teams[1].attackPower: teams[0].attackPower);//if 1st team, get 2nd team attack power, else get 1st
             for(uint j=0; j<teams[i].members.length; j++) {
-                address member = teams[i].members[j];
+                address memberAddress = teams[i].members[j];
+                Player storage player = players[addressToPlayer[memberAddress]];
                 uint memberMineralCapacityLost = 0;
+                uint memberMineralCapacity = getMineralCapacity(memberAddress);
                 for(uint k=0; k<_shipClasses.length; k++) {
-                    uint numClassShips = players[addressToPlayer[member]].ships[k]; //number of ships that team member has of this class
+                    uint numClassShips = player.ships[k]; //number of ships that team member has of this class
 
                     //calculate opposing team's damage to this member
                     uint damageTaken = (otherTeamAttackPower * numClassShips * _shipClasses[k].size) / teams[i].fleetSize;
@@ -359,24 +356,23 @@ contract Fleet is Editor {
                     uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / _shipClasses[k].shield);
 
                     //token value of ships lost
-                    totalScrap += (actualShipsLost  * _shipClasses[k].cost / Treasury.getCostMod() * _scrapPercentage) / 100;
+                    totalScrap += (actualShipsLost * _shipClasses[k].cost / Treasury.getCostMod() * _scrapPercentage) / 100;
 
                     //calculate mineral capacity lost by this class of member's ships
                     memberMineralCapacityLost += (actualShipsLost * _shipClasses[k].mineralCapacity);
 
                     //destroy ships lost
-                    _destroyShips(member, k, uint(actualShipsLost));
+                    player.ships[k] -= Helper.getMin(actualShipsLost, player.ships[k]);
                 }
                 //member's final lost mineral is the percentage of filled mineral capacity
                 if(memberMineralCapacityLost > 0) {
-                    totalMineralLost += (memberMineralCapacityLost * players[addressToPlayer[member]].mineral) / getMineralCapacity(member);
-                    players[addressToPlayer[member]].mineral -= (memberMineralCapacityLost * players[addressToPlayer[member]].mineral) / getMineralCapacity(member);
+                    totalMineralLost += (memberMineralCapacityLost * player.mineral) / memberMineralCapacity;
+                    player.mineral -= (memberMineralCapacityLost * player.mineral) / memberMineralCapacity;
                 }
             }
         }
 
         Map.addSalvageToPlace(battle.coordX, battle.coordY, totalMineralLost + totalScrap);
-
         _endBattle(battleId);
     }
 
