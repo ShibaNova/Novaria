@@ -232,14 +232,14 @@ contract Map is Editor {
     }
 
     function getExploreCost(uint _x, uint _y) public view returns(uint) {
-        return Helper.getDistance(0, 0, _x, _y) * 10**19 / Treasury.getCostMod();
+        return Helper.getDistance(0, 0, _x, _y) * 5 * 10**18 / Treasury.getCostMod();
         //return 10**20 / Treasury.getCostMod();
     }
 
     //player explore function
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
-        require(getDistanceFromFleet(sender, _x, _y) == 1, "MAPS: explore too far");
+        require(getDistanceFromFleet(sender, _x, _y) <= 2, "MAPS: explore too far");
         uint exploreCost = getExploreCost(_x, _y);
         Treasury.pay(sender, exploreCost);
         Fleet.addExperience(sender, exploreCost*3); //triple experience for exploring
@@ -250,7 +250,7 @@ contract Map is Editor {
     function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100);
-        if(rand >= 0 && rand <= 44) {
+        if(rand >= 0 && rand <= 59) {
             if(rand <= 1) {
                 _addWormhole(_x, _y);
             }
@@ -258,16 +258,16 @@ contract Map is Editor {
                 _addHostile(_x, _y); 
             }
         }
-        else if(rand >= 45 && rand <= 59) {
+        else if(rand >= 60 && rand <= 71) {
             _addAsteroid(_x, _y, (places.length % 10) + 15);
         }
-        else if(rand >= 60 && rand <= 99) {
+        else if(rand >= 72 && rand <= 99) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 60 && rand <= 75 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 72 && rand <= 84 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
@@ -296,7 +296,7 @@ contract Map is Editor {
                 }
             }
             //new star must be more than 7 AU away from nearest star
-            else if(rand >= 76 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+            else if(rand >= 85 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, '', (places.length % 7) + 2);
             }
             else {
