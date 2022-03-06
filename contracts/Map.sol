@@ -9,6 +9,7 @@ import './libs/SafeBEP20.sol';
 import "./interfaces/ITreasury.sol";
 import "./interfaces/IShadowPool.sol";
 import "./interfaces/IFleet.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract Map is Editor {
     using SafeBEP20 for ShibaBEP20;
@@ -243,11 +244,11 @@ contract Map is Editor {
         uint exploreCost = getExploreCost(_x, _y);
         Treasury.pay(sender, exploreCost);
         Fleet.addExperience(sender, exploreCost*3); //triple experience for exploring
-        _createRandomPlaceAt(_x, _y, sender);
+        _createRandomPlaceAt(_x, _y);
     }
 
     //create a random place at given coordinates
-    function _createRandomPlaceAt(uint _x, uint _y, address _creator) internal {
+    function _createRandomPlaceAt(uint _x, uint _y) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = Helper.getRandomNumber(100);
         if(rand >= 0 && rand <= 59) {
@@ -287,12 +288,11 @@ contract Map is Editor {
 
                 //if planet has a shipyard, add shipyard to Fleet contract
                 if(hasShipyard == true) {
-                    uint8 feePercent = 5;
                     address placeOwner = address(this); //map owns shipyards on refinery planets and gets fees which are then disbursed to mining planets
                     if(hasRefinery != true) {
-                        placeOwner = _creator;
+                        placeOwner = msg.sender;
                     }
-                    Fleet.addShipyard(string(abi.encodePacked('Shipyard', _x, _y)), placeOwner, _x, _y, feePercent);
+                    Fleet.addShipyard(string(abi.encodePacked('Shipyard', Strings.toString(_x), Strings.toString(_y))), placeOwner, _x, _y, 5);
                 }
             }
             //new star must be more than 7 AU away from nearest star
