@@ -174,21 +174,25 @@ module.exports = async function (deployer, network, accounts) {
          await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[2]})
          await fleet.insertCoinHere('fleet3', {from: accounts[2]})
 
+         await nova.approve(treasury.address, '0xffffffffffffffffff', {from: accounts[3]})
+         await nova.approve(fleet.address, '0xffffffffffffffffff', {from: accounts[3]})
+         await fleet.insertCoinHere('fleet4', {from: accounts[3]})
+
          //build ships
         await fleet.buildShips(0, 0, 0, 25, "5250000000000000000", {from: accounts[1]})
         await fleet.buildShips(0, 0, 0, 2500, "525000000000000000000", {from: accounts[2]})
-         await advanceTime(86400 * 2)
+        await fleet.buildShips(0, 0, 1, 50, "21000000000000000000", {from: accounts[3]})
+
+        await advanceTime(86400 * 2)
+
         await fleet.claimShips(0,25, {from:accounts[1]})
         await fleet.claimShips(0,2500, {from:accounts[2]})
-        await map.travel(3,2, {from:accounts[1]})
-        await map.travel(2,3, {from:accounts[2]})
-         await advanceTime(86400 * 2)
-        await map.travel(3,2, {from:accounts[2]})
-         await advanceTime(86400 * 2)
-        await map.travel(0,0, {from:accounts[2]})
+        await fleet.claimShips(0,50, {from:accounts[3]})
 
-         //86400 seconds in a day
-         await advanceTime(86400 * 2) // 10 Days
+        await map.travel(2,3, {from:accounts[1]})
+        await map.travel(2,3, {from:accounts[2]})
+        await map.travel(2,3, {from:accounts[3]})
+        await map.explore(3, 3, {from:accounts[2]})
     }
 
 };
@@ -199,4 +203,8 @@ fleet.getShipyards();
 await fleet.initiateShipyardTakeover(1, 3, {from:accounts[1]});
 const map = await Map.deployed();
 map.getPlaceInfo(1, 0);
-*/
+/*        await fleet.enterBattle(accounts[3], 1, {from:accounts[1]})
+        await fleet.enterBattle(accounts[3], 1, {from:accounts[2]})
+        await advanceTime(86400)
+
+        await fleet.goBattle(0, {from:accounts[1]})*/
