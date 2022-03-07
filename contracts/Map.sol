@@ -162,7 +162,7 @@ contract Map is Editor {
         _addPlanet(0, 5, 4, 'Gallifrey', false, false, true); //shipyard planet
 
         _addStar(14, 14, 'Rigel', 3); // first star
-        _addWormhole(14, 20); // wormhole
+        _addWormhole(8, 20); // wormhole
         _addPlanet(1, 12, 12, 'Caprica', true, false, false); //mining planet
     }
 
