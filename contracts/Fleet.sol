@@ -141,6 +141,10 @@ contract Fleet is Editor {
     function insertCoinHere(string memory _name) external {
         Treasury.pay(msg.sender, _startFee / Treasury.getCostMod());
         _createPlayer(_name, msg.sender);
+
+        //add starting fleet
+        players[addressToPlayer[msg.sender]].ships[0] += 40; //vipers
+        players[addressToPlayer[msg.sender]].ships[1] += 20; //moles
     }
 
     function createShipClass(
