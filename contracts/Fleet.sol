@@ -139,12 +139,23 @@ contract Fleet is Editor {
     }
 
     function insertCoinHere(string memory _name) external {
-        Treasury.pay(msg.sender, _startFee / Treasury.getCostMod());
-        _createPlayer(_name, msg.sender);
-
         //add starting fleet
-        players[addressToPlayer[msg.sender]].ships[0] += 40; //vipers
-        players[addressToPlayer[msg.sender]].ships[1] += 20; //moles
+        uint viperStart = 30;
+        uint moleStart = 20;
+        players[addressToPlayer[msg.sender]].ships[0] = viperStart; //vipers
+        players[addressToPlayer[msg.sender]].ships[1] = moleStart; //moles
+
+        uint scrap = _addScrap(((_shipClasses[0].cost * viperStart) + (_shipClasses[1].cost * moleStart)) / Treasury.getCostMod());
+
+        Treasury.pay(msg.sender, ((_startFee / Treasury.getCostMod()) - scrap));
+        _createPlayer(_name, msg.sender);
+    }
+
+    function _addScrap(uint _shipCost) internal returns(uint) {
+        uint scrap = (_shipCost * _scrapPercentage) / 100;
+        Token.safeTransferFrom(msg.sender, address(Map), scrap); //send scrap to Map contract
+        Map.increasePreviousBalance(scrap);
+        return scrap;
     }
 
     function createShipClass(
@@ -243,10 +254,8 @@ contract Fleet is Editor {
             Token.safeTransferFrom(sender, shipyard.owner, ownerFee);
         }
 
-        Treasury.pay(sender, (totalCost * (100-_scrapPercentage)) / 100);
-        uint scrap = (totalCost * _scrapPercentage) / 100;
-        Token.safeTransferFrom(sender, address(Map), scrap); //send scrap to Map contract
-        Map.increasePreviousBalance(scrap);
+        uint scrap = _addScrap(totalCost);
+        Treasury.pay(sender, totalCost - scrap);
 
         player.spaceDocks.push(SpaceDock(_shipClassId, _amount, block.timestamp + getBuildTime(_shipClassId, _amount), _x, _y));
         _addExperience(sender, totalCost + ownerFee);
