@@ -10,4 +10,5 @@ interface IMap {
     function setFleetLocation(address _player, uint _xTo, uint _yTo, uint _xFrom, uint _yFrom) external;
     function increasePreviousBalance(uint _amount) external;
     function addSalvageToPlace(uint _x, uint _y, uint _amount) external;
+    function adjustActiveBattleCount(uint _x, uint _y, int _amount) external;
 }

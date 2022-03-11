@@ -80,6 +80,7 @@ contract Map is Editor {
         uint salvage;
         address discoverer;
         bool canTravel;
+        uint activeBattleCount;
     }
     Place[] public places;
     mapping (uint => mapping(uint => bool)) _placeExists;
@@ -97,6 +98,7 @@ contract Map is Editor {
         uint luminosity;
         bool isMiningPlanet;
         address discoverer;
+        uint activeBattleCount;
     }
 
     struct Planet {
@@ -169,7 +171,7 @@ contract Map is Editor {
     function _addPlace(PlaceType _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint placeId = places.length;
-        places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, tx.origin, _canTravel));
+        places.push(Place(placeId, _placeType, _childId, _x, _y, _name, 0, tx.origin, _canTravel, 0));
 
         //set place in coordinate mapping
         _placeExists[_x][_y] = true;
@@ -342,17 +344,19 @@ contract Map is Editor {
         return foundCoordinatePlaces;
     }
 
-    function getPlaceInfo(uint _lx, uint _ly) public view returns(PlaceGetter memory) {
+    function getPlaceInfo(uint _x, uint _y) public view returns(PlaceGetter memory) {
         PlaceGetter memory placeGetter;
 
-        if(_placeExists[_lx][_ly] == true) {
-            Place memory place = places[coordinatePlaces[_lx][_ly]];
+        if(_placeExists[_x][_y] == true) {
+            Place memory place = places[coordinatePlaces[_x][_y]];
             placeGetter.canTravel = place.canTravel;
             placeGetter.name = place.name; 
             placeGetter.placeType = place.placeType;
             placeGetter.salvage = place.salvage;
-            placeGetter.fleetCount = fleetsAtLocation[_lx][_ly].length;
+            placeGetter.fleetCount = fleetsAtLocation[_x][_y].length;
             placeGetter.discoverer = place.discoverer;
+
+            placeGetter.activeBattleCount = place.activeBattleCount;
 
             if(place.placeType == PlaceType.PLANET) {
                 placeGetter.hasRefinery =  _planets[place.childId].hasRefinery;
@@ -632,6 +636,10 @@ contract Map is Editor {
         previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
         _requestToken();
+    }
+
+    function adjustActiveBattleCount(uint _x, uint _y, int _amount) external onlyEditor {
+        places[coordinatePlaces[_x][_y]].activeBattleCount = uint(int(places[coordinatePlaces[_x][_y]].activeBattleCount) + _amount);
     }
 
     // Setting to 0 disables travel

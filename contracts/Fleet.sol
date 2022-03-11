@@ -324,6 +324,7 @@ contract Fleet is Editor {
                 require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(msg.sender), 'FLEET: target too small');
                 Team memory attackTeam; Team memory defendTeam;
                 battles.push(Battle(false, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
+                Map.adjustActiveBattleCount(targetX, targetY, 1);
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
                 targetBattleId = battles.length-1;
             }
@@ -392,6 +393,7 @@ contract Fleet is Editor {
         }
 
         battles[_battleId].isResolved = true;
+        Map.adjustActiveBattleCount(battleToEnd.coordX, battleToEnd.coordY, -1);
     }
 
     //add experience to player based on in game purchases
