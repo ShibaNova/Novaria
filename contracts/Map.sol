@@ -34,7 +34,7 @@ contract Map is Editor {
         _maxTravel = 5; //AU
         _rewardsTimer = 0;
         _timeModifier = 1;
-        _miningCooldown = 1800; //30 minutes
+        _miningCooldown = 3600; //30 minutes
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
         _asteroidCooldownReduction = 3;
