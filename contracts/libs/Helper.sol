@@ -21,11 +21,6 @@ library Helper {
         }
     }
 
-    // Create random number <= _mod
-    function getRandomNumber(uint _mod) internal view returns(uint){
-        return uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty, tx.origin))) % _mod;
-    }
-
     function getDistance(uint x1, uint y1, uint x2, uint y2) internal pure returns (uint) {
         uint x = (x1 > x2 ? (x1 - x2) : (x2 - x1));
         uint y = (y1 > y2 ? (y1 - y2) : (y2 - y1));

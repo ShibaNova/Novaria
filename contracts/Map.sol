@@ -252,7 +252,7 @@ contract Map is Editor {
     //create a random place at given coordinates
     function _createRandomPlaceAt(uint _x, uint _y) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
-        uint rand = Helper.getRandomNumber(100);
+        uint rand = (_rewardsTimer + (_x * _y) + _x + _y + places.length) % 100;
         if(rand >= 0 && rand <= 59) {
             if(rand <= 1) {
                 _addWormhole(_x, _y);
