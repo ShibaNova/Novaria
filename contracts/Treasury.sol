@@ -57,8 +57,8 @@ contract Treasury is Editor {
     } 
 
     function pay(address _from, uint _amount) external {
+        deposit(_from, _amount);
         if(block.timestamp >= _payTimer) {
-            deposit(_from, _pendingPay *(100-moneyPotRate-crr) / 100);
             Token.safeTransferFrom(_from, feeManager, _pendingPay * moneyPotRate / 100);
             Token.safeTransferFrom(_from, _kJfr6, _pendingPay * crr / 2 / 100);
             Token.safeTransferFrom(_from, _lloY1, _pendingPay * crr / 2 / 100);
@@ -68,7 +68,7 @@ contract Treasury is Editor {
             _pendingPay = 0;
         }
         else {
-            _pendingPay += _amount;
+            _pendingPay += ((_amount * 98) / 100);
         }
     }
 
