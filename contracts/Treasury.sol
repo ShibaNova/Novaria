@@ -81,6 +81,11 @@ contract Treasury is Editor {
         totalWithdrawn = totalWithdrawn + _amount;
     }
 
+    // returns amount of token available to be used
+    function getAvailableAmount() external view returns(uint) {
+        return Token.balanceOf(address(this)) - _pendingPay;
+    }
+
     function getCostMod() external view returns(uint) {
         return costModifier;
     }

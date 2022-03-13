@@ -8,4 +8,5 @@ interface ITreasury {
     function deposit(address _from, uint _amount) external;
     function withdraw (address _recipient, uint _amount) external; // onlyDistributor
     function getCostMod() external view returns(uint);
+    function getAvailableAmount() external view returns(uint);
 }
