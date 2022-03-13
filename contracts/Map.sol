@@ -166,6 +166,7 @@ contract Map is Editor {
         _addStar(14, 14, 'Rigel', 3); // first star
         _addWormhole(8, 20); // wormhole
         _addPlanet(1, 12, 12, 'Caprica', true, false, false); //mining planet
+        _addPlanet(1, 15, 17, 'Chemicals R US', false, true, false); //refinery planet
     }
 
     function _addPlace(PlaceType _placeType, uint _childId, uint _x, uint _y, string memory _name, bool _canTravel) internal {
