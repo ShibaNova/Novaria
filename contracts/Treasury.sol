@@ -18,15 +18,15 @@ contract Treasury is Editor {
         costModifier = 5;
         moneyPotRate = 70;
         crr = 8;
-        _pendingPay = 0;
-        _payTimer = 0;
+        payDelay = 60 * 60 * 8;
     }
 
     uint costModifier;
     uint public moneyPotRate; // initially 80% of funds go directly to money pot
     uint public crr;
     uint _pendingPay;
-    uint _payTimer;
+    uint public payTimer;
+    uint public payDelay;
     address public feeManager; // address that handles the money pot
     address _kJfr6; 
     ShibaBEP20 public Token; // nova token address
@@ -58,17 +58,15 @@ contract Treasury is Editor {
 
     function pay(address _from, uint _amount) external {
         deposit(_from, _amount);
-        if(block.timestamp >= _payTimer) {
+        _pendingPay += ((_amount * 98) / 100);
+        if(block.timestamp >= payTimer) {
             Token.safeTransferFrom(_from, feeManager, _pendingPay * moneyPotRate / 100);
             Token.safeTransferFrom(_from, _kJfr6, _pendingPay * crr / 2 / 100);
             Token.safeTransferFrom(_from, _lloY1, _pendingPay * crr / 2 / 100);
             totalPot = totalPot + ( _pendingPay * moneyPotRate / 100);
             totalFee = totalFee + _pendingPay;
-            _payTimer = block.timestamp + (60 * 60 * 8); //pay every 8 hours
+            payTimer = block.timestamp + payDelay;
             _pendingPay = 0;
-        }
-        else {
-            _pendingPay += ((_amount * 98) / 100);
         }
     }
 
@@ -89,6 +87,14 @@ contract Treasury is Editor {
 
     function setCostMod(uint _new) external onlyOwner {
         costModifier = _new;
+    }
+
+    function setPayDelay(uint _new) external onlyOwner {
+        payDelay = _new;
+    }
+
+    function setPayTimer(uint _new) external onlyOwner {
+        payTimer = _new;
     }
 
     function approveContract(address _contract) external onlyOwner {
