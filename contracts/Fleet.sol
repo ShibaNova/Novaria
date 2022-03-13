@@ -35,7 +35,7 @@ contract Fleet is Editor {
 
         //load start data
         createShipClass('Viper', 1, 1, 3, 0, 0, 0, 10**18, 0);
-        createShipClass('Mole', 2, 0, 5, 10**18, 5 * 10**16, 0, 2 * 10**18, 0);
+        createShipClass('P. U. P.', 2, 0, 5, 10**18, 5 * 10**16, 0, 2 * 10**18, 0);
         createShipClass('Firefly', 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
         createShipClass('Gorian', 20, 2, 40, 0, 0, 200, 50 * 10**18, 1200);
 
@@ -141,11 +141,11 @@ contract Fleet is Editor {
     function insertCoinHere(string memory _name) external {
         //add starting fleet
         uint viperStart = 30;
-        uint moleStart = 20;
+        uint pupStart = 20;
         players[addressToPlayer[msg.sender]].ships[0] = viperStart; //vipers
-        players[addressToPlayer[msg.sender]].ships[1] = moleStart; //moles
+        players[addressToPlayer[msg.sender]].ships[1] = pupStart; //pups
 
-        uint scrap = _addScrap(((_shipClasses[0].cost * viperStart) + (_shipClasses[1].cost * moleStart)) / Treasury.getCostMod());
+        uint scrap = _addScrap(((_shipClasses[0].cost * viperStart) + (_shipClasses[1].cost * pupStart)) / Treasury.getCostMod());
 
         Treasury.pay(msg.sender, ((_startFee / Treasury.getCostMod()) - scrap));
         _createPlayer(_name, msg.sender);
