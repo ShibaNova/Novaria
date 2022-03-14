@@ -235,16 +235,19 @@ contract Map is Editor {
         emit NewPlanet(_starId, _x, _y);
     }
 
-    function getExploreCost(uint _x, uint _y) public view returns(uint) {
-        return Helper.getDistance(0, 0, _x, _y) * 5 * 10**18 / Treasury.getCostMod();
-        //return 10**20 / Treasury.getCostMod();
+    function getExploreCost(uint _x, uint _y, address _player) public view returns(uint) {
+       //Every 500 experience, exploring is reduced by 1% up to 50%
+       uint distanceFromHaven = Helper.getDistance(0, 0, _x, _y);
+       uint exploreDiscount = Helper.getMin(50, Fleet.getExperience(_player) / 500);
+       uint baseExploreCost = (distanceFromHaven * 2 * 10**18) / Treasury.getCostMod();
+       return (baseExploreCost * (100-exploreDiscount)) / 100;
     }
 
     //player explore function
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
         require(getDistanceFromFleet(sender, _x, _y) <= 2, "MAPS: explore too far");
-        uint exploreCost = getExploreCost(_x, _y);
+        uint exploreCost = getExploreCost(_x, _y, sender);
         Treasury.pay(sender, exploreCost);
         Fleet.addExperience(sender, exploreCost*3); //triple experience for exploring
         _createRandomPlaceAt(_x, _y);
@@ -473,8 +476,8 @@ contract Map is Editor {
        uint fleetSize = Fleet.getFleetSize(_fleet);
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
 
-       //Every 1000 experience, travel is reduced by 1% up to 50%
-       uint travelDiscount = Helper.getMin(50, Fleet.getExperience(_fleet) / 1000);
+       //Every 500 experience, travel is reduced by 1% up to 90%
+       uint travelDiscount = Helper.getMin(90, Fleet.getExperience(_fleet) / 500);
        return (((distance**2 * _baseTravelCost * fleetSize) * (100-travelDiscount)) / 100) / Treasury.getCostMod();
     }
 
