@@ -101,7 +101,7 @@ contract Fleet is Editor {
 
     //battle data
     struct Battle {
-        bool isResolved;
+        uint resolveTime;
         uint battleDeadline;
         uint coordX;
         uint coordY;
@@ -306,6 +306,7 @@ contract Fleet is Editor {
         require(Map.isRefineryLocation(targetX, targetY) != true, 'FLEET: DMZ');
 
         require(players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FLEET: in battle');
+        require(battles[players[addressToPlayer[_player]].battleId].resolveTime < (block.timestamp - (60 * 15)), 'FLEET: battle too soon');
         _;
     }
 
@@ -332,7 +333,7 @@ contract Fleet is Editor {
                 require(getFleetSize(msg.sender) * _battleSizeRestriction >= getFleetSize(_target), 'FLEET: player too small');
                 require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(msg.sender), 'FLEET: target too small');
                 Team memory attackTeam; Team memory defendTeam;
-                battles.push(Battle(false, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
+                battles.push(Battle(0, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
                 Map.adjustActiveBattleCount(targetX, targetY, 1);
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
                 targetBattleId = battles.length-1;
@@ -348,7 +349,7 @@ contract Fleet is Editor {
     function goBattle(uint battleId) public {
         Battle memory battle = battles[battleId];
         require(block.timestamp > battle.battleDeadline, 'FLEET: battle prepping');
-        require(battle.isResolved != true, 'FLEET: battle over');
+        require(battle.resolveTime != 0, 'FLEET: battle over');
 
         Team[2] memory teams = [battle.attackTeam, battle.defendTeam];
         uint totalMineralLost;
@@ -401,7 +402,7 @@ contract Fleet is Editor {
             players[addressToPlayer[battleToEnd.defendTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
 
-        battles[_battleId].isResolved = true;
+        battles[_battleId].resolveTime = block.timestamp;
         Map.adjustActiveBattleCount(battleToEnd.coordX, battleToEnd.coordY, -1);
     }
 
@@ -472,10 +473,10 @@ contract Fleet is Editor {
         return players[addressToPlayer[_player]].spaceDocks;
     }
  
-    function getBattlesAtLocation(uint _x, uint _y, bool showResolved) external view returns(uint[] memory) {
+    function getBattlesAtLocation(uint _x, uint _y, uint resolveTime) external view returns(uint[] memory) {
         uint totalFoundBattles;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].isResolved == showResolved) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolveTime >= resolveTime) {
                 totalFoundBattles++;
             }
         }
@@ -483,7 +484,7 @@ contract Fleet is Editor {
         uint[] memory foundBattles = new uint[](totalFoundBattles);
         uint foundBattlesCount;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].isResolved == showResolved) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolveTime >= resolveTime) {
                 foundBattles[foundBattlesCount] = i;
                 foundBattlesCount++;
             }
