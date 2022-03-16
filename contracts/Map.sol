@@ -59,9 +59,10 @@ contract Map is Editor {
     mapping (address => uint[2]) fleetLocation; //address to [x,y] array
     mapping(uint => mapping (uint => address[])) fleetsAtLocation; //reverse index to see what fleets are at what location
 
-    mapping (address => uint) public travelCooldown; // limits how often fleets can travel
+    mapping (address => uint) public fleetTravelCooldown; // limits how often fleets can travel
     mapping (address => uint) public fleetMiningCooldown; // limits how often a fleet can mine mineral
     mapping (address => uint) public fleetLastShipyardPlace; // last shipyard place that fleet visited
+    mapping (address => uint) public fleetMineralRefined; // last shipyard place that fleet visited
     
     uint _baseTravelCooldown; 
     uint _travelCooldownPerDistance; 
@@ -492,7 +493,7 @@ contract Map is Editor {
         require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
         require(places[coordinatePlaces[_x][_y]].canTravel == true, 'MAPS: no travel');
         address sender = msg.sender;
-        require(block.timestamp >= travelCooldown[sender], "MAPS: jump drive recharging");
+        require(block.timestamp >= fleetTravelCooldown[sender], "MAPS: jump drive recharging");
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
         require(Fleet.isInBattle(sender) != true, "MAPS: in battle or takeover");
@@ -501,7 +502,7 @@ contract Map is Editor {
         Treasury.pay(sender, travelCost);
         Fleet.addExperience(sender, travelCost);
 
-        travelCooldown[sender] = block.timestamp + getFleetTravelCooldown(sender, _x, _y);
+        fleetTravelCooldown[sender] = block.timestamp + getFleetTravelCooldown(sender, _x, _y);
 
         (uint fleetX, uint fleetY) =  getFleetLocation(sender);
         _setFleetLocation(sender, fleetX, fleetY, _x, _y);
@@ -640,6 +641,7 @@ contract Map is Editor {
         Token.safeTransfer(player, playerMineral);
         previousBalance -= playerMineral;
         emit MineralRefined(player, playerMineral);
+        fleetMineralRefined[player] += playerMineral;
         _requestToken();
     }
 
