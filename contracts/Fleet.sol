@@ -102,7 +102,7 @@ contract Fleet is Editor {
 
     //battle data
     struct Battle {
-        uint resolveTime;
+        uint resolvedTime;
         uint battleDeadline;
         uint coordX;
         uint coordY;
@@ -308,7 +308,7 @@ contract Fleet is Editor {
         require(Map.isRefineryLocation(targetX, targetY) != true, 'FL:DMZ');
 
         require(players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FL:in battle');
-        require(battles[players[addressToPlayer[_player]].battleId].resolveTime < (block.timestamp - (60 * 15)), 'FL:battle soon');
+        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + (60 * 15)) < block.timestamp, 'FL:battle soon');
         _;
     }
 
@@ -351,7 +351,7 @@ contract Fleet is Editor {
     function goBattle(uint battleId) external {
         Battle memory battle = battles[battleId];
         require(block.timestamp > battle.battleDeadline, 'FL:battle prep');
-        require(battle.resolveTime != 0, 'FL:battle over');
+        require(battle.resolvedTime == 0, 'FL:battle over');
 
         Team[2] memory teams = [battle.attackTeam, battle.defendTeam];
         uint totalMineralLost;
@@ -404,7 +404,7 @@ contract Fleet is Editor {
             players[addressToPlayer[battleToEnd.defendTeam.members[i]]].battleStatus = BattleStatus.PEACE;
         }
 
-        battles[_battleId].resolveTime = block.timestamp;
+        battles[_battleId].resolvedTime = block.timestamp;
         Map.adjustActiveBattleCount(battleToEnd.coordX, battleToEnd.coordY, -1);
     }
 
@@ -475,10 +475,10 @@ contract Fleet is Editor {
         return players[addressToPlayer[_player]].spaceDocks;
     }
  
-    function getBattlesAtLocation(uint _x, uint _y, uint resolveTime) external view returns(uint[] memory) {
+    function getBattlesAtLocation(uint _x, uint _y, uint resolvedTime) external view returns(uint[] memory) {
         uint totalFoundBattles;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolveTime >= resolveTime) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime >= resolvedTime) {
                 totalFoundBattles++;
             }
         }
@@ -486,7 +486,7 @@ contract Fleet is Editor {
         uint[] memory foundBattles = new uint[](totalFoundBattles);
         uint foundBattlesCount;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolveTime >= resolveTime) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime >= resolvedTime) {
                 foundBattles[foundBattlesCount] = i;
                 foundBattlesCount++;
             }
