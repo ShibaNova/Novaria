@@ -226,8 +226,8 @@ contract Fleet is Editor {
         if(getFleetSize(shipyard.takeoverAddress) >= 200) {
             shipyard.owner = shipyard.takeoverAddress;
             shipyard.lastTakeoverTime = block.timestamp;
-            shipyard.takeoverAddress = address(0);
         }
+        shipyard.takeoverAddress = address(0);
         shipyard.status = BattleStatus.PEACE;
     }
 

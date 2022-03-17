@@ -538,6 +538,7 @@ contract Map is Editor {
     //recall player to last shipyard visited
     function recall(bool _goToHaven) external {
         require(Fleet.getFleetSize(msg.sender) < _minTravelSize, "FLEET: too large for recall");
+        require(Fleet.isInBattle(msg.sender) != true, "MAPS: in battle or takeover");
 
         uint recallX;
         uint recallY;
