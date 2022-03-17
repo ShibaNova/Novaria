@@ -32,6 +32,7 @@ contract Fleet is Editor {
         _battleSizeRestriction = 4;
         _startFee = 10**20;
         _scrapPercentage = 40;
+        _timeModifier = 1;
 
         //load start data
         createShipClass('Viper', 1, 1, 3, 0, 0, 0, 10**18, 0);
@@ -128,6 +129,7 @@ contract Fleet is Editor {
     uint _battleSizeRestriction;
     uint _startFee;
     uint _scrapPercentage;
+    uint  _timeModifier; //allow all times to be changed
 
     event NewShipyard(uint _x, uint _y);
 
@@ -200,7 +202,7 @@ contract Fleet is Editor {
         Shipyard storage shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
         require(msg.sender != shipyard.takeoverAddress, 'FL:in takover');
         require(msg.sender != shipyard.owner, 'FL:own ship');
-        require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 7) / Map.getTimeModifier()), 'FL:ship protect');
+        require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 7) / _timeModifier), 'FL:ship protect');
 
         uint fleetSize = getFleetSize(msg.sender);
         require(fleetSize >= 1000, 'FL:small');
@@ -209,7 +211,7 @@ contract Fleet is Editor {
         require(shipyard.status == BattleStatus.PEACE || fleetSize > getFleetSize(shipyard.takeoverAddress), 'FL:peace/small');
         shipyard.status = BattleStatus.ATTACK;
         shipyard.takeoverAddress = msg.sender;
-        shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24) / Map.getTimeModifier());
+        shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24) / _timeModifier);
 
         uint takeoverFee = 25*10**18 / Treasury.getCostMod();
         Treasury.pay(msg.sender, takeoverFee);
@@ -313,7 +315,7 @@ contract Fleet is Editor {
         require(Map.isRefineryLocation(targetX, targetY) != true, 'FL:DMZ');
 
         require(players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FL:in battle');
-        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + (60 * 15)) < block.timestamp, 'FL:battle soon');
+        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 15) / _timeModifier)) < block.timestamp, 'FL:battle soon');
         _;
     }
 
@@ -335,12 +337,12 @@ contract Fleet is Editor {
         uint targetBattleId = targetPlayer.battleId;
         if(mission == BattleStatus.ATTACK) {
 
-            //create new battle, but new battle cannot be initated be a fleet to large or too small
+            //create new battle, but new battle cannot be initated by a fleet to large or too small
             if(targetPlayer.battleStatus == BattleStatus.PEACE) {
                 require(getFleetSize(msg.sender) * _battleSizeRestriction >= getFleetSize(_target), 'FL:player small');
                 require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(msg.sender), 'FL:target small');
                 Team memory attackTeam; Team memory defendTeam;
-                battles.push(Battle(0, block.timestamp + (3600 / Map.getTimeModifier()), targetX, targetY, attackTeam, defendTeam));
+                battles.push(Battle(0, block.timestamp + (3600 / _timeModifier), targetX, targetY, attackTeam, defendTeam));
                 Map.adjustActiveBattleCount(targetX, targetY, 1);
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
                 targetBattleId = battles.length-1;
@@ -463,7 +465,7 @@ contract Fleet is Editor {
 
     //5 minutes per size
     function getBuildTime(uint _shipClassId, uint _amount) public view returns(uint) {
-        return (_amount * _shipClasses[_shipClassId].size * 300) / Map.getTimeModifier();
+        return (_amount * _shipClasses[_shipClassId].size * 300) / _timeModifier;
     }
 
     function _hasSpaceDock(address _player, uint _x, uint _y) public view isPlayer(_player) returns(bool) {
@@ -480,10 +482,12 @@ contract Fleet is Editor {
         return players[addressToPlayer[_player]].spaceDocks;
     }
  
-    function getBattlesAtLocation(uint _x, uint _y, uint _resolvedTime) external view returns(uint[] memory) {
+    function getBattlesAtLocation(uint _x, uint _y, uint _startTime, uint _endTime) external view returns(uint[] memory) {
         uint totalFoundBattles;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime <= _resolvedTime) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y
+                && battles[i].resolvedTime >= _startTime && battles[i].resolvedTime <= _endTime
+            ) {
                 totalFoundBattles++;
             }
         }
@@ -491,7 +495,9 @@ contract Fleet is Editor {
         uint[] memory foundBattles = new uint[](totalFoundBattles);
         uint foundBattlesCount;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime <= _resolvedTime) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y
+                && battles[i].resolvedTime >= _startTime && battles[i].resolvedTime <= _endTime
+            ) {
                 foundBattles[foundBattlesCount] = i;
                 foundBattlesCount++;
             }
@@ -563,5 +569,9 @@ contract Fleet is Editor {
 
     function getPlayerBattleInfo(address _player) external view isPlayer(_player) returns (BattleStatus, uint) {
         return (players[addressToPlayer[_player]].battleStatus, players[addressToPlayer[_player]].battleId);
+    }
+
+    function setTimeModifier(uint _new) external onlyOwner {
+        _timeModifier = _new;
     }
 }

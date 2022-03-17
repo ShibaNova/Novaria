@@ -701,12 +701,7 @@ contract Map is Editor {
         _baseTravelCost = _new;
     }
 
-    // setting to 0 removes base travel cooldown
     function setTimeModifier(uint _new) external onlyOwner {
         _timeModifier = _new;
-    }
-
-    function getTimeModifier() external view returns(uint) {
-        return _timeModifier;
     }
 }
