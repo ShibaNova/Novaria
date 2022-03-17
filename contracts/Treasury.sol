@@ -102,8 +102,8 @@ contract Treasury is Editor {
         payTimer = _new;
     }
 
-    function approveContract(address _contract) external onlyOwner {
-        Token.approve(_contract, 0xffffffffffffffffff);
+    function approveContract(address _contract, uint _amount) external onlyOwner {
+        Token.approve(_contract, _amount);
     }
 
     function setKJfr6(address _addy) external onlyOwner {
