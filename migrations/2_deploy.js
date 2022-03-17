@@ -126,12 +126,8 @@ module.exports = async function (deployer, network, accounts) {
     await fleet.setEditor([accounts[0]])
 
     // Treasury setup
-    await treasury.approveContract(map.address)
+    await treasury.approveContract(map.address, '10000000000000000000000000000')
     await treasury.setEditor([map.address])
-
-    // additional setup for deploy of nova token
-    // await nova.approve(treasury.address, '0xffffffffffffffffff')
-    // await nova.approve(fleet.address, '0xffffffffffffffffff')
 
     // ShadowPool
 
@@ -179,15 +175,15 @@ module.exports = async function (deployer, network, accounts) {
          await fleet.insertCoinHere('fleet4', {from: accounts[3]})
 
          //build ships
-        await fleet.buildShips(0, 0, 0, 25, "5250000000000000000", {from: accounts[1]})
-        await fleet.buildShips(0, 0, 0, 2500, "525000000000000000000", {from: accounts[2]})
-        await fleet.buildShips(0, 0, 1, 50, "21000000000000000000", {from: accounts[3]})
+        await fleet.buildShips(0, 0, 0, 25, "26250000000000000000", {from: accounts[1]})
+//        await fleet.buildShips(0, 0, 0, 2500, "525000000000000000000", {from: accounts[2]})
+ //       await fleet.buildShips(0, 0, 1, 50, "21000000000000000000", {from: accounts[3]})
 
-        await advanceTime(86400 * 2)
+        await advanceTime(86400 * 10)
 
         await fleet.claimShips(0,25, {from:accounts[1]})
-        await fleet.claimShips(0,2500, {from:accounts[2]})
-        await fleet.claimShips(0,50, {from:accounts[3]})
+//        await fleet.claimShips(0,2500, {from:accounts[2]})
+ //       await fleet.claimShips(0,50, {from:accounts[3]})
 
         await map.travel(2,3, {from:accounts[1]})
         await map.travel(2,3, {from:accounts[2]})
