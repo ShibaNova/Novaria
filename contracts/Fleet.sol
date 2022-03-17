@@ -41,6 +41,10 @@ contract Fleet is Editor {
 
         _addShipyard('Haven', tx.origin, 0, 0, 5);
         _addShipyard('BestValueShips', tx.origin, 5, 4, 10);
+
+        //add dummy battle
+        battles.push();
+        battles[battles.length-1].resolvedTime = 1; 
     }
 
     enum BattleStatus{ PEACE, ATTACK, DEFEND }
@@ -207,9 +211,9 @@ contract Fleet is Editor {
         shipyard.takeoverAddress = msg.sender;
         shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24) / Map.getTimeModifier());
 
-        uint takeOverFee = 25*10**18 / Treasury.getCostMod();
-        Treasury.pay(msg.sender, takeOverFee);
-        _addExperience(msg.sender, takeOverFee);
+        uint takeoverFee = 25*10**18 / Treasury.getCostMod();
+        Treasury.pay(msg.sender, takeoverFee);
+        _addExperience(msg.sender, takeoverFee);
     }
 
     //complete shipyard takeover
@@ -220,6 +224,7 @@ contract Fleet is Editor {
         if(getFleetSize(shipyard.takeoverAddress) >= 200) {
             shipyard.owner = shipyard.takeoverAddress;
             shipyard.lastTakeoverTime = block.timestamp;
+            shipyard.takeoverAddress = address(0);
         }
         shipyard.status = BattleStatus.PEACE;
     }
