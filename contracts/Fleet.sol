@@ -480,10 +480,10 @@ contract Fleet is Editor {
         return players[addressToPlayer[_player]].spaceDocks;
     }
  
-    function getBattlesAtLocation(uint _x, uint _y, uint resolvedTime) external view returns(uint[] memory) {
+    function getBattlesAtLocation(uint _x, uint _y, uint _resolvedTime) external view returns(uint[] memory) {
         uint totalFoundBattles;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime >= resolvedTime) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime <= _resolvedTime) {
                 totalFoundBattles++;
             }
         }
@@ -491,7 +491,7 @@ contract Fleet is Editor {
         uint[] memory foundBattles = new uint[](totalFoundBattles);
         uint foundBattlesCount;
         for(uint i=0; i<battles.length; i++) {
-            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime >= resolvedTime) {
+            if(battles[i].coordX == _x && battles[i].coordY == _y && battles[i].resolvedTime <= _resolvedTime) {
                 foundBattles[foundBattlesCount] = i;
                 foundBattlesCount++;
             }
