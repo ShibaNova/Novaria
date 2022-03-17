@@ -60,9 +60,9 @@ contract Treasury is Editor {
         deposit(_from, _amount);
         _pendingPay += ((_amount * 98) / 100);
         if(block.timestamp >= payTimer) {
-            Token.safeTransferFrom(_from, feeManager, _pendingPay * moneyPotRate / 100);
-            Token.safeTransferFrom(_from, _kJfr6, _pendingPay * crr / 2 / 100);
-            Token.safeTransferFrom(_from, _lloY1, _pendingPay * crr / 2 / 100);
+            Token.safeTransfer(feeManager, _pendingPay * moneyPotRate / 100);
+            Token.safeTransfer(_kJfr6, _pendingPay * crr / 2 / 100);
+            Token.safeTransfer(_lloY1, _pendingPay * crr / 2 / 100);
             totalPot = totalPot + ( _pendingPay * moneyPotRate / 100);
             totalFee = totalFee + _pendingPay;
             payTimer = block.timestamp + payDelay;
