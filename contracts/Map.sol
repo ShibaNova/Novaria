@@ -276,7 +276,7 @@ contract Map is Editor {
             uint nearestStarY = places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 66 && rand <= 79 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 66 && rand <= 78 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
@@ -288,7 +288,7 @@ contract Map is Editor {
                 else if(planetAttributeSelector >= 8 && planetAttributeSelector <=13) {
                     hasRefinery = true;
                 }
-                else if(planetAttributeSelector >= 14 && planetAttributeSelector <= 18) {
+                else if(planetAttributeSelector >= 14 && planetAttributeSelector <= 17) {
                     hasShipyard = true;
                 }
                 else { hasShipyard = true; hasRefinery = true; }
@@ -304,7 +304,7 @@ contract Map is Editor {
                 }
             }
             //new star must be more than 7 AU away from nearest star
-            else if(rand >= 80 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+            else if(rand >= 79 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, '', (places.length % 7) + 2);
             }
             else {
