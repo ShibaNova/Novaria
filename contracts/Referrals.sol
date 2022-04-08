@@ -13,10 +13,11 @@ contract Referrals is Editor {
     using SafeBEP20 for ShibaBEP20;
 
     constructor(
-        ShibaBEP20 _Token
-        
+        ShibaBEP20 _token,
+        IFleet _fleet
     ) {
-        Token = _Token;
+        Token = _token;
+        Fleet = _fleet;
         referralRate = 25000000000000000000;
     }
 
@@ -75,4 +76,7 @@ contract Referrals is Editor {
         referralRate = _newRate; 
     }
 
+    function withdraw (address _recipient, uint _amount) external onlyOwner {
+        Token.safeTransfer(_recipient, _amount);
+    }
 }
