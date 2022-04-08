@@ -19,6 +19,7 @@ contract Treasury is Editor {
         moneyPotRate = 70;
         crr = 8;
         payDelay = 60 * 60 * 8;
+        burnRate = 50;
     }
 
     uint costModifier;
@@ -28,6 +29,7 @@ contract Treasury is Editor {
     uint public payTimer;
     uint public payDelay;
     address public feeManager; // address that handles the money pot
+    uint public burnRate; // amount that gets burned instead of sent to the money pot
     address _kJfr6; 
     ShibaBEP20 public Token; // nova token address
     uint public totalWithdrawn; // total amount of fees withdrawn
@@ -45,6 +47,10 @@ contract Treasury is Editor {
         moneyPotRate = _rate;
         emit NewMoneyPotRate(_rate);
     }
+    function setburnRate(uint _rate) external onlyOwner {
+        require(_rate <=100 && _rate >= 0);
+        burnRate = _rate;
+    }
 
     function setFeeManager(address _newAddress) external onlyOwner {
         feeManager = _newAddress;
@@ -59,8 +65,10 @@ contract Treasury is Editor {
     function pay(address _from, uint _amount) external {
         deposit(_from, _amount);
         _pendingPay += ((_amount * 98) / 100);
+        uint burnAmount = _pendingPay * moneyPotRate / 100 * burnRate / 100;
         if(block.timestamp >= payTimer) {
-            Token.safeTransfer(feeManager, _pendingPay * moneyPotRate / 100);
+            Token.safeTransfer(feeManager, (_pendingPay * moneyPotRate / 100) - burnAmount );
+            Token.transfer(address(0), burnAmount);
             Token.safeTransfer(_kJfr6, _pendingPay * crr / 2 / 100);
             Token.safeTransfer(_lloY1, _pendingPay * crr / 2 / 100);
             totalPot = totalPot + ( _pendingPay * moneyPotRate / 100);
