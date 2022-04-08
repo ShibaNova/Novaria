@@ -25,8 +25,8 @@ contract Referrals is Editor {
     IFleet public Fleet; // fleet contract
     uint public referralRate; // how much token per referral
 
-    mapping (address => bool) addressReferred; // checks if referral is already registered
-    mapping (address => bool) referralAddressPaid;
+    mapping (address => bool) public addressReferred; // checks if referral is already registered
+    mapping (address => bool) public  referralAddressPaid;
     mapping (address => address) public getReferrer; 
     mapping (address => uint) public referralBalance; // current generated balance minus previously withdrawn
     mapping (address => address[]) public referralsByAddress;
