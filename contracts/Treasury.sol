@@ -19,7 +19,7 @@ contract Treasury is Editor {
         moneyPotRate = 70;
         crr = 8;
         payDelay = 60 * 60 * 8;
-        burnRate = 50;
+        burnRate = 80;
     }
 
     uint costModifier;
