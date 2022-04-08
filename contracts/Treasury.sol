@@ -48,7 +48,7 @@ contract Treasury is Editor {
         emit NewMoneyPotRate(_rate);
     }
     function setburnRate(uint _rate) external onlyOwner {
-        require(_rate <=100 && _rate >= 0);
+        require(_rate <100 && _rate > 0);
         burnRate = _rate;
     }
 

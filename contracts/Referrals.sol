@@ -48,6 +48,7 @@ contract Referrals is Editor {
                 pendingReferrals++;
             }
         }
+        return pendingReferrals;
     }
 
     function getReferralBonus () external {
