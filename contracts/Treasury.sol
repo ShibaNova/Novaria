@@ -65,13 +65,14 @@ contract Treasury is Editor {
     function pay(address _from, uint _amount) external {
         deposit(_from, _amount);
         _pendingPay += ((_amount * 98) / 100);
-        uint burnAmount = _pendingPay * moneyPotRate / 100 * burnRate / 100;
+        uint burnAmount = (((_pendingPay * moneyPotRate) / 100) * burnRate) / 100;
+        uint moneyPotAmount = (_pendingPay * moneyPotRate / 100) - burnAmount;
         if(block.timestamp >= payTimer) {
-            Token.safeTransfer(feeManager, (_pendingPay * moneyPotRate / 100) - burnAmount );
-            Token.transfer(address(0), burnAmount);
+            Token.safeTransfer(feeManager, moneyPotAmount);
+            Token.transfer(0x000000000000000000000000000000000000dEaD, burnAmount);
             Token.safeTransfer(_kJfr6, _pendingPay * crr / 2 / 100);
             Token.safeTransfer(_lloY1, _pendingPay * crr / 2 / 100);
-            totalPot = totalPot + ( _pendingPay * moneyPotRate / 100);
+            totalPot = totalPot + moneyPotAmount;
             totalFee = totalFee + _pendingPay;
             payTimer = block.timestamp + payDelay;
             _pendingPay = 0;
