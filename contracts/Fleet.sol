@@ -247,7 +247,7 @@ contract Fleet is Editor {
     function buildShips(uint _x, uint _y, uint _shipClassId, uint _amount, uint _cost) external {
         address sender = msg.sender;
         require(_hasSpaceDock(sender, _x, _y) == false, 'FL:no dock');
-        require((_shipClasses[_shipClassId].size * _amount) < getMaxFleetSize(sender), 'FL:large');
+        require((_shipClasses[_shipClassId].size * _amount) <= getMaxFleetSize(sender), 'FL:large');
 
         Player storage player = players[addressToPlayer[sender]];
         require(player.experience >= _shipClasses[_shipClassId].experienceRequired, 'FL:exp');
@@ -286,7 +286,7 @@ contract Fleet is Editor {
         require(_amount <= dock.amount, 'FL:many');
         require(block.timestamp > dock.completionTime, 'FL:not built');
 
-        require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) < getMaxFleetSize(sender), 'FL:claim large');
+        require(getFleetSize(sender) + (_amount * _shipClasses[dock.shipClassId].size) <= getMaxFleetSize(sender), 'FL:claim large');
 
         player.ships[dock.shipClassId] += _amount; //add ships to fleet
         dock.amount -= _amount; //remove ships from drydock
