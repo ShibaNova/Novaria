@@ -258,10 +258,10 @@ contract Map is Editor {
     function _createRandomPlaceAt(uint _x, uint _y) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
         uint rand = (_rewardsTimer + (_x * _y) + _x + _y + (places.length * 13)) % 100;
-        if(rand >= 0 && rand <= 1) {
+        if(rand == 0) {
             _addWormhole(_x, _y);
         }
-        else if(rand >= 2 && rand <= 16) {
+        else if(rand >= 1 && rand <= 16) {
             _addEmpty(_x, _y);
         }
         else if(rand >= 17 && rand <= 28) {
