@@ -29,12 +29,12 @@ contract Map is Editor {
 
         previousBalance = 0;
         _baseTravelCost = 10**15;
-        _baseTravelCooldown = 2700; //45 minutes
-        _travelCooldownPerDistance = 900; //15 minutes
+        _baseTravelCooldown = 28800; //8 hours
+        _travelCooldownPerDistance = 14400; //4 hours
         _maxTravel = 5; //AU
         _rewardsTimer = 0;
         _timeModifier = 1;
-        _miningCooldown = 3600; //30 minutes
+        _miningCooldown = 86400; //1 day
         _minTravelSize = 25;
         _collectCooldownReduction = 5;
         _asteroidCooldownReduction = 3;
@@ -247,10 +247,10 @@ contract Map is Editor {
     //player explore function
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
-        require(getDistanceFromFleet(sender, _x, _y) <= 2, "MAPS: explore too far");
+        require(getDistanceFromFleet(sender, _x, _y) <= 3, "MAPS: explore too far");
         uint exploreCost = getExploreCost(_x, _y, sender);
         Treasury.pay(sender, exploreCost);
-        Fleet.addExperience(sender, exploreCost*3); //triple experience for exploring
+        Fleet.addExperience(sender, exploreCost*5); //5x experience for exploring
         _createRandomPlaceAt(_x, _y);
     }
 
@@ -490,13 +490,14 @@ contract Map is Editor {
 
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
-        require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
-        require(places[coordinatePlaces[_x][_y]].canTravel == true, 'MAPS: no travel');
+        require(_placeExists[_x][_y] == true, 'MAP: place unexplored');
+        require(places[coordinatePlaces[_x][_y]].canTravel == true, 'MAP: no travel');
         address sender = msg.sender;
-        require(block.timestamp >= fleetTravelCooldown[sender], "MAPS: jump drive recharging");
-        require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
-        require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
-        require(Fleet.isInBattle(sender) != true, "MAPS: in battle or takeover");
+        require(block.timestamp >= fleetTravelCooldown[sender], "MAP: jump drive recharging");
+        require(fleetMiningCooldown[sender] <= block.timestamp, 'MAP: mining cooldown');
+        require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAP: cannot travel that far");
+        require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAP: fleet too small");
+        require(Fleet.isInBattle(sender) != true, "MAP: in battle or takeover");
 
         uint travelCost = getFleetTravelCost(sender, _x, _y);
         Treasury.pay(sender, travelCost);

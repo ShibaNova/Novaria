@@ -31,7 +31,7 @@ contract Fleet is Editor {
         _baseMaxFleetSize = 5000;
         _battleSizeRestriction = 4;
         _startFee = 10**20;
-        _scrapPercentage = 40;
+        _scrapPercentage = 80;
         _timeModifier = 1;
 
         //load start data
