@@ -30,13 +30,13 @@ contract Fleet is Editor {
         Map = _map;
         _baseMaxFleetSize = 5000;
         _battleSizeRestriction = 4;
-        _startFee = 10**20;
+        _startFee = 490 * 10**18;
         _scrapPercentage = 80;
         _timeModifier = 1;
 
         //load start data
         createShipClass('Viper', 1, 1, 3, 0, 0, 0, 10**18, 0);
-        createShipClass('P. U. P.', 2, 0, 5, 5 * 10**17, 10**17, 0, 2 * 10**18, 0);
+        createShipClass('P. U. P.', 2, 0, 5, 5 * 10**17, 5 * 10**17, 0, 2 * 10**18, 0);
         createShipClass('Firefly', 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
         createShipClass('Gorian', 20, 2, 40, 0, 0, 200, 50 * 10**18, 1200);
 
@@ -312,10 +312,12 @@ contract Fleet is Editor {
         (uint attackX, uint attackY) = Map.getFleetLocation(_player);
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         require(attackX == targetX && attackY == targetY, 'FL:dif location');
-        require(Map.isRefineryLocation(targetX, targetY) != true, 'FL:DMZ');
+
+        //cannot attack in DMX which is a shipyard/refinery location
+        require((Map.isRefineryLocation(targetX, targetY) && doesShipyardExist(targetX, targetY)) != true, 'FL:DMZ');
 
         require(players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FL:in battle');
-        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 15) / _timeModifier)) < block.timestamp, 'FL:battle soon');
+        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 60 * 24) / _timeModifier)) < block.timestamp, 'FL:battle soon');
         _;
     }
 
@@ -342,7 +344,7 @@ contract Fleet is Editor {
                 require(getFleetSize(msg.sender) * _battleSizeRestriction >= getFleetSize(_target), 'FL:player small');
                 require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(msg.sender), 'FL:target small');
                 Team memory attackTeam; Team memory defendTeam;
-                battles.push(Battle(0, block.timestamp + (3600 / _timeModifier), targetX, targetY, attackTeam, defendTeam));
+                battles.push(Battle(0, block.timestamp + (60 * 60 * 12 / _timeModifier), targetX, targetY, attackTeam, defendTeam));
                 Map.adjustActiveBattleCount(targetX, targetY, 1);
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
                 targetBattleId = battles.length-1;
@@ -364,7 +366,8 @@ contract Fleet is Editor {
         uint totalMineralLost;
         uint totalScrap;
         for(uint i=0; i<teams.length; i++) {
-            uint otherTeamAttackPower = (i==0? teams[1].attackPower: teams[0].attackPower);//if 1st team, get 2nd team attack power, else get 1st
+            //if 1st team, get 2nd team attack power, else get 1st, increase attack power for attacking team by 20%
+            uint otherTeamAttackPower = (i==0 ? teams[1].attackPower : teams[0].attackPower += ((teams[0].attackPower * 20) / 100));
             for(uint j=0; j<teams[i].members.length; j++) {
                 address memberAddress = teams[i].members[j];
                 Player storage player = players[addressToPlayer[memberAddress]];
@@ -377,7 +380,14 @@ contract Fleet is Editor {
                     uint damageTaken = (otherTeamAttackPower * numClassShips * _shipClasses[k].size) / teams[i].fleetSize;
 
                     //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
-                    uint actualShipsLost = Helper.getMin(numClassShips, damageTaken / _shipClasses[k].shield);
+                    //modified equation to limit ship loss to no more than 25% and never more than 3 ships
+                    uint maxShipsDestroyed = damageTaken / _shipClasses[k].shield;
+                    uint actualShipsLost = Helper.getMin(numClassShips / 4, maxShipsDestroyed);
+
+                    //if less than 4 ships, but high damage, destroy at least 1 ship
+                    if(maxShipsDestroyed > 0 && actualShipsLost == 0 && numClassShips > 0) {
+                        actualShipsLost = 1;
+                    }
 
                     //token value of ships lost
                     totalScrap += (actualShipsLost * _shipClasses[k].cost / Treasury.getCostMod() * _scrapPercentage) / 100;

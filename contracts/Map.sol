@@ -34,10 +34,10 @@ contract Map is Editor {
         _maxTravel = 5; //AU
         _rewardsTimer = 0;
         _timeModifier = 1;
-        _miningCooldown = 86400; //1 day
+        _miningCooldown = 86400 * 2; //2 days
         _minTravelSize = 25;
-        _collectCooldownReduction = 5;
-        _asteroidCooldownReduction = 3;
+        _collectCooldownReduction = 12;
+        _asteroidCooldownReduction = 6;
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -261,7 +261,7 @@ contract Map is Editor {
         if(rand == 0) {
             _addWormhole(_x, _y);
         }
-        else if(rand >= 0 && rand <= 100) {
+        else if(rand > 0 && rand <= 100) {
             _addEmpty(_x, _y);
         }
         else if(rand >= 101 && rand <= 280) {
@@ -494,7 +494,7 @@ contract Map is Editor {
         require(places[coordinatePlaces[_x][_y]].canTravel == true, 'MAP: no travel');
         address sender = msg.sender;
         require(block.timestamp >= fleetTravelCooldown[sender], "MAP: jump drive recharging");
-        require(fleetMiningCooldown[sender] <= block.timestamp, 'MAP: mining cooldown');
+        require(block.timestamp >= fleetMiningCooldown[sender], 'MAP: mining cooldown');
         require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAP: cannot travel that far");
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAP: fleet too small");
         require(Fleet.isInBattle(sender) != true, "MAP: in battle or takeover");
