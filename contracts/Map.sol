@@ -16,7 +16,8 @@ contract Map is Editor {
 
     constructor (
          ShibaBEP20 _token,
-         ITreasury _treasury
+         ITreasury _treasury,
+        ShibaBEP20 _phxToken
         //IShadowPool _shadowPool,
         //IFleet _fleet
     ) {
@@ -26,6 +27,8 @@ contract Map is Editor {
          Treasury = _treasury;
         //Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
         ShadowPool = IShadowPool(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
+       // PhxToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
+       PhxToken = _phxToken;
 
         previousBalance = 0;
         _baseTravelCost = 10**15;
@@ -44,6 +47,9 @@ contract Map is Editor {
     ITreasury public Treasury; //Contract that collects all Token payments
     IShadowPool public ShadowPool; //Contract that collects Token emissions
     IFleet public Fleet; // Fleet Contract
+    ShibaBEP20 internal PhxToken;
+    address internal PhxWallet;
+    uint256 internal PhxPerMinute = 1;
 
     uint public previousBalance; // helper for allocating Token
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
@@ -486,6 +492,32 @@ contract Map is Editor {
     function getFleetTravelCooldown(address _fleet, uint _x, uint _y) public view returns (uint) {
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
        return (_baseTravelCooldown + (distance*_travelCooldownPerDistance)) / _timeModifier;
+    }    
+    
+    function reduceTravelTime(uint _minutes) external {
+        address sender = msg.sender;
+        require(block.timestamp < fleetMiningCooldown[sender], 'MP:no cd');
+        uint256 _PhxCost = _minutes * PhxPerMinute;
+        PhxToken.safeTransferFrom(sender, address(PhxToken), _PhxCost);
+
+        fleetMiningCooldown[sender] -= _minutes * 60; //reduce completion time by minutes
+    }
+        
+    function reduceMiningTime(uint _minutes) external {
+        address sender = msg.sender;
+        require(block.timestamp < fleetTravelCooldown[sender], 'MP:no cd');
+        uint256 _PhxCost = _minutes * PhxPerMinute;
+        PhxToken.safeTransferFrom(sender, address(PhxToken), _PhxCost);
+
+        fleetTravelCooldown[sender] -= _minutes * 60; //reduce completion time by minutes
+    }
+
+    function setPhxPerMinute(uint256 _new) external onlyEditor {
+        PhxPerMinute = _new;
+    }
+
+    function setPhxWalelt(address _new) external onlyEditor {
+        PhxWallet = _new;
     }
 
     // ship travel to _x and _y

@@ -15,11 +15,14 @@ contract Fleet is Editor {
     constructor (
         IMap _map, 
         ITreasury _treasury, 
-        ShibaBEP20 _token
+        ShibaBEP20 _token,
+        ShibaBEP20 _phxToken
         ) {
        // Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
+       // PhxToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
         // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
        //  Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
+       PhxToken = _phxToken;
         Token = _token;
         Treasury = _treasury;
         Map = _map;
@@ -122,6 +125,9 @@ contract Fleet is Editor {
     IMap public Map;
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
+    ShibaBEP20 internal PhxToken;
+    address internal PhxWallet;
+    uint256 internal PhxPerMinute = 1;
     uint _baseMaxFleetSize;
     uint _battleSizeRestriction;
     uint _startFee;
@@ -292,6 +298,25 @@ contract Fleet is Editor {
             player.spaceDocks[spaceDockId] = player.spaceDocks[player.spaceDocks.length-1];
             player.spaceDocks.pop();
         }
+    }
+
+    function reduceBuildTime(uint spaceDockId, uint _minutes) external {
+        address sender = msg.sender;
+        Player storage player = players[addressToPlayer[sender]];
+        SpaceDock storage dock = player.spaceDocks[spaceDockId];
+        require(block.timestamp < dock.completionTime, 'FL:already built');
+        uint256 _PhxCost = _minutes * PhxPerMinute;
+        PhxToken.safeTransferFrom(sender, address(PhxToken), _PhxCost);
+
+        dock.completionTime -= _minutes * 60; //reduce completion time by minutes
+    }
+
+    function setPhxPerMinute(uint256 _new) external onlyEditor {
+        PhxPerMinute = _new;
+    }
+
+    function setPhxWalelt(address _new) external onlyEditor {
+        PhxWallet = _new;
     }
 
     modifier doesShipyardExist(uint _x, uint _y) {
