@@ -517,12 +517,14 @@ contract Map is Editor {
         require(places[coordinatePlaces[_x][_y]].placeType == PlaceType.WORMHOLE, 'MAPS: dest. not wormhole');
         (uint fleetX, uint fleetY) = getFleetLocation(sender);
         require(places[coordinatePlaces[fleetX][fleetY]].placeType == PlaceType.WORMHOLE, 'MAPS: src not wormhole');
+        require(block.timestamp >= fleetTravelCooldown[sender], "MAP: jump drive recharging");
 
         //make sure not in battle or shipyard takeover
         require(Fleet.isInBattle(sender) != true, "MAPS: in battle or takeover");
 
         //pay cost (10% of normal travel cost for that distance)
         uint travelCost = getFleetTravelCost(sender, _x, _y) / 10;
+        fleetTravelCooldown[sender] = block.timestamp + (getFleetTravelCooldown(sender, _x, _y) / 2);
         Treasury.pay(sender, travelCost);
         Fleet.addExperience(sender, travelCost);
 

@@ -9,11 +9,6 @@ import "./interfaces/IMap.sol";
 import "./libs/ShibaBEP20.sol";
 import "./libs/SafeBEP20.sol";
  
-//miningCooldown - 30 min.
-//jumpDriveCooldown - 30 min + distance
-//battleWindow 
-//building ships
-
 contract Fleet is Editor {
     using SafeBEP20 for ShibaBEP20;
 
@@ -39,6 +34,8 @@ contract Fleet is Editor {
         createShipClass('P. U. P.', 2, 0, 5, 5 * 10**17, 5 * 10**17, 0, 2 * 10**18, 0);
         createShipClass('Firefly', 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
         createShipClass('Gorian', 20, 2, 40, 0, 0, 200, 50 * 10**18, 1200);
+        createShipClass('Viper Swarm', 1, 5, 15, 0, 0, 0, 15 * 10**18, 200);
+        createShipClass('Lancer', 8, 20, 7, 0, 0, 0, 5 * 10**18, 500);
 
         _addShipyard('Haven', tx.origin, 0, 0, 5);
         _addShipyard('BestValueShips', tx.origin, 5, 4, 10);
@@ -314,7 +311,7 @@ contract Fleet is Editor {
         require(attackX == targetX && attackY == targetY, 'FL:dif location');
 
         //cannot attack in DMX which is a shipyard/refinery location
-        require((Map.isRefineryLocation(targetX, targetY) && doesShipyardExist(targetX, targetY)) != true, 'FL:DMZ');
+        require((Map.isRefineryLocation(targetX, targetY) && _shipyardExists[targetX][targetY]) != true, 'FL:DMZ');
 
         require(players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FL:in battle');
         require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 60 * 24) / _timeModifier)) < block.timestamp, 'FL:battle soon');
@@ -473,9 +470,9 @@ contract Fleet is Editor {
         return (_amount * _shipClasses[shipClassId].cost) / Treasury.getCostMod();
     }
 
-    //5 minutes per size
+    //15 minutes per size
     function getBuildTime(uint _shipClassId, uint _amount) public view returns(uint) {
-        return (_amount * _shipClasses[_shipClassId].size * 300) / _timeModifier;
+        return (_amount * _shipClasses[_shipClassId].size * 900) / _timeModifier;
     }
 
     function _hasSpaceDock(address _player, uint _x, uint _y) public view isPlayer(_player) returns(bool) {
