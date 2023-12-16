@@ -15,14 +15,12 @@ contract Fleet is Editor {
     constructor (
         IMap _map, 
         ITreasury _treasury, 
-        ShibaBEP20 _token,
-        ShibaBEP20 _phxToken
+        ShibaBEP20 _token
         ) {
        // Token = ShibaBEP20(0x9249DAcc91cddB8C67E9a89e02E071085dE613cE);
-       // PhxToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
+       // BoostToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
         // Treasury = ITreasury(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
        //  Map = IMap(0xf8e81D47203A594245E36C48e151709F0C19fBe8);
-       PhxToken = _phxToken;
         Token = _token;
         Treasury = _treasury;
         Map = _map;
@@ -125,14 +123,13 @@ contract Fleet is Editor {
     IMap public Map;
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
-    ShibaBEP20 internal PhxToken;
-    address internal PhxWallet;
-    uint256 internal PhxPerMinute = 1;
+    address internal _boostDestWallet;
+    uint internal boostTokenPerSize = 1 * 10**17;
     uint _baseMaxFleetSize;
     uint _battleSizeRestriction;
     uint _startFee;
     uint _scrapPercentage;
-    uint  _timeModifier; //allow all times to be changed
+    uint _timeModifier; //allow all times to be changed
 
     event NewShipyard(uint _x, uint _y);
 
@@ -205,7 +202,7 @@ contract Fleet is Editor {
         Shipyard storage shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
         require(msg.sender != shipyard.takeoverAddress, 'FL:in takover');
         require(msg.sender != shipyard.owner, 'FL:own ship');
-        require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 7) / _timeModifier), 'FL:ship protect');
+        require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 14) / _timeModifier), 'FL:ship protect');
 
         uint fleetSize = getFleetSize(msg.sender);
         require(fleetSize >= 1000, 'FL:small');
@@ -300,23 +297,20 @@ contract Fleet is Editor {
         }
     }
 
-    function reduceBuildTime(uint spaceDockId, uint _minutes) external {
+    function boostBuildTime(uint _spaceDockId) external {
         address sender = msg.sender;
         Player storage player = players[addressToPlayer[sender]];
-        SpaceDock storage dock = player.spaceDocks[spaceDockId];
-        require(block.timestamp < dock.completionTime, 'FL:already built');
-        uint256 _PhxCost = _minutes * PhxPerMinute;
-        PhxToken.safeTransferFrom(sender, address(PhxToken), _PhxCost);
+        SpaceDock storage dock = player.spaceDocks[_spaceDockId];
+        require(dock.completionTime > block.timestamp, 'FL:already built');
+        uint boostCost = dock.amount * _shipClasses[dock.shipClassId].size * (boostTokenPerSize / Treasury.getCostMod());
+        ShibaBEP20 BoostToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
+        BoostToken.safeTransferFrom(sender, address(_boostDestWallet), boostCost);
 
-        dock.completionTime -= _minutes * 60; //reduce completion time by minutes
+        dock.completionTime -= ((dock.completionTime - block.timestamp) / 2); //reduce completion time by 50%
     }
 
-    function setPhxPerMinute(uint256 _new) external onlyEditor {
-        PhxPerMinute = _new;
-    }
-
-    function setPhxWalelt(address _new) external onlyEditor {
-        PhxWallet = _new;
+    function setBoostDestWallet(address _new) external onlyEditor {
+        _boostDestWallet = _new;
     }
 
     modifier doesShipyardExist(uint _x, uint _y) {
@@ -335,11 +329,11 @@ contract Fleet is Editor {
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         require(attackX == targetX && attackY == targetY, 'FL:dif location');
 
-        //cannot attack in DMX which is a shipyard/refinery location
+        //cannot attack in DMZ which is a shipyard/refinery location
         require((Map.isRefineryLocation(targetX, targetY) && _shipyardExists[targetX][targetY]) != true, 'FL:DMZ');
 
         require(players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FL:in battle');
-        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 60 * 24) / _timeModifier)) < block.timestamp, 'FL:battle soon');
+        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 60 * 48) / _timeModifier)) < block.timestamp, 'FL:battle soon');
         _;
     }
 
@@ -351,7 +345,7 @@ contract Fleet is Editor {
             _team.fleetSize += getFleetSize(_hero);
     }
 
-    //battleWindow is 1 hour
+    //battleWindow is 18 hours
     function enterBattle(address _target, BattleStatus mission) external canJoinBattle(msg.sender, _target) {
         (uint targetX, uint targetY) = Map.getFleetLocation(_target);
         Player storage targetPlayer = players[addressToPlayer[_target]];
@@ -366,7 +360,7 @@ contract Fleet is Editor {
                 require(getFleetSize(msg.sender) * _battleSizeRestriction >= getFleetSize(_target), 'FL:player small');
                 require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(msg.sender), 'FL:target small');
                 Team memory attackTeam; Team memory defendTeam;
-                battles.push(Battle(0, block.timestamp + (60 * 60 * 12 / _timeModifier), targetX, targetY, attackTeam, defendTeam));
+                battles.push(Battle(0, block.timestamp + (60 * 60 * 18 / _timeModifier), targetX, targetY, attackTeam, defendTeam));
                 Map.adjustActiveBattleCount(targetX, targetY, 1);
                 _joinTeam(_target, battles.length-1, battles[battles.length-1].defendTeam, BattleStatus.DEFEND);
                 targetBattleId = battles.length-1;
@@ -397,28 +391,30 @@ contract Fleet is Editor {
                 uint memberMineralCapacity = getMineralCapacity(memberAddress);
                 for(uint k=0; k<_shipClasses.length; k++) {
                     uint numClassShips = player.ships[k]; //number of ships that team member has of this class
+                    if(numClassShips > 0) {
 
-                    //calculate opposing team's damage to this member
-                    uint damageTaken = (otherTeamAttackPower * numClassShips * _shipClasses[k].size) / teams[i].fleetSize;
+                        //calculate opposing team's damage to this member
+                        uint damageTaken = (otherTeamAttackPower * numClassShips * _shipClasses[k].size) / teams[i].fleetSize;
 
-                    //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
-                    //modified equation to limit ship loss to no more than 25% and never more than 3 ships
-                    uint maxShipsDestroyed = damageTaken / _shipClasses[k].shield;
-                    uint actualShipsLost = Helper.getMin(numClassShips / 4, maxShipsDestroyed);
+                        //actual ships lost compares the most ships lost from the damage taken by the other team with most ships that member has, member cannot lose more ships than he has
+                        //modified equation to limit ship loss to no more than 25% and never more than 3 ships
+                        uint maxShipsDestroyed = damageTaken / _shipClasses[k].shield;
+                        uint actualShipsLost = Helper.getMin(numClassShips / 4, maxShipsDestroyed);
 
-                    //if less than 4 ships, but high damage, destroy at least 1 ship
-                    if(maxShipsDestroyed > 0 && actualShipsLost == 0 && numClassShips > 0) {
-                        actualShipsLost = 1;
+                        //if less than 4 ships, but high damage, destroy at least 1 ship
+                        if(maxShipsDestroyed > 0 && actualShipsLost == 0) {
+                            actualShipsLost = 1;
+                        }
+
+                        //token value of ships lost
+                        totalScrap += (actualShipsLost * _shipClasses[k].cost / Treasury.getCostMod() * _scrapPercentage) / 100;
+
+                        //calculate mineral capacity lost by this class of member's ships
+                        memberMineralCapacityLost += (actualShipsLost * _shipClasses[k].mineralCapacity);
+
+                        //destroy ships lost
+                        player.ships[k] -= Helper.getMin(actualShipsLost, player.ships[k]);
                     }
-
-                    //token value of ships lost
-                    totalScrap += (actualShipsLost * _shipClasses[k].cost / Treasury.getCostMod() * _scrapPercentage) / 100;
-
-                    //calculate mineral capacity lost by this class of member's ships
-                    memberMineralCapacityLost += (actualShipsLost * _shipClasses[k].mineralCapacity);
-
-                    //destroy ships lost
-                    player.ships[k] -= Helper.getMin(actualShipsLost, player.ships[k]);
                 }
                 //member's final lost mineral is the percentage of filled mineral capacity
                 if(memberMineralCapacityLost > 0) {
@@ -593,10 +589,6 @@ contract Fleet is Editor {
 
     function setTreasury(address _new) external onlyOwner{
         Treasury = ITreasury(_new);
-    }
-
-    function editCost(uint shipClassId, uint _newCost) public onlyOwner {
-        _shipClasses[shipClassId].cost = _newCost;
     }
 
     function getPlayerBattleInfo(address _player) external view isPlayer(_player) returns (BattleStatus, uint) {

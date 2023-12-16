@@ -16,8 +16,7 @@ contract Map is Editor {
 
     constructor (
          ShibaBEP20 _token,
-         ITreasury _treasury,
-        ShibaBEP20 _phxToken
+         ITreasury _treasury
         //IShadowPool _shadowPool,
         //IFleet _fleet
     ) {
@@ -27,17 +26,15 @@ contract Map is Editor {
          Treasury = _treasury;
         //Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
         ShadowPool = IShadowPool(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
-       // PhxToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
-       PhxToken = _phxToken;
+        Token = _token;
 
         previousBalance = 0;
         _baseTravelCost = 10**15;
-        _baseTravelCooldown = 28800; //8 hours
-        _travelCooldownPerDistance = 14400; //4 hours
-        _maxTravel = 5; //AU
+        _baseTravelCooldown = 60 * 60 * 8; //8 hours
+        _travelCooldownPerDistance = 60 * 60 * 4; //4 hours
         _rewardsTimer = 0;
         _timeModifier = 1;
-        _miningCooldown = 86400 * 2; //2 days
+        _miningCooldown = 60 * 60 * 24 * 2; //2 days
         _minTravelSize = 25;
         _collectCooldownReduction = 12;
         _asteroidCooldownReduction = 6;
@@ -47,9 +44,10 @@ contract Map is Editor {
     ITreasury public Treasury; //Contract that collects all Token payments
     IShadowPool public ShadowPool; //Contract that collects Token emissions
     IFleet public Fleet; // Fleet Contract
-    ShibaBEP20 internal PhxToken;
-    address internal PhxWallet;
-    uint256 internal PhxPerMinute = 1;
+
+    //boost token
+    address internal _boostDestWallet;
+    uint internal _boostTokenPerSize = 1 * 10**17;
 
     uint public previousBalance; // helper for allocating Token
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
@@ -73,7 +71,6 @@ contract Map is Editor {
     uint _baseTravelCooldown; 
     uint _travelCooldownPerDistance; 
     uint _baseTravelCost; // Token cost to travel 1 AU
-    uint _maxTravel; // max distance a fleet can travel in 1 jump
 
     enum PlaceType{ UNEXPLORED, EMPTY, HOSTILE, STAR, PLANET, ASTEROID, WORMHOLE }
 
@@ -494,30 +491,18 @@ contract Map is Editor {
        return (_baseTravelCooldown + (distance*_travelCooldownPerDistance)) / _timeModifier;
     }    
     
-    function reduceTravelTime(uint _minutes) external {
-        address sender = msg.sender;
-        require(block.timestamp < fleetMiningCooldown[sender], 'MP:no cd');
-        uint256 _PhxCost = _minutes * PhxPerMinute;
-        PhxToken.safeTransferFrom(sender, address(PhxToken), _PhxCost);
-
-        fleetMiningCooldown[sender] -= _minutes * 60; //reduce completion time by minutes
-    }
-        
-    function reduceMiningTime(uint _minutes) external {
+    function boostTravelTime() external {
         address sender = msg.sender;
         require(block.timestamp < fleetTravelCooldown[sender], 'MP:no cd');
-        uint256 _PhxCost = _minutes * PhxPerMinute;
-        PhxToken.safeTransferFrom(sender, address(PhxToken), _PhxCost);
+        uint boostCost = Fleet.getFleetSize(sender) * (_boostTokenPerSize / Treasury.getCostMod());
+        ShibaBEP20 BoostToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
+        BoostToken.safeTransferFrom(sender, address(_boostDestWallet), boostCost);
 
-        fleetTravelCooldown[sender] -= _minutes * 60; //reduce completion time by minutes
+        fleetTravelCooldown[sender] -= ((fleetTravelCooldown[sender] - block.timestamp) / 2); //reduce travel time by 50%
     }
-
-    function setPhxPerMinute(uint256 _new) external onlyEditor {
-        PhxPerMinute = _new;
-    }
-
-    function setPhxWalelt(address _new) external onlyEditor {
-        PhxWallet = _new;
+        
+    function setBoostDestWallet(address _new) external onlyEditor {
+        _boostDestWallet = _new;
     }
 
     // ship travel to _x and _y
@@ -527,7 +512,7 @@ contract Map is Editor {
         address sender = msg.sender;
         require(block.timestamp >= fleetTravelCooldown[sender], "MAP: jump drive recharging");
         require(block.timestamp >= fleetMiningCooldown[sender], 'MAP: mining cooldown');
-        require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAP: cannot travel that far");
+        require(getDistanceFromFleet(sender, _x, _y) <= 5, "MAP: cannot travel that far");
         require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAP: fleet too small");
         require(Fleet.isInBattle(sender) != true, "MAP: in battle or takeover");
 
@@ -684,11 +669,6 @@ contract Map is Editor {
     function adjustActiveBattleCount(uint _x, uint _y, int _amount) external onlyEditor {
         places[coordinatePlaces[_x][_y]].activeBattleCount = uint(int(places[coordinatePlaces[_x][_y]].activeBattleCount) + _amount);
     }
-
-    // Setting to 0 disables travel
-    function setMaxTravel(uint _new) external onlyOwner {
-        _maxTravel = _new;
-    }    
 
     // Setting to 0 removes the secondary cooldown period
     function setTravelTimePerDistance(uint _new) external onlyOwner {
