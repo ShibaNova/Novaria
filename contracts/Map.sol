@@ -501,10 +501,6 @@ contract Map is Editor {
         fleetTravelCooldown[sender] -= ((fleetTravelCooldown[sender] - block.timestamp) / 2); //reduce travel time by 50%
     }
         
-    function setBoostDestWallet(address _new) external onlyEditor {
-        _boostDestWallet = _new;
-    }
-
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
         require(_placeExists[_x][_y] == true, 'MAP: place unexplored');
@@ -701,6 +697,11 @@ contract Map is Editor {
         Treasury = ITreasury(_new);
         emit NewTreasury(_new);
     }
+
+    function setBoostDestWallet(address _new) external onlyOwner {
+        _boostDestWallet = _new;
+    }
+
     // Maintenance functions
     function setRewardsMod(uint _new) external onlyOwner {
         require(_new <= 100, "MAP: must be <= 100");

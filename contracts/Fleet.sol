@@ -309,10 +309,6 @@ contract Fleet is Editor {
         dock.completionTime -= ((dock.completionTime - block.timestamp) / 2); //reduce completion time by 50%
     }
 
-    function setBoostDestWallet(address _new) external onlyEditor {
-        _boostDestWallet = _new;
-    }
-
     modifier doesShipyardExist(uint _x, uint _y) {
         require(_shipyardExists[_x][_y] == true, 'FL:no ship');
         _;
@@ -589,6 +585,10 @@ contract Fleet is Editor {
 
     function setTreasury(address _new) external onlyOwner{
         Treasury = ITreasury(_new);
+    }
+
+    function setBoostDestWallet(address _new) external onlyOwner {
+        _boostDestWallet = _new;
     }
 
     function getPlayerBattleInfo(address _player) external view isPlayer(_player) returns (BattleStatus, uint) {
