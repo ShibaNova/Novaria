@@ -202,7 +202,7 @@ contract Fleet is Editor {
         Shipyard storage shipyard = _shipyards[_coordinatesToShipyard[_x][_y]];
         require(msg.sender != shipyard.takeoverAddress, 'FL:in takover');
         require(msg.sender != shipyard.owner, 'FL:own ship');
-        require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 14) / _timeModifier), 'FL:ship protect');
+        require(shipyard.lastTakeoverTime < block.timestamp - ((60 * 60 * 24 * 28) / _timeModifier), 'FL:ship protect');
 
         uint fleetSize = getFleetSize(msg.sender);
         require(fleetSize >= 1000, 'FL:small');
@@ -211,7 +211,7 @@ contract Fleet is Editor {
         require(shipyard.status == BattleStatus.PEACE || fleetSize > getFleetSize(shipyard.takeoverAddress), 'FL:peace/small');
         shipyard.status = BattleStatus.ATTACK;
         shipyard.takeoverAddress = msg.sender;
-        shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24) / _timeModifier);
+        shipyard.takeoverDeadline = block.timestamp + ((60 * 60 * 24 * 4) / _timeModifier);
 
         uint takeoverFee = 25*10**18 / Treasury.getCostMod();
         Treasury.pay(msg.sender, takeoverFee);
