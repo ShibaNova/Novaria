@@ -26,13 +26,13 @@ contract Fleet is Editor {
         Map = _map;
         _baseMaxFleetSize = 5000;
         _battleSizeRestriction = 4;
-        _startFee = 490 * 10**18;
+        _startFee = 784 * 10**18;
         _scrapPercentage = 80;
         _timeModifier = 1;
 
         //load start data
         createShipClass('Viper', 1, 1, 3, 0, 0, 0, 10**18, 0);
-        createShipClass('P. U. P.', 2, 0, 5, 5 * 10**17, 5 * 10**17, 0, 2 * 10**18, 0);
+        createShipClass('P. U. P.', 2, 0, 5, 5 * 10**17, 10**18, 0, 2 * 10**18, 0);
         createShipClass('Firefly', 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
         createShipClass('Gorian', 20, 2, 40, 0, 0, 200, 50 * 10**18, 1200);
         createShipClass('Viper Swarm', 1, 5, 15, 0, 0, 0, 15 * 10**18, 200);
@@ -148,8 +148,8 @@ contract Fleet is Editor {
 
     function insertCoinHere(string memory _name) external {
         //add starting fleet
-        uint viperStart = 30;
-        uint pupStart = 20;
+        uint viperStart = 100;
+        uint pupStart = 150;
 
         uint scrap = _addScrap(((_shipClasses[0].cost * viperStart) + (_shipClasses[1].cost * pupStart)) / Treasury.getCostMod());
 
@@ -333,7 +333,7 @@ contract Fleet is Editor {
         require((Map.isRefineryLocation(targetX, targetY) && _shipyardExists[targetX][targetY]) != true, 'FL:DMZ');
 
         require(players[addressToPlayer[_player]].battleStatus == BattleStatus.PEACE, 'FL:in battle');
-        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 60 * 48) / _timeModifier)) < block.timestamp, 'FL:battle soon');
+        require((battles[players[addressToPlayer[_player]].battleId].resolvedTime + ((60 * 60 * 24) / _timeModifier)) < block.timestamp, 'FL:battle soon');
         _;
     }
 
@@ -383,7 +383,7 @@ contract Fleet is Editor {
         uint totalScrap;
         for(uint i=0; i<teams.length; i++) {
             //if 1st team, get 2nd team attack power, else get 1st, increase attack power for attacking team by 20%
-            uint otherTeamAttackPower = (i==0 ? teams[1].attackPower : teams[0].attackPower += ((teams[0].attackPower * 20) / 100));
+            uint otherTeamAttackPower = (i==0 ? teams[1].attackPower : teams[0].attackPower + ((teams[0].attackPower * 20) / 100));
             for(uint j=0; j<teams[i].members.length; j++) {
                 address memberAddress = teams[i].members[j];
                 Player storage player = players[addressToPlayer[memberAddress]];
