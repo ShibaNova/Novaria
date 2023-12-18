@@ -267,19 +267,19 @@ contract Map is Editor {
         else if(rand > 0 && rand <= 100) {
             _addEmpty(_x, _y);
         }
-        else if(rand >= 101 && rand <= 280) {
+        else if(rand >= 101 && rand <= 300) {
             _addAsteroid(_x, _y, (places.length % 10) + 10);
         }
-        else if(rand >= 281 && rand <= 700) {
+        else if(rand >= 301 && rand <= 750) {
             _addHostile(_x, _y); 
         }
-        else if(rand >= 701 && rand <= 999) {
+        else if(rand >= 751 && rand <= 999) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 701 && rand <= 749 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 751 && rand <= 800 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
@@ -307,11 +307,11 @@ contract Map is Editor {
                 }
             }
             //new star must be more than 7 AU away from nearest star
-            else if(rand >= 750 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+            else if(rand >= 801 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, '', (places.length % 7) + 2);
             }
             else {
-                _addHostile(_x, _y);
+                _addEmpty(_x, _y);
             }
         }
         else {//should never happen, but just in case
