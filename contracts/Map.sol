@@ -264,22 +264,19 @@ contract Map is Editor {
         if(rand == 0) {
             _addWormhole(_x, _y);
         }
-        else if(rand > 0 && rand <= 100) {
-            _addEmpty(_x, _y);
-        }
-        else if(rand >= 101 && rand <= 300) {
+        else if(rand > 0 && rand <= 250) {
             _addAsteroid(_x, _y, (places.length % 10) + 10);
         }
-        else if(rand >= 301 && rand <= 750) {
+        else if(rand >= 251 && rand <= 700) {
             _addHostile(_x, _y); 
         }
-        else if(rand >= 751 && rand <= 999) {
+        else if(rand >= 701 && rand <= 999) {
             uint nearestStar = _getNearestStar(_x, _y);
             uint nearestStarX = places[_stars[nearestStar].placeId].coordX;
             uint nearestStarY = places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 751 && rand <= 800 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 701 && rand <= 800 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
