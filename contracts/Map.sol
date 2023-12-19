@@ -33,11 +33,12 @@ contract Map is Editor {
         _baseTravelCooldown = 60 * 60 * 8; //8 hours
         _travelCooldownPerDistance = 60 * 60 * 4; //4 hours
         _rewardsTimer = 0;
+        rewardsDelay = 60 * 60 * 4;
         _timeModifier = 1;
         _miningCooldown = 60 * 60 * 24 * 2; //2 days
         _minTravelSize = 25;
-        _collectCooldownReduction = 12;
-        _asteroidCooldownReduction = 6;
+        _asteroidCooldownReduction = 10;
+        _collectCooldownReduction = 20; //salvage cooldown
     }
 
     ShibaBEP20 public Token; // TOKEN Token
@@ -285,7 +286,7 @@ contract Map is Editor {
                     isMiningPlanet = true;
                     _rewardsTimer = 0; // get rewards going to planet right away when new one is discovered
                 }
-                else if(planetAttributeSelector >= 11 && planetAttributeSelector <=16) {
+                else if(planetAttributeSelector >= 11 && planetAttributeSelector <= 16) {
                     hasRefinery = true;
                 }
                 else if(planetAttributeSelector >= 17 && planetAttributeSelector <= 18) {

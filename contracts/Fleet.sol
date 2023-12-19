@@ -25,7 +25,6 @@ contract Fleet is Editor {
         Treasury = _treasury;
         Map = _map;
         _baseMaxFleetSize = 5000;
-        _battleSizeRestriction = 4;
         _startFee = 784 * 10**18;
         _scrapPercentage = 80;
         _timeModifier = 1;
@@ -34,9 +33,9 @@ contract Fleet is Editor {
         createShipClass('Viper', 1, 1, 3, 0, 0, 0, 10**18, 0);
         createShipClass('P. U. P.', 2, 0, 5, 10**18, 5 * 10**17, 0, 2 * 10**18, 0);
         createShipClass('Firefly', 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
-        createShipClass('Gorian', 20, 2, 40, 0, 0, 200, 50 * 10**18, 1200);
         createShipClass('Viper Swarm', 1, 5, 15, 0, 0, 0, 15 * 10**18, 200);
         createShipClass('Lancer', 8, 20, 7, 0, 0, 0, 5 * 10**18, 500);
+        createShipClass('Gorian', 20, 2, 40, 0, 0, 200, 50 * 10**18, 1200);
 
         _addShipyard('Haven', tx.origin, 0, 0, 5);
         _addShipyard('BestValueShips', tx.origin, 5, 4, 10);
@@ -126,7 +125,6 @@ contract Fleet is Editor {
     address internal _boostDestWallet;
     uint internal boostTokenPerSize = 2 * 10**16;
     uint _baseMaxFleetSize;
-    uint _battleSizeRestriction;
     uint _startFee;
     uint _scrapPercentage;
     uint _timeModifier; //allow all times to be changed
@@ -337,7 +335,7 @@ contract Fleet is Editor {
             players[addressToPlayer[_hero]].battleId = _battleId;
             players[addressToPlayer[_hero]].battleStatus = _mission;
             _team.members.push(_hero);
-            _team.attackPower += getAttackPower(_hero);
+            _team.attackPower += getAttackPower(_hero) + (_mission == BattleStatus.ATTACK ? (getAttackPower(_hero) * 20) / 100 : 0);
             _team.fleetSize += getFleetSize(_hero);
     }
 
@@ -353,8 +351,6 @@ contract Fleet is Editor {
 
             //create new battle, but new battle cannot be initated by a fleet to large or too small
             if(targetPlayer.battleStatus == BattleStatus.PEACE) {
-                require(getFleetSize(msg.sender) * _battleSizeRestriction >= getFleetSize(_target), 'FL:player small');
-                require(getFleetSize(_target) * _battleSizeRestriction >= getFleetSize(msg.sender), 'FL:target small');
                 Team memory attackTeam; Team memory defendTeam;
                 battles.push(Battle(0, block.timestamp + (60 * 60 * 18 / _timeModifier), targetX, targetY, attackTeam, defendTeam));
                 Map.adjustActiveBattleCount(targetX, targetY, 1);
@@ -374,17 +370,16 @@ contract Fleet is Editor {
         require(block.timestamp > battle.battleDeadline, 'FL:battle prep');
         require(battle.resolvedTime == 0, 'FL:battle over');
 
-        Team[2] memory teams = [battle.attackTeam, battle.defendTeam];
-        uint totalMineralLost;
+        Team[2] memory teams = [battle.defendTeam, battle.attackTeam];
         uint totalScrap;
         for(uint i=0; i<teams.length; i++) {
             //if 1st team, get 2nd team attack power, else get 1st, increase attack power for attacking team by 20%
-            uint otherTeamAttackPower = (i==0 ? teams[1].attackPower : teams[0].attackPower + ((teams[0].attackPower * 20) / 100));
+            uint otherTeamAttackPower = (i==0 ? teams[1].attackPower : teams[0].attackPower);
             for(uint j=0; j<teams[i].members.length; j++) {
                 address memberAddress = teams[i].members[j];
                 Player storage player = players[addressToPlayer[memberAddress]];
-                uint memberMineralCapacityLost = 0;
                 uint memberMineralCapacity = getMineralCapacity(memberAddress);
+                uint memberMineralCapacityLost = 0;
                 for(uint k=0; k<_shipClasses.length; k++) {
                     uint numClassShips = player.ships[k]; //number of ships that team member has of this class
                     if(numClassShips > 0) {
@@ -413,14 +408,24 @@ contract Fleet is Editor {
                     }
                 }
                 //member's final lost mineral is the percentage of filled mineral capacity
-                if(memberMineralCapacityLost > 0) {
-                    totalMineralLost += (memberMineralCapacityLost * player.mineral) / memberMineralCapacity;
-                    player.mineral -= (memberMineralCapacityLost * player.mineral) / memberMineralCapacity;
+                if(memberMineralCapacityLost > 0 && player.mineral > 0) {
+                    uint mineralLost = (memberMineralCapacityLost * player.mineral) / memberMineralCapacity;
+                    totalScrap += mineralLost;
+                    player.mineral -= mineralLost;
+                }
+
+                //if member is an attacker, allow player to instantly collect it
+                if(i == 1 && totalScrap > 0 && (memberMineralCapacity - memberMineralCapacityLost) > 0) {
+                    uint scrapCollect = Helper.getMin(totalScrap, (memberMineralCapacity - memberMineralCapacityLost) - player.mineral);
+                    player.mineral += scrapCollect;
+                    totalScrap -= scrapCollect;
                 }
             }
         }
 
-        Map.addSalvageToPlace(battle.coordX, battle.coordY, totalMineralLost + totalScrap);
+        if(totalScrap > 0) {
+            Map.addSalvageToPlace(battle.coordX, battle.coordY, totalScrap);
+        }
         _endBattle(battleId);
     }
 
@@ -439,11 +444,11 @@ contract Fleet is Editor {
         Map.adjustActiveBattleCount(battleToEnd.coordX, battleToEnd.coordY, -1);
     }
 
-    //add experience to player based on in game purchases
     function addExperience(address _player, uint _paid) external onlyEditor {
-        //each nova paid in game, gets player 1/10 experience point
         _addExperience(_player, _paid);
     }
+
+    //add experience to player based on in game purchases
      function _addExperience(address _player, uint _paid) internal isPlayer(_player) {
         //each nova paid in game, gets player 1/10 experience point
         players[addressToPlayer[_player]].experience += ((_paid * Treasury.getCostMod()) / 10**19);
