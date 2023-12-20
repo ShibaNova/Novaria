@@ -31,7 +31,7 @@ contract Fleet is Editor {
 
         //load start data
         createShipClass('Viper', 1, 1, 3, 0, 0, 0, 10**18, 0);
-        createShipClass('P. U. P.', 2, 0, 5, 10**18, 5 * 10**17, 0, 2 * 10**18, 0);
+        createShipClass('P. U. P.', 3, 0, 5, 10**18, 5 * 10**17, 0, 2 * 10**18, 0);
         createShipClass('Firefly', 5, 4, 18, 10**18, 0, 0, 9 * 10**18, 100);
         createShipClass('Viper Swarm', 1, 5, 15, 0, 0, 0, 15 * 10**18, 200);
         createShipClass('Lancer', 8, 20, 7, 0, 0, 0, 5 * 10**18, 500);

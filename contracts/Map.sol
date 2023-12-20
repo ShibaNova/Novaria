@@ -47,7 +47,7 @@ contract Map is Editor {
 
     //boost token
     address internal _boostDestWallet;
-    uint internal _boostTokenPerSize = 5 * 10**16;
+    uint internal _boostTokenPerSize = 1 * 10**16;
 
     uint public previousBalance; // helper for allocating Token
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
