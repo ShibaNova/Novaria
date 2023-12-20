@@ -123,7 +123,7 @@ contract Fleet is Editor {
     ITreasury public Treasury;
     ShibaBEP20 public Token; // nova token address
     address internal _boostDestWallet;
-    uint internal boostTokenPerSize = 2 * 10**16;
+    uint internal boostTokenPerSize = 5 * 10**16;
     uint _baseMaxFleetSize;
     uint _startFee;
     uint _scrapPercentage;
