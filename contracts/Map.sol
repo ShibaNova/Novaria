@@ -21,12 +21,11 @@ contract Map is Editor {
         //IFleet _fleet
     ) {
         //Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-         //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-         Token = _token;
-         Treasury = _treasury;
+        //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        Token = _token;
+        Treasury = _treasury;
         //Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
         ShadowPool = IShadowPool(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
-        Token = _token;
 
         previousBalance = 0;
         _baseTravelCost = 10**15;
