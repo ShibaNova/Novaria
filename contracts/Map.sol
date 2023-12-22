@@ -21,29 +21,33 @@ contract Map is Editor {
         //IFleet _fleet
     ) {
         //Token = ShibaBEP20(0xd9145CCE52D386f254917e481eB44e9943F39138);
-         //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
-         Token = _token;
-         Treasury = _treasury;
+        //Treasury = ITreasury(0xd8b934580fcE35a11B58C6D73aDeE468a2833fa8);
+        Token = _token;
+        Treasury = _treasury;
         //Fleet = IFleet(0xD7ACd2a9FD159E69Bb102A1ca21C9a3e3A5F771B);
         ShadowPool = IShadowPool(0x0c5a18Eb2748946d41f1EBe629fF2ecc378aFE91);
 
         previousBalance = 0;
         _baseTravelCost = 10**15;
-        _baseTravelCooldown = 2700; //45 minutes
-        _travelCooldownPerDistance = 900; //15 minutes
-        _maxTravel = 5; //AU
+        _baseTravelCooldown = 60 * 60 * 8; //8 hours
+        _travelCooldownPerDistance = 60 * 60 * 4; //4 hours
         _rewardsTimer = 0;
+        rewardsDelay = 60 * 60 * 4;
         _timeModifier = 1;
-        _miningCooldown = 3600; //30 minutes
+        _miningCooldown = 60 * 60 * 24 * 2; //2 days
         _minTravelSize = 25;
-        _collectCooldownReduction = 5;
-        _asteroidCooldownReduction = 3;
+        _asteroidCooldownReduction = 10;
+        _collectCooldownReduction = 20; //salvage cooldown
     }
 
     ShibaBEP20 public Token; // TOKEN Token
     ITreasury public Treasury; //Contract that collects all Token payments
     IShadowPool public ShadowPool; //Contract that collects Token emissions
     IFleet public Fleet; // Fleet Contract
+
+    //boost token
+    address internal _boostDestWallet;
+    uint internal _boostTokenPerSize = 1 * 10**16;
 
     uint public previousBalance; // helper for allocating Token
     uint _rewardsMod; // = x/100, the higher the number the more rewards sent to this contract
@@ -67,7 +71,6 @@ contract Map is Editor {
     uint _baseTravelCooldown; 
     uint _travelCooldownPerDistance; 
     uint _baseTravelCost; // Token cost to travel 1 AU
-    uint _maxTravel; // max distance a fleet can travel in 1 jump
 
     enum PlaceType{ UNEXPLORED, EMPTY, HOSTILE, STAR, PLANET, ASTEROID, WORMHOLE }
 
@@ -247,27 +250,24 @@ contract Map is Editor {
     //player explore function
     function explore(uint _x, uint _y) external {
         address sender = msg.sender;
-        require(getDistanceFromFleet(sender, _x, _y) <= 2, "MAPS: explore too far");
+        require(getDistanceFromFleet(sender, _x, _y) <= 3, "MAPS: explore too far");
         uint exploreCost = getExploreCost(_x, _y, sender);
         Treasury.pay(sender, exploreCost);
-        Fleet.addExperience(sender, exploreCost*3); //triple experience for exploring
+        Fleet.addExperience(sender, exploreCost*5); //5x experience for exploring
         _createRandomPlaceAt(_x, _y);
     }
 
     //create a random place at given coordinates
     function _createRandomPlaceAt(uint _x, uint _y) internal {
         require(_placeExists[_x][_y] == false, 'Place already exists');
-        uint rand = (_rewardsTimer + (_x * _y) + _x + _y + (places.length * 13)) % 1000;
-        if(rand <= 24) {
+        uint rand = (_rewardsTimer + (_x * _y) + _x**3 + _y*_y + (places.length * 13)) % 1000;
+        if(rand == 0) {
             _addWormhole(_x, _y);
         }
-        else if(rand >= 25 && rand <= 169) {
-            _addEmpty(_x, _y);
-        }
-        else if(rand >= 170 && rand <= 280) {
+        else if(rand > 0 && rand <= 250) {
             _addAsteroid(_x, _y, (places.length % 10) + 10);
         }
-        else if(rand >= 281 && rand <= 700) {
+        else if(rand >= 251 && rand <= 700) {
             _addHostile(_x, _y); 
         }
         else if(rand >= 701 && rand <= 999) {
@@ -276,7 +276,7 @@ contract Map is Editor {
             uint nearestStarY = places[_stars[nearestStar].placeId].coordY;
 
             //new planet must be within 3 AU off nearest star
-            if(rand >= 701 && rand <= 789 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
+            if(rand >= 701 && rand <= 800 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) <= 3) {
                 bool isMiningPlanet;
                 bool hasShipyard;
                 bool hasRefinery;
@@ -285,10 +285,10 @@ contract Map is Editor {
                     isMiningPlanet = true;
                     _rewardsTimer = 0; // get rewards going to planet right away when new one is discovered
                 }
-                else if(planetAttributeSelector >= 11 && planetAttributeSelector <=14) {
+                else if(planetAttributeSelector >= 11 && planetAttributeSelector <= 16) {
                     hasRefinery = true;
                 }
-                else if(planetAttributeSelector >= 15 && planetAttributeSelector <= 18) {
+                else if(planetAttributeSelector >= 17 && planetAttributeSelector <= 18) {
                     hasShipyard = true;
                 }
                 else { hasShipyard = true; hasRefinery = true; }
@@ -304,11 +304,11 @@ contract Map is Editor {
                 }
             }
             //new star must be more than 7 AU away from nearest star
-            else if(rand >= 790 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
+            else if(rand >= 801 && Helper.getDistance(_x, _y, nearestStarX, nearestStarY) > 7) {
                 _addStar(_x, _y, '', (places.length % 7) + 2);
             }
             else {
-                _addHostile(_x, _y);
+                _addEmpty(_x, _y);
             }
         }
         else {//should never happen, but just in case
@@ -486,17 +486,28 @@ contract Map is Editor {
     function getFleetTravelCooldown(address _fleet, uint _x, uint _y) public view returns (uint) {
        uint distance = getDistanceFromFleet(_fleet, _x, _y);
        return (_baseTravelCooldown + (distance*_travelCooldownPerDistance)) / _timeModifier;
-    }
+    }    
+    
+    function boostTravelTime() external {
+        address sender = msg.sender;
+        require(block.timestamp < fleetTravelCooldown[sender], 'MP:no cd');
+        uint boostCost = Fleet.getFleetSize(sender) * (_boostTokenPerSize / Treasury.getCostMod());
+        ShibaBEP20 BoostToken = ShibaBEP20(0x0F925153230C836761F294eA0d81Cef58E271Fb7);
+        BoostToken.safeTransferFrom(sender, address(_boostDestWallet), boostCost);
 
+        fleetTravelCooldown[sender] -= ((fleetTravelCooldown[sender] - block.timestamp) / 2); //reduce travel time by 50%
+    }
+        
     // ship travel to _x and _y
     function travel(uint _x, uint _y) external {
-        require(_placeExists[_x][_y] == true, 'MAPS: place unexplored');
-        require(places[coordinatePlaces[_x][_y]].canTravel == true, 'MAPS: no travel');
+        require(_placeExists[_x][_y] == true, 'MAP: place unexplored');
+        require(places[coordinatePlaces[_x][_y]].canTravel == true, 'MAP: no travel');
         address sender = msg.sender;
-        require(block.timestamp >= fleetTravelCooldown[sender], "MAPS: jump drive recharging");
-        require(getDistanceFromFleet(sender, _x, _y) <= _maxTravel, "MAPS: cannot travel that far");
-        require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAPS: fleet too small");
-        require(Fleet.isInBattle(sender) != true, "MAPS: in battle or takeover");
+        require(block.timestamp >= fleetTravelCooldown[sender], "MAP: jump drive recharging");
+        require(block.timestamp >= fleetMiningCooldown[sender], 'MAP: mining cooldown');
+        require(getDistanceFromFleet(sender, _x, _y) <= 5, "MAP: cannot travel that far");
+        require(Fleet.getFleetSize(sender) >= _minTravelSize, "MAP: fleet too small");
+        require(Fleet.isInBattle(sender) != true, "MAP: in battle or takeover");
 
         uint travelCost = getFleetTravelCost(sender, _x, _y);
         Treasury.pay(sender, travelCost);
@@ -516,12 +527,14 @@ contract Map is Editor {
         require(places[coordinatePlaces[_x][_y]].placeType == PlaceType.WORMHOLE, 'MAPS: dest. not wormhole');
         (uint fleetX, uint fleetY) = getFleetLocation(sender);
         require(places[coordinatePlaces[fleetX][fleetY]].placeType == PlaceType.WORMHOLE, 'MAPS: src not wormhole');
+        require(block.timestamp >= fleetTravelCooldown[sender], "MAP: jump drive recharging");
 
         //make sure not in battle or shipyard takeover
         require(Fleet.isInBattle(sender) != true, "MAPS: in battle or takeover");
 
         //pay cost (10% of normal travel cost for that distance)
         uint travelCost = getFleetTravelCost(sender, _x, _y) / 10;
+        fleetTravelCooldown[sender] = block.timestamp + (getFleetTravelCooldown(sender, _x, _y) / 2);
         Treasury.pay(sender, travelCost);
         Fleet.addExperience(sender, travelCost);
 
@@ -650,11 +663,6 @@ contract Map is Editor {
         places[coordinatePlaces[_x][_y]].activeBattleCount = uint(int(places[coordinatePlaces[_x][_y]].activeBattleCount) + _amount);
     }
 
-    // Setting to 0 disables travel
-    function setMaxTravel(uint _new) external onlyOwner {
-        _maxTravel = _new;
-    }    
-
     // Setting to 0 removes the secondary cooldown period
     function setTravelTimePerDistance(uint _new) external onlyOwner {
         _travelCooldownPerDistance = _new;
@@ -686,6 +694,11 @@ contract Map is Editor {
         Treasury = ITreasury(_new);
         emit NewTreasury(_new);
     }
+
+    function setBoostDestWallet(address _new) external onlyOwner {
+        _boostDestWallet = _new;
+    }
+
     // Maintenance functions
     function setRewardsMod(uint _new) external onlyOwner {
         require(_new <= 100, "MAP: must be <= 100");
